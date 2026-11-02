@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-shipping-and-launch",
+  "version": "1.0.0",
+  "description": "End-to-end release orchestration — pre-launch verification, canary rollout, rollback planning, post-deploy smoke tests, and stakeholder communication.",
+  "keywords": ["opencode", "skill", "shipping-and-launch"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

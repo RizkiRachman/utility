@@ -1,0 +1,7 @@
+{
+  "name": "workflow-state-engine-skill-adaptive-solver",
+  "version": "1.0.0",
+  "desc": "Meta-cognitive uncertainty resolution — structured loop for ambiguity, low confidence, or failed attempts. Agents detect the gap, inventory skills, hypothesize, attempt, evaluate, and retry without asking the user.",
+  "keywords": ["opencode", "skill", "adaptive-solver", "uncertainty", "meta-cognition"],
+  "author": "Workflow State Engine"
+}

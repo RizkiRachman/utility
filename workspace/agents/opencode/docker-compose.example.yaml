@@ -1,0 +1,81 @@
+name: opencode
+
+services:
+  opencode:
+    container_name: opencode
+    image: opencode:local   # tag applied to the build below; scheduler service reuses it
+    labels:
+      bpg.group: infra
+      bpg.type: agents
+    build:
+      context: .
+      additional_contexts:
+        preinstall: ./pre-install
+      args:
+        OPENCODE_VERSION: "2.2.5"  # pinned for reproducible builds
+        OPENCODE_ARCH: "arm64"     # matches pre-install store tarballs; x64 builds override
+        GRAPHIFY_VERSION: "0.9.100"
+        LEAN_CTX_VERSION: "3.12.0"
+        CONTEXT7_VERSION: "4.4.4"
+        MCP_VERSION: "2.3.0"
+        MCP_SERVER_FETCH_VERSION: "2026.10.28"
+    init: true
+    mem_limit: 3g
+    cpus: 2
+    ports:
+      - "127.0.0.1:4097:4096"
+    restart: unless-stopped
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      TERM: xterm-256color
+      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-REPLACE_ME}
+      OPENCODE_AUTH_REQUIRED: "true"
+      OPENCODE_CONFIG: /home/node/.config/opencode/opencode.json
+      SUMOPOD_API_KEY: ${SUMOPOD_API_KEY:-REPLACE_ME}
+      SUMOPOD_BASE_URL: ${SUMOPOD_BASE_URL:-REPLACE_ME}
+      SUMOPOD_BASE_MODEL: ${SUMOPOD_BASE_MODEL:-REPLACE_ME}
+      SUMOPOD_BASE_MODEL_NAME: ${SUMOPOD_BASE_MODEL_NAME:-REPLACE_ME}
+      CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-REPLACE_ME}
+      # Optional: keyless developer search works without it; alexandria + firecrawl-cli skills need it
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
+      # Graphify disabled but config preserved
+      GRAPHIFY_ROOT: /home/node/workspace
+      GRAPHIFY_BUILD: if-missing
+      GRAPHIFY_TIMEOUT: "900"
+    volumes:
+      - .:/home/node/workspace
+      - ./config/opencode.json:/home/node/.config/opencode/opencode.json:ro
+      - ./config/opencode-model-fallback.json:/home/node/.config/opencode/opencode-model-fallback.json:ro
+      - opencode-data:/home/node/.local/share/opencode
+  opencode-preinstall:
+    image: node:22-bookworm-slim
+    profiles: ["tools"]
+    user: root
+    volumes:
+      - .:/repo
+      - ./pre-install:/repo/pre-install   # explicit store mount (project level)
+    working_dir: /repo
+    command: >-
+      sh -c "apt-get update -qq && apt-get install -y -qq --no-install-recommends
+      curl ca-certificates python3 python3-pip git && sh /repo/populate-preinstall.sh"
+
+  opencode-scheduler:
+    container_name: opencode-scheduler
+    image: opencode:local
+    profiles: ["scheduler"]
+    depends_on: [opencode]
+    restart: unless-stopped
+    init: true
+    working_dir: /home/node/workspace/engine   # run_task invokes scripts/... relative to CWD
+    volumes:
+      - .:/home/node/workspace
+    environment:
+      GRAPHIFY_ROOT: /home/node/workspace
+      GRAPHIFY_BUILD: if-missing
+    command: >-
+      sh -c "scripts/scheduled-runner.sh --task drift-detect --schedule daily
+      --pid-file /tmp/scheduled-runner.pid && exec tail -F scheduled-runner.log"
+
+volumes:
+  opencode-data:

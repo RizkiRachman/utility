@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-orchestration-template",
+  "version": "1.0.0",
+  "description": "Forces the orchestrator to load the shared orchestration envelope from lean-ctx BEFORE any work begins. ALWAYS enforce this skill at the beginning of every task.",
+  "keywords": ["opencode", "skill", "orchestration-template"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

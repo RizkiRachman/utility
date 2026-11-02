@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-test-driven-development",
+  "version": "1.0.0",
+  "description": "Writes tests before production code. Uses tests to drive API design and verify correctness.",
+  "keywords": ["opencode", "skill", "test-driven-development"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-requesting-code-review",
+  "version": "1.0.0",
+  "description": "Conducts thorough code reviews on others' changes. Checks correctness, design, performance, security, and adherence to conventions.",
+  "keywords": ["opencode", "skill", "requesting-code-review"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

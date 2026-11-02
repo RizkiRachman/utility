@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-executing-plans",
+  "version": "1.0.0",
+  "description": "Executes implementation plans step by step. Follow the plan's task breakdown, dependency order, and success criteria.",
+  "keywords": ["opencode", "skill", "executing-plans"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

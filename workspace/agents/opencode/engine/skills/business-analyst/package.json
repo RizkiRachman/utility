@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-business-analyst",
+  "version": "1.0.0",
+  "description": "Business analysis — requirements gathering, process modeling, stakeholder communication, and value-driven prioritization",
+  "keywords": ["opencode", "skill", "business-analyst"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

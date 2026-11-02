@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-subagent-driven-development",
+  "version": "1.0.0",
+  "description": "Develops software by delegating bounded work to specialized subagents. Maximizes parallel execution for multi-file, multi-domain changes.",
+  "keywords": ["opencode", "skill", "subagent-driven-development"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

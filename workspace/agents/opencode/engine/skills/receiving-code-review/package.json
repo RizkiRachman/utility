@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-receiving-code-review",
+  "version": "1.0.0",
+  "description": "Responds to code review feedback constructively. Accepts suggestions, improves code quality, and learns from each review cycle.",
+  "keywords": ["opencode", "skill", "receiving-code-review"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

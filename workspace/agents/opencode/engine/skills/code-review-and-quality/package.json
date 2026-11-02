@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-code-review-and-quality",
+  "version": "1.0.0",
+  "description": "Conducts multi-axis code review. Use before merging any change. Use when reviewing code written by yourself, another agent, or a human.",
+  "keywords": ["opencode", "skill", "code-review-and-quality"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-security-expert",
+  "version": "1.0.0",
+  "description": "Security — vulnerability assessment, threat modeling, secure coding review, and compliance checking",
+  "keywords": ["opencode", "skill", "security-expert"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

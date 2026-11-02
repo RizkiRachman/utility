@@ -1,0 +1,6 @@
+{"timestamp":"2026-11-02T15:15:34Z","session":"session","check_mode":"all","results":{
+  "check_mode": "all",
+  "session": "session",
+  "has_warnings": true,
+  "has_critical": true
+},"exit_code":0,"has_warnings":true,"has_critical":true}

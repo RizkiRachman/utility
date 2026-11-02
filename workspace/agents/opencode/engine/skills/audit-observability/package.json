@@ -1,0 +1,6 @@
+{
+  "name": "audit-observability",
+  "description": "State contract audit trail, orchestration observability, score analytics, and cross-service consistency enforcement",
+  "version": "0.1.0",
+  "private": true
+}

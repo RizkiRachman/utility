@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-qa-expert",
+  "version": "1.0.0",
+  "description": "Quality assurance — test strategy, coverage analysis, bug detection, and regression prevention",
+  "keywords": ["opencode", "skill", "qa-expert"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-simplify",
+  "version": "1.0.0",
+  "description": "Simplifies code for clarity without changing behavior. Use for readability, maintainability, and complexity reduction after behavior is understood.",
+  "keywords": ["opencode", "skill", "simplify"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# pre-commit — fast engine sanity gate
+#
+# Enable: git config core.hooksPath engine/.githooks
+# Runs (<5s): bash -n syntax sweep over all engine scripts, then the
+# cross-reference integrity checker and the doc-style gate. Nonzero exit
+# aborts the commit.
+
+set -u
+
+fail=0
+
+echo "[pre-commit] bash -n syntax sweep..."
+for f in engine/scripts/*.sh engine/setup.sh entrypoint.sh; do
+    bash -n "$f" || fail=1
+done
+if [ "$fail" -eq 0 ]; then
+    echo "[pre-commit]   OK    all scripts parse"
+fi
+
+echo "[pre-commit] cross-reference integrity..."
+bash engine/scripts/check-cross-references.sh || fail=1
+
+echo "[pre-commit] doc style gate (humanizer)..."
+bash engine/scripts/check-doc-style.sh || fail=1
+
+if [ "$fail" -ne 0 ]; then
+    echo "[pre-commit] FAILED — commit aborted" >&2
+    exit 1
+fi
+
+echo "[pre-commit] passed"
+exit 0

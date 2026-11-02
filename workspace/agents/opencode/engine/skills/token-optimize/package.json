@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-token-optimize",
+  "version": "1.0.0",
+  "description": "Guidelines for efficient token usage - how to read files, batch operations, and manage context to minimize token consumption",
+  "keywords": ["opencode", "skill", "token-optimize"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

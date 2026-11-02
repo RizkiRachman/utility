@@ -1,0 +1,127 @@
+{
+  "$schema": "../contract/contract.schema.json",
+  "version": "0.8.0",
+  "state_machine_version": "0.8.0",
+  "service_type": "Core",
+  "service_type_rules": {},
+  "state": "INIT",
+  "session": {
+    "task_id": "",
+    "session_id": "",
+    "created_at": "",
+    "archived_at": null
+  },
+  "requirements": {
+    "goal": "",
+    "acceptance_criteria": [],
+    "constraints": []
+  },
+  "decisions": {
+    "approved_architecture": null,
+    "coding_standard": [],
+    "rejected_approaches": [],
+    "adr_log": [],
+    "ddd_performed": false,
+    "confidence_scores": []
+  },
+  "governance": {
+    "active_agent": "",
+    "mode": "spec",
+    "rules_references": [],
+    "applicable_skills": [],
+    "current_guidance": "",
+    "permissions": {
+      "allowed_exec": {
+        "tools": [],
+        "denied": []
+      },
+      "do": [],
+      "dont": [],
+      "read_only_fields": [
+        "metrics",
+        "audit_log",
+        "lessons_learned"
+      ],
+      "writeable_fields": [
+        "session",
+        "decisions",
+        "outputs",
+        "score",
+        "retry"
+      ]
+    },
+    "previous_blockers": []
+  },
+  "score": {
+    "rules": {
+      "pass": 0,
+      "fail": 0,
+      "deduction": 0,
+      "subtotal": 0
+    },
+    "judge": {
+      "score": 0,
+      "rationale": "",
+      "missing_items": []
+    },
+    "combined": 0,
+    "verdict": "INIT"
+  },
+  "retry": {
+    "attempt": 0,
+    "max_attempts": 3,
+    "score_threshold": 70,
+    "escalation_threshold": 50,
+    "current_phase": "",
+    "issues": [],
+    "phase_issues": [],
+    "escalation_trace": []
+  },
+  "outputs": {
+    "plan": "",
+    "architecture": null,
+    "code_changes": [],
+    "test_results": null,
+    "agent_reports": [],
+    "score_summary": null,
+    "debt_ledger": []
+  },
+  "metrics": {
+    "cost_tokens": 0,
+    "elapsed_ms": 0,
+    "agents_used": [],
+    "phases_completed": [],
+    "phase_durations": {}
+  },
+  "token_budget": {
+    "max_per_session": 200000,
+    "W_threshold": 0.8,
+    "hard_limit": 0.95,
+    "max_per_phase": {},
+    "max_per_subagent_call": 50000,
+    "cur_session_usage": 0,
+    "phase_usage": {}
+  },
+  "scope": {
+    "included": [],
+    "excluded": [],
+    "boundary": "",
+    "parallel_eligible": false,
+    "max_parallel_agents": 1,
+    "shard_id": "",
+    "parallel_instances": []
+  },
+  "validation": {
+    "block_on": {
+      "max_test_failures": 3,
+      "max_score_drop": 30,
+      "max_compile_errors": 1
+    },
+    "phase_gates": {},
+    "rule_overrides": {},
+    "build_verified": false
+  },
+  "lessons_learned": [],
+  "audit_log": [],
+  "contract_version": "0.8.0"
+}

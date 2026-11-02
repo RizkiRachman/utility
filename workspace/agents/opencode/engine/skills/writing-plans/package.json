@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-writing-plans",
+  "version": "1.0.0",
+  "description": "Creates structured, actionable implementation plans from requirements. Plans include dependency graphs, risk assessment, rollback strategy, task sizing, and parallelization.",
+  "keywords": ["opencode", "skill", "writing-plans"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

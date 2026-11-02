@@ -1,0 +1,414 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "sumopod/glm-5.3-flash",
+  "default_agent": "build",
+  "update": "disable",
+  "lsp": false,
+  "snapshots": false,
+  "watcher": {
+    "ignore": [
+      "**/node_modules/**",
+      "**/.runtime/**",
+      "**/target/**",
+      "**/logs/**",
+      "**/.git/**",
+      "**/graphify-out/**"
+    ]
+  },
+  "permissions": [
+    { "action": "*", "resource": "*", "effect": "allow" },
+    { "action": "lean-ctx_*", "resource": "*", "effect": "allow" },
+    { "action": "firecrawl_alexandria", "resource": "*", "effect": "ask" }
+  ],
+  "plugins": ["/opt/engine/plugins/opencode-firecrawl"],
+  "providers": {
+    "sumopod": {
+      "name": "SumoPod",
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "{env:SUMOPOD_BASE_URL}",
+        "apiKey": "{env:SUMOPOD_API_KEY}"
+      },
+      "models": {
+        "deepseek-flash": {
+          "name": "DeepSeek Flash"
+        },
+        "glm-5.3-flash": {
+          "name": "GLM 5.3 Flash"
+        }
+      }
+    }
+  },
+  "agents": {
+    "build": {
+      "mode": "primary",
+      "model": "opencode/big-pickle",
+      "permissions": [
+        { "action": "read", "resource": "*.env", "effect": "ask" },
+        { "action": "read", "resource": "*.env.*", "effect": "ask" },
+        { "action": "read", "resource": "*.env.example", "effect": "allow" }
+      ]
+    },
+    "orchestrator": {
+      "description": "Scrum team lead and primary orchestrator — delegates to the team, runs the scoring pipeline, drives the state machine.",
+      "mode": "all",
+      "model": "sumopod/glm-5.3-flash",
+      "steps": 50,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "deny" },
+        { "action": "grep", "resource": "*", "effect": "deny" },
+        { "action": "glob", "resource": "*", "effect": "deny" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "design-orchestrator": {
+      "description": "UI/UX specialist orchestrator — enforces 4-layer design pipeline (Exemplar > Generator > Taste > Gate).",
+      "mode": "all",
+      "model": "sumopod/glm-5.3-flash",
+      "steps": 50,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "deny" },
+        { "action": "grep", "resource": "*", "effect": "deny" },
+        { "action": "glob", "resource": "*", "effect": "deny" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "skill", "resource": "*", "effect": "allow" },
+        { "action": "subagent", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "product-manager": {
+      "description": "Owns requirements and the acceptance-criteria backlog. Turns user intent into testable Given-When-Then criteria. Read-only — no edits.",
+      "mode": "subagent",
+      "model": "sumopod/deepseek-flash",
+      "steps": 40,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "scrum-master": {
+      "description": "Process owner. Guards the contract, state machine, and workflow on every transition; unblocks BLOCKED sessions and drives retros. Read-only — no edits.",
+      "mode": "subagent",
+      "model": "sumopod/deepseek-flash",
+      "steps": 40,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "system-analyst": {
+      "description": "Analyzes requests, traces impact across the codebase, identifies edge cases, and produces a structured implementation plan or GWT spec.",
+      "mode": "subagent",
+      "model": "sumopod/glm-5.3-flash",
+      "steps": 80,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "software-architect": {
+      "description": "Strategic architecture advisor and independent design reviewer — trade-offs, system-level debugging, YAGNI enforcement. Read-only — no edits.",
+      "mode": "subagent",
+      "model": "sumopod/glm-5.3-flash",
+      "steps": 60,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "developer": {
+      "description": "Implements the plan task by task following project conventions, writing tests alongside code.",
+      "mode": "subagent",
+      "model": "sumopod/glm-5.3-flash",
+      "steps": 100,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "allow" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "devops-engineer": {
+      "description": "Builds and validates CI/CD, containerization, deployment, migrations, observability, and rollback plans. Read/write within scope.",
+      "mode": "subagent",
+      "model": "sumopod/glm-5.3-flash",
+      "steps": 60,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "allow" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "quality-analyst": {
+      "description": "Independent quality reviewer — code quality, edge cases, tests, performance, and DB/DevOps operability. Cross-model reviewer. Read-only — no edits.",
+      "mode": "subagent",
+      "model": "sumopod/deepseek-flash",
+      "steps": 80,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "security-engineer": {
+      "description": "Independent security reviewer — threat modeling, vulnerability assessment, secrets/trust-boundary review. Cross-model reviewer. Read-only — no edits.",
+      "mode": "subagent",
+      "model": "sumopod/deepseek-flash",
+      "steps": 60,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "explorer": {
+      "description": "Codebase search specialist for discovering unknowns. Read-only — no edits.",
+      "mode": "subagent",
+      "model": "sumopod/glm-5.3-flash",
+      "steps": 30,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "librarian": {
+      "description": "External documentation and library research specialist. Read-only — no edits.",
+      "mode": "subagent",
+      "model": "sumopod/glm-5.3-flash",
+      "steps": 30,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" },
+        { "action": "graphify_*", "resource": "*", "effect": "deny" }
+      ]
+    },
+    "council": {
+      "description": "Multi-model consensus engine for high-stakes decisions and cross-model enforcement. Read-only — no edits.",
+      "mode": "subagent",
+      "model": "sumopod/glm-5.3-flash",
+      "steps": 30,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "observer": {
+      "description": "Visual analysis specialist for images, PDFs, and diagrams. Read-only — no edits.",
+      "mode": "subagent",
+      "model": "sumopod/glm-5.3-flash",
+      "steps": 30,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "fixer": {
+      "description": "Fast implementation specialist for well-defined bounded tasks and review fixes. Scoped edits only.",
+      "mode": "subagent",
+      "model": "sumopod/glm-5.3-flash",
+      "steps": 40,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "allow" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" },
+        { "action": "graphify_*", "resource": "*", "effect": "deny" }
+      ]
+    },
+    "learner": {
+      "description": "Post-execution retro facilitator. Extracts lessons, patterns, and gotchas after completion to make the system smarter. Read-only — no edits.",
+      "mode": "subagent",
+      "model": "sumopod/glm-5.3-flash",
+      "steps": 40,
+      "permissions": [
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "question", "resource": "*", "effect": "deny" },
+        { "action": "context7_*", "resource": "*", "effect": "allow" },
+        { "action": "memory_*", "resource": "*", "effect": "allow" },
+        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+      ]
+    },
+    "plan": {
+      "model": "sumopod/glm-5.3-flash"
+    },
+    "general": {
+      "model": "sumopod/glm-5.3-flash"
+    },
+    "explore": {
+      "model": "sumopod/glm-5.3-flash"
+    }
+  },
+  "instructions": [
+    "/opt/engine/agent.md"
+  ],
+  "compaction": {
+    "auto": true,
+    "keep": {
+      "tokens": 20000
+    }
+  },
+  "mcp": {
+    "servers": {
+      "lean-ctx": {
+        "type": "local",
+        "command": [
+          "lean-ctx"
+        ],
+        "environment": {
+          "LEAN_CTX_DATA_DIR": "/home/node/.local/share/opencode/lean-ctx"
+        }
+      },
+      "graphify": {
+        "type": "local",
+        "command": [
+          "sh",
+          "-c",
+          "exec graphify-mcp --graph \"${GRAPHIFY_GRAPH:-${GRAPHIFY_ROOT:-/home/node/workspace}/graphify-out/graph.json}\""
+        ],
+        "disabled": true,
+        "environment": {
+          "OPENAI_API_KEY": "{env:SUMOPOD_API_KEY}",
+          "OPENAI_BASE_URL": "{env:SUMOPOD_BASE_URL}"
+        }
+      },
+      "context7": {
+        "type": "local",
+        "command": [
+          "context7-mcp"
+        ],
+        "environment": {
+          "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
+        }
+      },
+      "memory": {
+        "type": "local",
+        "command": [
+          "mcp-server-memory"
+        ]
+      },
+      "fetch": {
+        "type": "local",
+        "command": [
+          "mcp-server-fetch"
+        ]
+      },
+      "everything": {
+        "type": "local",
+        "command": [
+          "mcp-server-everything"
+        ]
+      }
+    }
+  }
+}

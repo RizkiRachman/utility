@@ -1,0 +1,598 @@
+{
+  "version": "0.8.0",
+  "description": "State machine transitions, scoring thresholds, and validation gates for the Workflow State Engine.",
+  "state_machine": {
+    "version": "0.8.0",
+    "transitions": [
+      {
+        "from": "INIT",
+        "to": "PLAN",
+        "require_score": null
+      },
+      {
+        "from": "PLAN",
+        "to": "PLAN_SCORED",
+        "require_score": null
+      },
+      {
+        "from": "PLAN_SCORED",
+        "to": "EXECUTE",
+        "require_score": 70
+      },
+      {
+        "from": "EXECUTE",
+        "to": "EXECUTE_SCORED",
+        "require_score": null
+      },
+      {
+        "from": "EXECUTE_SCORED",
+        "to": "REVIEW",
+        "require_score": 70
+      },
+      {
+        "from": "REVIEW",
+        "to": "REVIEW_SCORED",
+        "require_score": null
+      },
+      {
+        "from": "REVIEW_SCORED",
+        "to": "COMPLETE",
+        "require_score": 70
+      },
+      {
+        "from": "*",
+        "to": "BLOCKED",
+        "require_score": 50
+      }
+    ],
+    "states": [
+      "INIT",
+      "PLAN",
+      "PLAN_SCORED",
+      "EXECUTE",
+      "EXECUTE_SCORED",
+      "REVIEW",
+      "REVIEW_SCORED",
+      "COMPLETE",
+      "BLOCKED"
+    ]
+  },
+  "scoring": {
+    "version": "0.8.0",
+    "thresholds": {
+      "pass": 70,
+      "retry_min": 50,
+      "retry_max_attempts": 3,
+      "escalation": 50
+    },
+    "tier1_rules": {
+      "schema_valid": {
+        "deduction": 15,
+        "description": "JSON schema validity check"
+      },
+      "permissions_violated": {
+        "deduction": 40,
+        "description": "Governance permission boundary crossed"
+      },
+      "blast_radius_high": {
+        "deduction": 40,
+        "description": "ctx_impact returned HIGH/CRITICAL"
+      },
+      "writing_order_wrong": {
+        "deduction": 15,
+        "description": "Writing order violated (port->service->mapper->adapter)"
+      },
+      "over_engineering": {
+        "deduction": 15,
+        "description": "YAGNI violation detected (SIMPLICITY_001)"
+      },
+      "required_fields_missing": {
+        "deduction": 15,
+        "description": "Envelope completeness check"
+      }
+    },
+    "tier2_judge": {
+      "requirements_fulfillment": {
+        "weight": 40,
+        "description": "Matches acceptance criteria"
+      },
+      "governance_compliance": {
+        "weight": 30,
+        "description": "Follows governance rules in agent.md §6 and rules.json"
+      },
+      "completeness": {
+        "weight": 20,
+        "description": "All tasks done, tests written"
+      },
+      "edge_cases": {
+        "weight": 10,
+        "description": "Nulls, errors, boundaries covered"
+      }
+    },
+    "confidence_scoring": {
+      "enabled": true,
+      "description": "Score confidence at each decision point (1-5 scale)",
+      "levels": {
+        "1": "Guess — no evidence",
+        "2": "Informed — partial evidence",
+        "3": "Confident — supported by data",
+        "4": "Strong — multiple corroborating sources",
+        "5": "Certain — verifiable, deterministic"
+      },
+      "min_confidence_to_proceed": 3,
+      "escalate_below": 2,
+      "record_in": "decisions.confidence_scores[]"
+    },
+    "validation_gates": {
+      "max_test_failures": {
+        "value": 3,
+        "action": "BLOCKED"
+      },
+      "max_score_drop": {
+        "value": 30,
+        "action": "BLOCKED"
+      },
+      "max_compile_errors": {
+        "value": 1,
+        "action": "BLOCKED"
+      },
+      "blast_radius_unacknowledged": {
+        "val": "HIGH",
+        "action": "BLOCKED",
+        "desc": "ctx_impact HIGH/CRITICAL forces BLOCKED state"
+      },
+      "schema_failure": {
+        "action": "BLOCKED"
+      }
+    },
+    "timeout_ms": 30000,
+    "formula": {
+      "tier1_calculation": "Start at 100. Subtract deduction for each failed rule (schema_valid=-15, permissions_violated=-40, blast_radius_high=-40, writing_order_wrong=-15, over_engineering=-15, required_fields_missing=-15). Floor at 0.",
+      "tier2_calculation": "Sum of weighted judge dimensions: requirements_fulfillment(0-40) + governance_compliance(0-30) + completeness(0-20) + edge_cases(0-10) = 0-100.",
+      "combined_formula": "(tier1_subtotal + tier2_judge.score) / 2. Rounded to nearest integer.",
+      "pass_threshold": 70,
+      "retry_range": "50-69 (max 3 attempts)",
+      "escalation": "Below 50 or retry >= 3 → BLOCKED",
+      "example": "Tier1=70, Tier2=80 → combined=(70+80)/2=75 → PASS"
+    }
+  },
+  "agent_watchdog": {
+    "version": "0.8.0",
+    "description": "Timeout and deadlock detection for agent delegations",
+    "delegation_timeout_ms": 120000,
+    "parallel_deadlock_detection": {
+      "enabled": true,
+      "description": "Detect when parallel agents are waiting on each other's output",
+      "max_wait_cycles": 5,
+      "resolution": "fallback_to_serial"
+    },
+    "health_check": {
+      "enabled": true,
+      "interval_phases": 3,
+      "script": "scripts/drift-detect.sh",
+      "repair_script": "scripts/self-repair.sh --dry-run"
+    }
+  },
+  "enforcement": {
+    "version": "0.8.0",
+    "desc": "Runtime contract validation and agent→state MCP enforcement",
+    "runtime_validation": {
+      "enabled": true,
+      "script": "scripts/contract-enforcer.sh",
+      "modes": [
+        "validate",
+        "enforce",
+        "mcp"
+      ],
+      "hardening_levels": {
+        "soft": {
+          "threshold": 50,
+          "timeout_enforcement": "warn"
+        },
+        "medium": {
+          "threshold": 70,
+          "timeout_enforcement": "block"
+        },
+        "hard": {
+          "threshold": 85,
+          "timeout_enforcement": "block"
+        }
+      },
+      "default_hardening": "medium"
+    },
+    "agent_state_mcp": {
+      "enabled": true,
+      "desc": "MCP-level agent→state mapping enforcement",
+      "state_agent_map": {
+        "INIT": "product-manager",
+        "PLAN": "system-analyst",
+        "PLAN_SCORED": "orchestrator",
+        "EXECUTE": "developer",
+        "EXECUTE_SCORED": "orchestrator",
+        "REVIEW": "quality-analyst",
+        "REVIEW_SCORED": "orchestrator",
+        "COMPLETE": "learner",
+        "BLOCKED": "scrum-master"
+      },
+      "violation_action": "BLOCKED"
+    },
+    "cross_model_review": {
+      "version": "0.8.0",
+      "enabled": true,
+      "desc": "Per-phase model separation and independent (cross-model) review enforcement.",
+      "model_tiers": {
+        "executor": "opencode/big-pickle",
+        "reviewer": "sumopod/deepseek-flash"
+      },
+      "phase_assignment": {
+        "INIT": { "owner": "product-manager", "tier": "reviewer" },
+        "PLAN": { "owner": "system-analyst", "tier": "executor" },
+        "PLAN_SCORED": { "owner": "orchestrator", "tier": "executor", "reviewers": ["software-architect"] },
+        "EXECUTE": { "owner": "developer", "tier": "executor" },
+        "EXECUTE_SCORED": { "owner": "orchestrator", "tier": "executor", "reviewers": ["software-architect"] },
+        "REVIEW": { "owner": "quality-analyst", "tier": "reviewer", "reviewers": ["security-engineer"] },
+        "REVIEW_SCORED": { "owner": "orchestrator", "tier": "executor" },
+        "COMPLETE": { "owner": "learner", "tier": "executor" },
+        "BLOCKED": { "owner": "scrum-master", "tier": "reviewer" }
+      },
+      "rule": "A reviewer MUST run on a different model tier than the agent that produced the artifact under review.",
+      "disagreement_policy": {
+        "description": "When two independent reviewers return conflicting verdicts (e.g. PASS vs BLOCK) on the same change.",
+        "action": "BLOCKED",
+        "arbiter": "council",
+        "arbiter_mode": "multi_model_consensus"
+      },
+      "security_trigger": {
+        "description": "Changes touching these surfaces auto-require security-engineer review.",
+        "paths": [
+          "**/auth/**",
+          "**/security/**",
+          "**/*Secret*",
+          "**/*Credential*",
+          "**/application*.yml",
+          "**/application*.properties",
+          "**/*.env*"
+        ],
+        "keywords": [
+          "password",
+          "secret",
+          "token",
+          "apikey",
+          "api_key",
+          "private_key",
+          "jwt",
+          "oauth",
+          "crypto"
+        ]
+      }
+    },
+    "runtime_timeout": {
+      "enabled": true,
+      "script": "scripts/contract-enforcer.sh --mode enforce --timeout",
+      "checks": {
+        "scoring_timeout_ms": 30000,
+        "delegation_timeout_ms": 120000,
+        "mcp_health_timeout_ms": 10000
+      },
+      "enforcement": "block_on_violation"
+    }
+  },
+  "resilience": {
+    "version": "0.8.0",
+    "desc": "MCP retry backoff and circuit breaker for agent reliability",
+    "mcp_retry": {
+      "enabled": true,
+      "script": "scripts/mcp-retry.sh",
+      "backoff_modes": {
+        "exponential": {
+          "base_ms": 1000,
+          "max_ms": 60000,
+          "jitter": true
+        },
+        "linear": {
+          "step_ms": 5000,
+          "max_ms": 60000
+        },
+        "fibonacci": {
+          "sequence": [
+            1,
+            1,
+            2,
+            3,
+            5,
+            8,
+            13,
+            21,
+            34
+          ],
+          "unit_ms": 1000
+        }
+      },
+      "default_mode": "exponential",
+      "max_attempts": 5,
+      "retry_on_errors": [
+        "timeout",
+        "rate_limit",
+        "connection_refused",
+        "api_error"
+      ]
+    },
+    "circuit_breaker": {
+      "enabled": true,
+      "failure_threshold": 5,
+      "success_threshold": 3,
+      "open_timeout_ms": 60000,
+      "half_open_requests": 1,
+      "monitored_services": [
+        "graphify-mcp",
+        "lean-ctx-mcp",
+        "lean-ctx"
+      ]
+    },
+    "health_endpoint": {
+      "enabled": true,
+      "script": "scripts/mcp-health.sh",
+      "services": {
+        "graphify": {
+          "url": "graphify-out/graph.json",
+          "check": "file_exists"
+        },
+        "lean-ctx": {
+          "cmd": "lean-ctx context",
+          "timeout_ms": 5000
+        },
+        "sumopod": {
+          "url": "https://ai.sumopod.com/v1/models",
+          "timeout_ms": 10000
+        }
+      },
+      "interval_ms": 300000,
+      "on_failure": "log_and_proceed"
+    }
+  },
+  "metrics": {
+    "version": "0.8.0",
+    "desc": "Trend analysis and regression tracking across sessions",
+    "trend_analysis": {
+      "enabled": true,
+      "script": "scripts/trend-analyzer.sh",
+      "metrics_tracked": [
+        "score",
+        "elapsed_ms",
+        "phases_completed",
+        "retry_count"
+      ],
+      "lookback_sessions": 10,
+      "regression_threshold": 15,
+      "regression_window_s": 3600,
+      "output_modes": [
+        "summary",
+        "detailed",
+        "sparkline"
+      ]
+    },
+    "regression_tracking": {
+      "enabled": true,
+      "detection_methods": {
+        "score_drop": {
+          "threshold": 15,
+          "lookback": 3
+        },
+        "elapsed_spike": {
+          "threshold_multiplier": 2,
+          "lookback": 5
+        },
+        "failure_rate": {
+          "threshold": 0.3,
+          "lookback": 10
+        }
+      },
+      "on_regression": "alert_and_recommend",
+      "store_in": "session/state.md"
+    },
+    "cross_session_quality": {
+      "enabled": true,
+      "script": "scripts/metrics-aggregator.sh",
+      "quality_dimensions": {
+        "score_stability": {
+          "target": 80,
+          "tolerance": 10
+        },
+        "completion_rate": {
+          "target": 0.9,
+          "tolerance": 0.1
+        },
+        "block_rate": {
+          "target": 0.1,
+          "tolerance": 0.05
+        },
+        "avg_duration": {
+          "target_ms": 60000,
+          "tolerance_ms": 30000
+        }
+      },
+      "aggregation_modes": [
+        "summary",
+        "by_state",
+        "timeline",
+        "quality"
+      ],
+      "store_in": "session/quality-metrics.json"
+    }
+  },
+  "feedback": {
+    "version": "0.8.0",
+    "desc": "Feedback loops and post-mortem analysis",
+    "post_mortem": {
+      "enabled": true,
+      "script": "scripts/post-mortem.sh",
+      "trigger_state": "BLOCKED",
+      "modes": [
+        "quick",
+        "deep",
+        "report"
+      ],
+      "fields": {
+        "blocked_at": "ISO timestamp",
+        "state": "BLOCKED",
+        "score": "int",
+        "violations": "list of rule violations",
+        "root_cause": "analysis",
+        "resolution": "action taken",
+        "lessons": "list of lessons learned"
+      },
+      "store_in": "session/post-mortems/"
+    },
+    "feedback_loop": {
+      "enabled": true,
+      "triggers": {
+        "on_complete": {
+          "analyze": [
+            "score",
+            "quality_metrics"
+          ]
+        },
+        "on_block": {
+          "analyze": [
+            "failures",
+            "violations"
+          ]
+        }
+      },
+      "auto_adjustments": {
+        "threshold_lower": {
+          "condition": "avg_score < 65",
+          "adjustment": "-5"
+        },
+        "threshold_raise": {
+          "condition": "avg_score > 90",
+          "adjustment": "+5"
+        }
+      },
+      "store_in": "session/feedback-history.json"
+    }
+  },
+  "scheduled": {
+    "version": "0.8.0",
+    "desc": "Scheduled/recurring run mechanisms",
+    "scheduled_runs": {
+      "enabled": true,
+      "script": "scripts/scheduled-runner.sh",
+      "default_schedules": {
+        "health_check": {
+          "interval": "5min",
+          "task": "health"
+        },
+        "trend_analysis": {
+          "interval": "daily",
+          "task": "trend"
+        },
+        "metrics_agg": {
+          "interval": "weekly",
+          "task": "metrics"
+        }
+      },
+      "fail_mode": "continue_with_log",
+      "pid_management": true
+    }
+  },
+  "decisions": {
+    "confidence_journal": {
+      "enabled": true,
+      "description": "Auto-persist every decision with confidence score to decision journal",
+      "store_in": "contract.decisions.adr_log[]",
+      "fields": {
+        "id": "ADR-NNN",
+        "timestamp": "ISO 8601",
+        "title": "Decision title",
+        "context": "Why this decision was needed",
+        "decision": "What was decided",
+        "alternatives": "Rejected alternatives",
+        "confidence": "1-5",
+        "confidence_rationale": "Why this confidence level"
+      }
+    },
+    "revert_threshold": {
+      "description": "Score below which a previous decision should be revisited",
+      "threshold": 30,
+      "action": "Flag for review"
+    }
+  },
+  "agent_states": {
+    "orchestrator": [
+      "*"
+    ],
+    "product-manager": [
+      "INIT",
+      "PLAN"
+    ],
+    "scrum-master": [
+      "*",
+      "BLOCKED"
+    ],
+    "system-analyst": [
+      "INIT",
+      "PLAN",
+      "PLAN_SCORED"
+    ],
+    "software-architect": [
+      "INIT",
+      "PLAN",
+      "PLAN_SCORED",
+      "REVIEW"
+    ],
+    "developer": [
+      "EXECUTE",
+      "EXECUTE_SCORED"
+    ],
+    "devops-engineer": [
+      "EXECUTE",
+      "EXECUTE_SCORED",
+      "REVIEW"
+    ],
+    "quality-analyst": [
+      "REVIEW",
+      "REVIEW_SCORED"
+    ],
+    "security-engineer": [
+      "REVIEW",
+      "REVIEW_SCORED"
+    ],
+    "explorer": [
+      "*"
+    ],
+    "fixer": [
+      "*"
+    ],
+    "librarian": [
+      "*"
+    ],
+    "council": [
+      "*"
+    ],
+    "observer": [
+      "*"
+    ],
+    "learner": [
+      "REVIEW_SCORED",
+      "COMPLETE"
+    ],
+    "available_agents": [
+      "council",
+      "explorer",
+      "fixer",
+      "librarian",
+      "observer",
+      "developer",
+      "devops-engineer",
+      "learner",
+      "product-manager",
+      "quality-analyst",
+      "scrum-master",
+      "security-engineer",
+      "software-architect",
+      "system-analyst",
+      "orchestrator"
+    ]
+  }
+}

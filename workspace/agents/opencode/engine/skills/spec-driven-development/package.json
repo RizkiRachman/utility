@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-spec-driven-development",
+  "version": "1.0.0",
+  "description": "Creates specs before coding. Use when starting a new project, feature, or significant change and no specification exists yet.",
+  "keywords": ["opencode", "skill", "spec-driven-development"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

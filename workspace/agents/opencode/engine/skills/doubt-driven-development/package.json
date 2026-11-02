@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-doubt-driven-development",
+  "version": "1.0.0",
+  "description": "Subjects every non-trivial decision to a fresh-context adversarial review before it stands. Use when correctness matters more than speed.",
+  "keywords": ["opencode", "skill", "doubt-driven-development"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

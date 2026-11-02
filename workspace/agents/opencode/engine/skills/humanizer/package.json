@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-humanizer",
+  "version": "1.0.0",
+  "description": "Remove signs of AI-generated writing from text. Detects and fixes: inflated symbolism, promotional language, -ing analyses, vague attributions, em dash overuse, rule of three, AI vocabulary, passive voice, filler phrases.",
+  "keywords": ["opencode", "skill", "humanizer"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-verification-before-completion",
+  "version": "1.0.0",
+  "description": "Verifies that work meets all success criteria before marking a task complete. Prevents premature sign-off and rework.",
+  "keywords": ["opencode", "skill", "verification-before-completion"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

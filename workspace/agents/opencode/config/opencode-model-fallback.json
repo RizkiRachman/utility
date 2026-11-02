@@ -1,0 +1,32 @@
+{
+  "enabled": true,
+  "retry_on_errors": [
+    401,
+    402,
+    403,
+    429,
+    500,
+    502,
+    503,
+    504
+  ],
+  "retryable_error_patterns": [
+    "free tier can only be used from within opencode",
+    "rate limit",
+    "too many requests",
+    "quota exceeded",
+    "usage limit reached",
+    "credit balance too low",
+    "insufficient account funds",
+    "service unavailable",
+    "temporarily unavailable",
+    "overloaded"
+  ],
+  "max_fallback_attempts": 5,
+  "cooldown_seconds": 60,
+  "timeout_seconds": 60,
+  "notify_on_fallback": true,
+  "fallback_models": [
+    "sumopod/deepseek-flash"
+  ]
+}

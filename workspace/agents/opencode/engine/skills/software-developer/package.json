@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-software-developer",
+  "version": "1.0.0",
+  "description": "Full-stack software development following clean code, SOLID, and project-specific conventions",
+  "keywords": ["opencode", "skill", "software-developer"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-brainstorming",
+  "version": "1.0.0",
+  "description": "Divergent thinking for exploring solution spaces before converging on an approach. Generates multiple options, evaluates trade-offs, and selects the best path forward.",
+  "keywords": ["opencode", "skill", "brainstorming"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

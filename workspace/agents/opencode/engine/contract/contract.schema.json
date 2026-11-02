@@ -1,0 +1,1060 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contract/contract.schema.json",
+  "title": "Workflow State Engine — Contract Schema",
+  "description": "Validates the shared orchestration envelope (session/contract.json). This Draft 2020-12 schema enforces the state machine transitions, scoring pipeline, governance, and audit trail for AI agent workflow orchestration.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "state",
+    "contract_version",
+    "service_type",
+    "state_machine_version",
+    "session",
+    "scope",
+    "requirements",
+    "decisions",
+    "governance",
+    "validation",
+    "outputs",
+    "score",
+    "retry",
+    "metrics",
+    "token_budget",
+    "lessons_learned",
+    "audit_log"
+  ],
+  "properties": {
+    "state": {
+      "description": "Current state machine state. Transitions: INIT → PLAN → PLAN_SCORED → EXECUTE → EXECUTE_SCORED → REVIEW → REVIEW_SCORED → COMPLETE. Any → BLOCKED on escalation.",
+      "type": "string",
+      "enum": [
+        "INIT",
+        "PLAN",
+        "PLAN_SCORED",
+        "EXECUTE",
+        "EXECUTE_SCORED",
+        "REVIEW",
+        "REVIEW_SCORED",
+        "COMPLETE",
+        "BLOCKED"
+      ]
+    },
+    "contract_version": {
+      "description": "Semantic version of the contract schema structure.",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?(\\+[a-zA-Z0-9.]+)?$"
+    },
+    "state_machine_version": {
+      "description": "Semantic version of the state machine definition (rules.json).",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?(\\+[a-zA-Z0-9.]+)?$"
+    },
+    "version": {
+      "description": "Semantic version of this contract instance.",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?(\\+[a-zA-Z0-9.]+)?$"
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "task_id",
+        "session_id",
+        "created_at",
+        "archived_at"
+      ],
+      "properties": {
+        "task_id": {
+          "description": "Unique identifier for this task session (e.g. 'fixer-standalone-20260617').",
+          "type": "string"
+        },
+        "session_id": {
+          "description": "Session identifier for this run.",
+          "type": "string"
+        },
+        "created_at": {
+          "description": "ISO 8601 timestamp when this session was created.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "archived_at": {
+          "description": "ISO 8601 timestamp when this session was archived (null if active).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "included",
+        "excluded",
+        "boundary",
+        "parallel_eligible",
+        "max_parallel_agents"
+      ],
+      "properties": {
+        "included": {
+          "description": "File paths, directories, or patterns that are in scope for this task.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "excluded": {
+          "description": "File paths, directories, or patterns explicitly excluded from scope.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "boundary": {
+          "description": "Root boundary for scope evaluation (e.g. 'project-root').",
+          "type": "string"
+        },
+        "parallel_eligible": {
+          "description": "Whether this task may be parallelized across multiple agents.",
+          "type": "boolean"
+        },
+        "max_parallel_agents": {
+          "description": "Maximum number of parallel agents allowed (1-10).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "shard_id": {
+          "description": "Identifies which shard of a parallelized task this contract represents (e.g. 'shard-a', 'service-pricing').",
+          "type": "string"
+        },
+        "parallel_instances": {
+          "description": "List of all parallel shard IDs for multi-agent dispatch.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "goal",
+        "acceptance_criteria",
+        "constraints"
+      ],
+      "properties": {
+        "goal": {
+          "description": "High-level goal statement for this session/task.",
+          "type": "string"
+        },
+        "acceptance_criteria": {
+          "description": "List of specific, testable acceptance criteria.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "constraints": {
+          "description": "List of constraints (technical, time, resource, etc.).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "decisions": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "approved_architecture",
+        "coding_standard",
+        "rejected_approaches",
+        "adr_log",
+        "ddd_performed",
+        "confidence_scores"
+      ],
+      "properties": {
+        "approved_architecture": {
+          "description": "Approved architectural approach, or null if not yet decided.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "coding_standard": {
+          "description": "Coding conventions and standards to follow.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rejected_approaches": {
+          "description": "Approaches considered and rejected, with rationale.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "adr_log": {
+          "description": "Architecture Decision Record entries.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/adr_entry"
+          }
+        },
+        "ddd_performed": {
+          "description": "Whether Doubt-Driven Development adversarial review was performed.",
+          "type": "boolean"
+        },
+        "confidence_scores": {
+          "description": "Confidence scores for architectural decisions.",
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "active_agent",
+        "mode",
+        "applicable_skills",
+        "rules_references",
+        "current_guidance",
+        "permissions",
+        "previous_blockers"
+      ],
+      "properties": {
+        "active_agent": {
+          "description": "The currently active agent role (e.g. 'developer', 'quality-analyst').",
+          "type": "string"
+        },
+        "mode": {
+          "description": "Operating mode of the active agent.",
+          "type": "string",
+          "enum": [
+            "task-execution",
+            "spec",
+            "review"
+          ]
+        },
+        "applicable_skills": {
+          "description": "Names of applicable skills to be loaded for this task.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rules_references": {
+          "description": "References to rule files/sections governing this session.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "source",
+              "sections"
+            ],
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "sections": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "current_guidance": {
+          "description": "Current execution guidance or directive from the orchestrator.",
+          "type": "string"
+        },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "do",
+            "dont",
+            "allowed_execution",
+            "read_only_fields",
+            "writeable_fields"
+          ],
+          "properties": {
+            "do": {
+              "description": "Actions that are explicitly permitted for the active agent.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "dont": {
+              "description": "Actions that are explicitly forbidden for the active agent.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allowed_execution": {
+              "type": "object",
+              "additionalProperties": true,
+              "required": [
+                "tools",
+                "denied"
+              ],
+              "properties": {
+                "tools": {
+                  "description": "Allowed execution tools (e.g. 'lean-ctx_*', 'ctx_shell').",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "denied": {
+                  "description": "Explicitly denied execution tools (e.g. 'bash', 'snip').",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "read_only_fields": {
+              "description": "Fields that are read-only for the active agent.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "writeable_fields": {
+              "description": "Fields that are writeable for the active agent.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "previous_blockers": {
+          "description": "Previously encountered blockers that were resolved.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "block_on",
+        "rule_overrides",
+        "build_verified",
+        "phase_gates"
+      ],
+      "properties": {
+        "block_on": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "max_test_failures",
+            "max_score_drop",
+            "max_compile_errors"
+          ],
+          "properties": {
+            "max_test_failures": {
+              "description": "Maximum allowed test failures before blocking (0-10).",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "max_score_drop": {
+              "description": "Maximum allowed score drop percentage (0-100).",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "max_compile_errors": {
+              "description": "Maximum allowed compile errors before blocking (0-10).",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            }
+          }
+        },
+        "rule_overrides": {
+          "description": "Overrides for specific validation rules. Free-form object.",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "build_verified": {
+          "description": "Whether the build was verified after implementation.",
+          "type": "boolean"
+        },
+        "phase_gates": {
+          "description": "Phase-specific gate configurations.",
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "plan",
+        "architecture",
+        "code_changes",
+        "test_results",
+        "agent_reports",
+        "score_summary"
+      ],
+      "properties": {
+        "plan": {
+          "description": "Implementation plan produced by system-analyst or planner, or null if not yet produced.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "architecture": {
+          "description": "Architecture documentation output, or null if not yet produced.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "code_changes": {
+          "description": "List of code changes made during this session.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/code_change"
+          }
+        },
+        "test_results": {
+          "description": "Aggregate test results, or null if not yet run.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "agent_reports": {
+          "description": "Reports produced by agents during execution.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "agent": {
+                "type": "string"
+              },
+              "report": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "score_summary": {
+          "description": "Summary of scoring results, or null if not yet scored.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "score": {
+      "description": "Three-tier scoring pipeline: rule checks → LLM-as-judge → combined verdict.",
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "rules",
+        "judge",
+        "combined",
+        "verdict"
+      ],
+      "properties": {
+        "rules": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "pass",
+            "fail",
+            "deduction",
+            "subtotal"
+          ],
+          "properties": {
+            "pass": {
+              "description": "Number of passing rule-based checks.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "fail": {
+              "description": "Number of failing rule-based checks.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "deduction": {
+              "description": "Total deduction from failed checks.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "subtotal": {
+              "description": "Subtotal score from tier 1 rule checks (0-100).",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            }
+          }
+        },
+        "judge": {
+          "description": "LLM-as-judge evaluation (tier 2).",
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "score",
+            "rationale",
+            "missing_items"
+          ],
+          "properties": {
+            "score": {
+              "description": "Judge score from 0-100.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "rationale": {
+              "description": "Rationale for the judge score.",
+              "type": "string"
+            },
+            "missing_items": {
+              "description": "Items identified as missing or inadequate by the judge.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "combined": {
+          "description": "Combined score from tier 3 (weighted/aggregated) (0-100).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "verdict": {
+          "description": "Combined verdict. INIT for unscored, PASS (≥70), RETRY (50-69), BLOCKED (<50 or max retries).",
+          "type": "string",
+          "enum": [
+            "INIT",
+            "PASS",
+            "RETRY",
+            "BLOCKED"
+          ]
+        }
+      }
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "current_phase",
+        "attempt",
+        "max_attempts",
+        "score_threshold",
+        "escalation_threshold",
+        "issues",
+        "phase_issues",
+        "escalation_trace"
+      ],
+      "properties": {
+        "current_phase": {
+          "description": "Current retry phase name, or null if no retry in progress.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attempt": {
+          "description": "Current attempt number (0 = first attempt).",
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_attempts": {
+          "description": "Maximum allowed retry attempts (1-10).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "score_threshold": {
+          "description": "Score threshold for PASS (≥ this value = pass).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "escalation_threshold": {
+          "description": "Score below which escalation/BLOCKED is triggered.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "issues": {
+          "description": "Issues encountered (legacy field, overlaps with phase_issues).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "phase_issues": {
+          "description": "Issues encountered during the current phase.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "escalation_trace": {
+          "description": "Trace of escalation decisions made during retries.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "cost_tokens",
+        "elapsed_ms",
+        "agents_used",
+        "phases_completed",
+        "phase_durations"
+      ],
+      "properties": {
+        "cost_tokens": {
+          "description": "Total token cost incurred during this session.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "elapsed_ms": {
+          "description": "Total elapsed time in milliseconds.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "agents_used": {
+          "description": "Names of agents that were used in this session.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "phases_completed": {
+          "description": "Phases/states that have been completed.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "phase_durations": {
+          "description": "Duration per phase in milliseconds, keyed by phase name.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "token_budget": {
+      "description": "Token budget enforcement settings for this session.",
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "max_per_session",
+        "warning_threshold",
+        "hard_limit",
+        "max_per_phase",
+        "max_per_subagent_call",
+        "current_session_usage",
+        "phase_usage"
+      ],
+      "properties": {
+        "max_per_session": {
+          "description": "Maximum tokens allowed per session.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "warning_threshold": {
+          "description": "Fraction (0.0-1.0) of budget that triggers a warning.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "hard_limit": {
+          "description": "Fraction (0.0-1.0) of budget that triggers a hard block.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_per_phase": {
+          "description": "Per-phase token budgets, keyed by phase name.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "max_per_subagent_call": {
+          "description": "Maximum tokens per subagent delegation.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "current_session_usage": {
+          "description": "Current token usage for this session.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "phase_usage": {
+          "description": "Current per-phase token usage, keyed by phase name.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "lessons_learned": {
+      "description": "Cross-session lessons, gotchas, and patterns discovered during execution.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "audit_log": {
+      "description": "Append-only log of state machine transitions and scoring snapshots.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/audit_entry"
+      }
+    },
+    "service_type": {
+      "desc": "Service type classification for threshold enforcement. Controls score thresholds and SDD gate requirements.",
+      "type": "string",
+      "enum": [
+        "Core",
+        "UI",
+        "Support",
+        "Infrastructure"
+      ],
+      "default": "Core"
+    },
+    "service_type_rules": {
+      "desc": "Service-type-specific threshold overrides. If omitted, defaults from doc/service-rules-thresholds.md apply.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "score_threshold": {
+          "desc": "Override score threshold for PASS (0-100).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "sdd_gate_required": {
+          "desc": "Override SDD gate requirement policy.",
+          "type": "string",
+          "enum": [
+            "always",
+            ">3 files",
+            "never"
+          ]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "PLAN_SCORED score gate — requires score.combined ≥ 70 to proceed to EXECUTE.",
+      "if": {
+        "properties": {
+          "state": {
+            "const": "PLAN_SCORED"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "score": {
+            "properties": {
+              "combined": {
+                "minimum": 70
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "EXECUTE_SCORED score gate — requires score.combined ≥ 70 to proceed to REVIEW.",
+      "if": {
+        "properties": {
+          "state": {
+            "const": "EXECUTE_SCORED"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "score": {
+            "properties": {
+              "combined": {
+                "minimum": 70
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "REVIEW_SCORED score gate — requires score.combined ≥ 70 to proceed to COMPLETE.",
+      "if": {
+        "properties": {
+          "state": {
+            "const": "REVIEW_SCORED"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "score": {
+            "properties": {
+              "combined": {
+                "minimum": 70
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "BLOCKED escalation check — requires retry.attempt ≥ 3 OR score.combined < 50.",
+      "if": {
+        "properties": {
+          "state": {
+            "const": "BLOCKED"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "anyOf": [
+          {
+            "properties": {
+              "retry": {
+                "properties": {
+                  "attempt": {
+                    "minimum": 3
+                  }
+                },
+                "required": [
+                  "attempt"
+                ]
+              }
+            },
+            "required": [
+              "retry"
+            ]
+          },
+          {
+            "properties": {
+              "score": {
+                "properties": {
+                  "combined": {
+                    "maximum": 49
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "adr_entry": {
+      "description": "An Architecture Decision Record entry.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "ADR identifier (e.g. 'ADR-001').",
+          "type": "string"
+        },
+        "title": "Short title of the decision.",
+        "status": {
+          "description": "Decision status (proposed, accepted, deprecated, superseded).",
+          "type": "string"
+        },
+        "context": {
+          "description": "Context and motivation for the decision.",
+          "type": "string"
+        },
+        "decision": {
+          "description": "The decision made.",
+          "type": "string"
+        },
+        "consequences": {
+          "description": "Consequences of the decision.",
+          "type": "string"
+        },
+        "date": {
+          "description": "ISO 8601 date of the decision.",
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "code_change": {
+      "description": "A single code change entry (file created, modified, or deleted).",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "file": {
+          "description": "Path of the changed file.",
+          "type": "string"
+        },
+        "action": {
+          "description": "Type of change.",
+          "type": "string",
+          "enum": [
+            "created",
+            "modified",
+            "deleted"
+          ]
+        },
+        "lines_added": {
+          "description": "Number of lines added.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "lines_removed": {
+          "description": "Number of lines removed.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "summary": {
+          "description": "Brief summary of the change.",
+          "type": "string"
+        }
+      }
+    },
+    "audit_entry": {
+      "description": "A single state machine transition audit entry.",
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "timestamp",
+        "prev_state",
+        "new_state",
+        "triggered_by",
+        "transition_reason"
+      ],
+      "properties": {
+        "timestamp": {
+          "description": "ISO 8601 timestamp of the transition.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "prev_state": {
+          "description": "Previous state before the transition.",
+          "type": "string"
+        },
+        "new_state": {
+          "description": "New state after the transition.",
+          "type": "string"
+        },
+        "triggered_by": {
+          "description": "Agent or entity that triggered the transition.",
+          "type": "string"
+        },
+        "transition_reason": {
+          "description": "Reason or justification for the transition.",
+          "type": "string"
+        },
+        "scoring_snapshot": {
+          "description": "Snapshot of the score object at the time of transition (nullable).",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/scoring_snapshot"
+            }
+          ]
+        }
+      }
+    },
+    "scoring_snapshot": {
+      "description": "Snapshot of scoring state at a point in time.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "rules_subtotal": {
+          "description": "Rule-based scoring subtotal.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "judge_score": {
+          "description": "LLM judge score.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "combined": {
+          "description": "Combined score.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "verdict": {
+          "description": "Verdict at snapshot time.",
+          "type": "string",
+          "enum": [
+            "INIT",
+            "PASS",
+            "RETRY",
+            "BLOCKED"
+          ]
+        }
+      }
+    }
+  }
+}

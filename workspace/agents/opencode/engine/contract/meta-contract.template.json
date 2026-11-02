@@ -1,0 +1,102 @@
+{
+  "_comment": "Meta-contract \u2014 tracks 8-service integration state. Used by root orchestrator cross-service orchestration.",
+  "contract_version": "0.8.0",
+  "workspace_root": "/Users/rizkirachman/IdeaProjects",
+  "services": [
+    {
+      "name": "service",
+      "repo": "goods-price-comparison-service",
+      "state": "COMPLETE",
+      "phase": "A",
+      "validated": true,
+      "session_id": "session",
+      "version": "0f20b5b"
+    },
+    {
+      "name": "api",
+      "repo": "goods-price-comparison-api",
+      "state": "COMPLETE",
+      "phase": "B",
+      "validated": true,
+      "session_id": "session",
+      "version": "0f20b5b"
+    },
+    {
+      "name": "automation",
+      "repo": "goods-price-comparison-automation",
+      "state": "COMPLETE",
+      "phase": "B",
+      "validated": true,
+      "session_id": "session",
+      "version": "0f20b5b"
+    },
+    {
+      "name": "agent-helper",
+      "repo": "goods-price-comparison-agent-helper",
+      "state": "COMPLETE",
+      "phase": "B",
+      "validated": true,
+      "session_id": "session",
+      "version": "0f20b5b"
+    },
+    {
+      "name": "dashboard",
+      "repo": "goods-price-comparison-dashboard",
+      "state": "COMPLETE",
+      "phase": "B",
+      "validated": true,
+      "session_id": "session",
+      "version": "0f20b5b"
+    },
+    {
+      "name": "deployer",
+      "repo": "goods-price-comparison-deployer",
+      "state": "COMPLETE",
+      "phase": "B",
+      "validated": true,
+      "session_id": "session",
+      "version": "0f20b5b"
+    },
+    {
+      "name": "claude-service",
+      "repo": "goods-price-comparison-claude-service",
+      "state": "COMPLETE",
+      "phase": "B",
+      "validated": true,
+      "session_id": "session",
+      "version": "0f20b5b"
+    },
+    {
+      "name": "properties",
+      "repo": "goods-price-comparison-properties",
+      "state": "COMPLETE",
+      "phase": "B",
+      "validated": true,
+      "session_id": "session",
+      "version": "0f20b5b"
+    }
+  ],
+  "integration_phases": {
+    "A": {
+      "label": "Fix Pilot",
+      "complete": true
+    },
+    "B": {
+      "label": "Rollout 7",
+      "complete": true
+    },
+    "C": {
+      "label": "Tooling",
+      "complete": true
+    },
+    "D": {
+      "label": "Customization",
+      "complete": true
+    }
+  },
+  "token_budget": {
+    "max_per_session": 200000,
+    "W_threshold": 0.8,
+    "hard_limit": 0.95
+  }
+}

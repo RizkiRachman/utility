@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-release-plan",
+  "version": "1.0.0",
+  "description": "End-to-end release process — unit testing, quality gates (PMD, SpotBugs, Spotless, ArchUnit), PR templates, commit conventions, documentation, and token optimization",
+  "keywords": ["opencode", "skill", "release-plan"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

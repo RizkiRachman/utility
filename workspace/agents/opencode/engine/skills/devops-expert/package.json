@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-devops-expert",
+  "version": "1.0.0",
+  "description": "DevOps — CI/CD pipelines, infrastructure as code, containerization, monitoring, and deployment strategies",
+  "keywords": ["opencode", "skill", "devops-expert"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

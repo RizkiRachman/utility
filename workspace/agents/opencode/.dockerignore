@@ -1,0 +1,9 @@
+.git
+.gitignore
+.idea
+session
+.session
+pre-install
+.env*
+node_modules
+docker-compose.example.yaml

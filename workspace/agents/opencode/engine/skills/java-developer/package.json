@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-java-developer",
+  "version": "1.0.0",
+  "description": "Spring Boot hexagonal architecture, clean code, GoF design patterns, anti-patterns, modern Java 21, and quality gates (ArchUnit, SpotBugs, PMD CPD, Spotless)",
+  "keywords": ["opencode", "skill", "java-developer"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

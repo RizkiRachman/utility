@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-observability-and-instrumentation",
+  "version": "1.0.0",
+  "description": "Logging, metrics, tracing, alerting, and SLI/SLO observability patterns. Practical guidance using Micrometer, Prometheus, Logstash, and MDC correlation.",
+  "keywords": ["opencode", "skill", "observability", "instrumentation"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

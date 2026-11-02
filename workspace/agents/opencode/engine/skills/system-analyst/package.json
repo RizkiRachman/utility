@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-system-analyst",
+  "version": "1.0.0",
+  "description": "System analysis — architecture evaluation, dependency mapping, impact analysis, and technical documentation",
+  "keywords": ["opencode", "skill", "system-analyst"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

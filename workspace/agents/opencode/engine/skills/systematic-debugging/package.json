@@ -1,0 +1,9 @@
+{
+  "name": "workflow-state-engine-skill-systematic-debugging",
+  "version": "1.0.0",
+  "description": "Debugs issues using the scientific method — hypothesis → isolate → fix → verify. Actionable templates, real Spring Boot scenarios, and project-specific tooling.",
+  "keywords": ["opencode", "skill", "systematic-debugging"],
+  "author": "Workflow State Engine",
+  "license": "MIT",
+  "private": true
+}

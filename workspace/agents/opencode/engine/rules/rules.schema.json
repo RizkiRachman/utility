@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opencode/rules.schema.json",
+  "title": "Workflow State Engine rules",
+  "description": "Schema for engine/rules/rules.json. Every store_in target must point at runtime state (session/...) or a contract-embedded journal path (contract.*) — enforced by scripts/validate-toolkit.sh (check 6).",
+  "type": "object",
+  "required": [
+    "version",
+    "description",
+    "state_machine",
+    "scoring",
+    "enforcement",
+    "metrics",
+    "feedback",
+    "decisions"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "state_machine": {
+      "type": "object",
+      "required": ["transitions", "states"],
+      "additionalProperties": true,
+      "properties": {
+        "transitions": {
+          "type": "array"
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "enforcement": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "regression_tracking": {
+          "$ref": "#/$defs/storeInTarget"
+        },
+        "cross_session_quality": {
+          "$ref": "#/$defs/storeInTarget"
+        }
+      }
+    },
+    "feedback": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "post_mortem": {
+          "$ref": "#/$defs/storeInTarget"
+        },
+        "feedback_loop": {
+          "$ref": "#/$defs/storeInTarget"
+        }
+      }
+    },
+    "decisions": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "confidence_journal": {
+          "$ref": "#/$defs/storeInTarget"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "storeInTarget": {
+      "type": "object",
+      "required": ["store_in"],
+      "additionalProperties": true,
+      "properties": {
+        "store_in": {
+          "type": "string",
+          "pattern": "^(session/|contract\\.)",
+          "description": "Runtime state path (session/...) or contract-embedded journal path (contract.*)."
+        }
+      }
+    }
+  }
+}

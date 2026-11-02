@@ -1,0 +1,25 @@
+{
+  "name": "workflow-state-engine",
+  "version": "2026.06.19.0421",
+  "description": "Contract-driven state machine orchestration engine for AI agent workflows",
+  "license": "MIT",
+  "author": "Workflow State Engine",
+  "keywords": [
+    "opencode",
+    "orchestration",
+    "state-machine",
+    "ai-agents",
+    "workflow"
+  ],
+  "files": [
+    "scripts/*.sh",
+    "contract/*.json",
+    "rules/rules.json",
+    "agents/*.md",
+    "skills/*/SKILL.md",
+    "usage/*.md",
+    "agent.md",
+    "README.md",
+    "setup.sh"
+  ]
+}
