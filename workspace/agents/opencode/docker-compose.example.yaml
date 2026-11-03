@@ -3,7 +3,7 @@ name: opencode
 services:
   opencode:
     container_name: opencode
-    image: opencode:local   # tag applied to the build below; scheduler service reuses it
+    image: opencode:local   # tag applied to the build below; portal and scheduler services reuse it
     labels:
       bpg.group: infra
       bpg.type: agents
@@ -22,8 +22,6 @@ services:
     init: true
     mem_limit: 3g
     cpus: 2
-    ports:
-      - "127.0.0.1:4097:4096"
     restart: unless-stopped
     environment:
       LANG: C.UTF-8
@@ -31,6 +29,7 @@ services:
       TERM: xterm-256color
       OPENCODE_API_KEY: ${OPENCODE_API_KEY:-REPLACE_ME}
       OPENCODE_AUTH_REQUIRED: "true"
+      OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD:-}
       OPENCODE_CONFIG: /home/node/.config/opencode/opencode.json
       SUMOPOD_API_KEY: ${SUMOPOD_API_KEY:-REPLACE_ME}
       SUMOPOD_BASE_URL: ${SUMOPOD_BASE_URL:-REPLACE_ME}
@@ -48,6 +47,29 @@ services:
       - ./config/opencode.json:/home/node/.config/opencode/opencode.json:ro
       - ./config/opencode-model-fallback.json:/home/node/.config/opencode/opencode-model-fallback.json:ro
       - opencode-data:/home/node/.local/share/opencode
+  opencode-portal:
+    container_name: opencode-portal
+    image: opencode:local
+    labels:
+      bpg.group: infra
+      bpg.type: agents
+    command: ["node", "/portal/server.js"]
+    init: true
+    mem_limit: 256m
+    cpus: 0.5
+    ports:
+      - "127.0.0.1:4097:4097"
+    restart: unless-stopped
+    depends_on: [opencode]
+    environment:
+      PORTAL_UPSTREAM: http://opencode:4096
+      PORTAL_PORT: "4097"
+      OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD:-}
+      OPENCODE_SERVER_USERNAME: ${OPENCODE_SERVER_USERNAME:-opencode}
+      PORTAL_AUTO_LOGIN: ${PORTAL_AUTO_LOGIN:-false}
+      PORTAL_COOKIE_SECRET: ${PORTAL_COOKIE_SECRET:-}
+    volumes:
+      - ./portal:/portal:ro
   opencode-preinstall:
     image: node:22-bookworm-slim
     profiles: ["tools"]

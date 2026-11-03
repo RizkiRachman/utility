@@ -35,30 +35,37 @@ From the repository root:
 ```bash
 cp workspace/agents/opencode/.env.template .env   # fill in your keys
 docker compose -f docker-compose.example.yaml up -d --build
-docker exec -it opencode opencode                 # agent TUI / web UI on 127.0.0.1:4097
+open http://127.0.0.1:4097                        # portal landing page, enter your key once
 ```
 
 Standalone build and run, without the repository compose file:
 
 ```bash
 docker build --build-context preinstall=./pre-install -t opencode:local .
-docker run --rm -it -p 127.0.0.1:4097:4096 \
+docker run --rm -it -p 127.0.0.1:4096:4096 \
   -e OPENCODE_API_KEY="<key>" \
   -v "$PWD/config/opencode.json":/home/node/.config/opencode/opencode.json:ro \
   opencode:local
+node portal/server.js   # optional: portal on 127.0.0.1:4097 in front of it
 ```
+
+The compose stack publishes only the portal (`127.0.0.1:4097`); OpenCode's own port 4096 stays inside the compose network. The standalone run above maps 4096 directly, which bypasses the portal and shows OpenCode's own pairing prompt.
 
 The entrypoint boot chain: write `OPENCODE_API_KEY` to `auth.json` and unset it, optionally build the Graphify index, run the MCP readiness preflight, optionally run engine boot checks, then probe launch forms in order: `opencode serve --hostname 0.0.0.0 --port 4096` → `opencode web --hostname 0.0.0.0 --port 4096` → bare `opencode serve`.
 
 ## Configuration
 
-Compose file: [`docker-compose.example.yaml`](../../../docker-compose.example.yaml) at the repository root is the canonical entry point; the sibling [`docker-compose.example.yaml`](docker-compose.example.yaml) in this folder runs the same stack standalone. Host port binding is `127.0.0.1:4097 → container 4096`.
+Compose file: [`docker-compose.example.yaml`](../../../docker-compose.example.yaml) at the repository root is the canonical entry point; the sibling [`docker-compose.example.yaml`](docker-compose.example.yaml) in this folder runs the same stack standalone. The portal publishes `127.0.0.1:4097`; OpenCode serve's `4096` is internal to the compose network.
 
 ### Runtime environment
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `OPENCODE_API_KEY` | Yes | `REPLACE_ME` | OpenCode auth; written to `auth.json`, then unset from the env |
+| `OPENCODE_SERVER_PASSWORD` | No | (empty) | The key you enter on the portal landing page; also enables HTTP basic auth on OpenCode itself |
+| `OPENCODE_SERVER_USERNAME` | No | `opencode` | Username for the injected Basic credential (portal env) |
+| `PORTAL_AUTO_LOGIN` | No | `false` | Zero-click mode: portal proxies without the landing page |
+| `PORTAL_COOKIE_SECRET` | No | (empty) | Stable HMAC secret; set it to keep portal sessions across restarts |
 | `SUMOPOD_API_KEY` | Yes | `REPLACE_ME` | Model-provider API key |
 | `SUMOPOD_BASE_URL` | Yes | `REPLACE_ME` | Model-provider endpoint |
 | `SUMOPOD_BASE_MODEL` | Yes | `REPLACE_ME` | Executor model id |
@@ -97,8 +104,10 @@ Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` 
 
 | Host | Container | Notes |
 |---|---|---|
-| `127.0.0.1:4097` | `4096` | OpenCode web UI / TUI attachment point; loopback only |
+| `127.0.0.1:4097` | `4097` | Portal landing page and reverse proxy; loopback only |
+| (internal) `4096` | `4096` | OpenCode serve; compose-network internal, not published |
 | `./workspace` | `/home/node/workspace` | Working tree mounted into the container (repo compose) |
+| `portal/` | `/portal` (read-only) | Portal server code, run by the `opencode-portal` service |
 | `config/opencode.json` | `/home/node/.config/opencode/opencode.json` | Read-only bind mount; restart to apply edits |
 | `config/opencode-model-fallback.json` | `/home/node/.config/opencode/opencode-model-fallback.json` | Read-only, dormant |
 | `opencode-data` (named volume) | `/home/node/.local/share/opencode` | Auth, session store, memory MCP file |
@@ -163,7 +172,12 @@ Details: [engine/doc/health-check.md](engine/doc/health-check.md).
 opencode/
 ├── Dockerfile                   # Image build; consumes the preinstall context
 ├── entrypoint.sh                # Boot chain: auth → graphify → MCP preflight → serve
-├── docker-compose.example.yaml  # opencode + preinstall + scheduler services
+├── docker-compose.example.yaml  # opencode + portal + preinstall + scheduler services
+├── portal/                      # Landing-page reverse proxy (server.js, zero deps)
+│   ├── server.js
+│   ├── README.md
+│   ├── test.sh
+│   └── test/upstream-stub.js
 ├── populate-preinstall.sh       # Offline-store bootstrap (run inside preinstall service)
 ├── .env.template                # Copy to repository-root .env
 ├── config/                      # opencode.json (V2-native), dormant fallback config
@@ -190,7 +204,10 @@ CI lives at the repository root: [.github/workflows/validate.yml](../../../.gith
 ## Architecture
 
 ```text
-Host browser → 127.0.0.1:4097 → Docker port map → opencode serve :4096 (container)
+Host browser → 127.0.0.1:4097 → opencode-portal (cookie check, Authorization injection)
+                              → opencode serve :4096 (compose network, unpublished)
+
+opencode-portal: node /portal/server.js, zero npm dependencies
 
 entrypoint.sh boot chain:
   1. auth: OPENCODE_API_KEY to auth.json, then unset
@@ -225,7 +242,9 @@ opencode serve attaches to:
 | Symptom | Cause | Fix |
 |---|---|---|
 | Build fails on x64 with missing platform package | The `pre-install/` store matches `OPENCODE_ARCH` (default `arm64`) | Set `OPENCODE_ARCH=x64`, re-run the preinstall profile, rebuild |
-| Web UI unreachable, port already allocated | Host port 4097 is taken by another process | Change the host side of the `ports:` mapping in the compose file |
+| Forgot the key | The portal expects `OPENCODE_SERVER_PASSWORD` from the repository root `.env` | Run `grep OPENCODE_SERVER_PASSWORD .env` from the repository root; change it there and restart both services |
+| Portal shows landing page in a loop | `PORTAL_COOKIE_SECRET` unset, so a random secret is generated per restart and old cookies fail validation | Set a stable `PORTAL_COOKIE_SECRET` in `.env` for sessions that survive restarts, then sign in again |
+| Web UI unreachable, port already allocated | Host port 4097 is taken by another process | Change the host side of the portal `ports:` mapping in the compose file |
 | Config edits have no effect | `config/opencode.json` is mounted read-only | Restart the container after editing; the mount itself never changes |
 | `fetch` MCP fails to extract pages | Image predates the baked readabilipy dependencies; older builds installed them per request and needed network | Rebuild from this Dockerfile; the readability node modules are baked in |
 | Memory disappears between sessions | Memory MCP persists to `MEMORY_FILE_PATH` inside the `opencode-data` volume | Removing the volume removes memory; inspect `docker volume` before wiping |
