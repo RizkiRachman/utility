@@ -15,11 +15,11 @@ jobs:
       - name: JSON validity
         run: |
           for f in \
-            engine/contract/*.json \
-            engine/rules/rules.json \
-            engine/rules/rules.schema.json \
-            engine/opencode.json.template \
-            config/opencode.json
+            workspace/agents/opencode/engine/contract/*.json \
+            workspace/agents/opencode/engine/rules/rules.json \
+            workspace/agents/opencode/engine/rules/rules.schema.json \
+            workspace/agents/opencode/engine/opencode.json.template \
+            workspace/agents/opencode/config/opencode.json
           do
             echo "Parsing $f"
             jq -e . "$f" > /dev/null
@@ -27,21 +27,30 @@ jobs:
 
       - name: Script syntax (bash -n sweep)
         run: |
-          for f in engine/scripts/*.sh engine/setup.sh entrypoint.sh; do
+          for f in workspace/agents/opencode/engine/scripts/*.sh \
+                    workspace/agents/opencode/engine/setup.sh \
+                    workspace/agents/opencode/entrypoint.sh; do
             bash -n "$f"
           done
           echo "All scripts pass bash -n"
 
+      # The engine check scripts resolve their own engine root from the
+      # script location; project-root-relative paths stay valid from the
+      # working directory below.
       - name: Cross-reference integrity
+        working-directory: workspace/agents/opencode
         run: bash engine/scripts/check-cross-references.sh
 
       - name: Doc style gate (humanizer)
-        run: bash engine/scripts/check-doc-style.sh
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/check-doc-style.sh "$GITHUB_WORKSPACE/README.md"
 
       - name: Contract validation
+        working-directory: workspace/agents/opencode
         run: bash engine/scripts/validate-contract.sh --file engine/contract/contract.template.json --score
 
       # Non-blocking for now: the convention rule set is still maturing;
       # flip to blocking once the remaining rules are verified clean.
       - name: Conventions (non-blocking)
+        working-directory: workspace/agents/opencode
         run: bash engine/scripts/check-conventions.sh || true

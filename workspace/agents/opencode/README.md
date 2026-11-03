@@ -1,45 +1,58 @@
 <!-- omit from toc -->
 # opencode
 
-Self-hosted OpenCode v2 stack in Docker: workflow-state-engine, lean-ctx, Graphify, MCP servers, kept separate from v1.
+Self-hosted OpenCode v2 stack in Docker: workflow-state-engine, lean-ctx, Graphify, MCP servers, version-pinned and offline-ready.
 
 ![opencode](https://img.shields.io/badge/opencode-2.2.5-111111)
 ![lean-ctx](https://img.shields.io/badge/lean--ctx-3.12.0-8B5CF6)
 ![docker](https://img.shields.io/badge/docker-arm64-2496ED?logo=docker&logoColor=white)
 ![status](https://img.shields.io/badge/status-beta-orange)
+[![validate](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg)](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml)
 
-This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (16 agents, 66 skills, contract-driven scoring), lean-ctx, Graphify, and Context7 / memory / fetch / everything MCP servers, all version-pinned and pre-populated for offline builds. OpenCode v2 is early software, so this runs as a **beta experience**, fully separate from the stable v1 project at `../opencode` (own folder, own compose project, own port) so both stacks can run side by side. The engine itself is documented in [engine/README.md](engine/README.md).
+This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (16 agents, 66 skills, contract-driven scoring), lean-ctx, Graphify, and Context7 / memory / fetch / everything MCP servers, all version-pinned and pre-populated for offline builds. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md); the migration analysis lives in [PLAN.md](PLAN.md).
 
 ## Table of Contents
 
 1. [Quick Start](#quick-start)
 2. [Configuration](#configuration)
-3. [Components](#components)
-4. [Project Structure](#project-structure)
-5. [Architecture](#architecture)
-6. [Enforcement & Quality Gates](#enforcement--quality-gates)
-7. [Known Unknowns](#known-unknowns)
-8. [Local State](#local-state)
-9. [Contributing & License](#contributing--license)
+3. [Ports and Volumes](#ports-and-volumes)
+4. [MCP Servers](#mcp-servers)
+5. [Health Checks](#health-checks)
+6. [Offline Pre-Install Store](#offline-pre-install-store)
+7. [Components](#components)
+8. [Project Structure](#project-structure)
+9. [Architecture](#architecture)
+10. [Enforcement and Quality Gates](#enforcement-and-quality-gates)
+11. [Troubleshooting](#troubleshooting)
+12. [Known Unknowns](#known-unknowns)
+13. [Local State](#local-state)
+14. [Contributing and License](#contributing-and-license)
 
 ## Quick Start
 
-```sh
-cd /path/to/opencode
-export OPENCODE_API_KEY=... SUMOPOD_API_KEY=... SUMOPOD_BASE_URL=... \
-       SUMOPOD_BASE_MODEL=... SUMOPOD_BASE_MODEL_NAME=... CONTEXT7_API_KEY=...
-docker compose -f docker-compose.example.yaml run --rm populate   # fills pre-install/ (first run downloads)
+From the repository root:
+
+```bash
+cp workspace/agents/opencode/.env.template .env   # fill in your keys
 docker compose -f docker-compose.example.yaml up -d --build
-# UI on http://localhost:4097 (v1 stays on 4096)
-# opt-in: daily drift detection scheduler
-docker compose -f docker-compose.example.yaml --profile scheduler up -d scheduler
+docker exec -it opencode opencode                 # agent TUI / web UI on 127.0.0.1:4097
 ```
 
-`populate` is a throwaway `node:22-bookworm-slim` container (profile `tools`) that fills the offline store in `pre-install/`; repeat runs skip everything already present. The image build consumes that store via the `preinstall` build context; without it, installs fall back to the network and fail in offline environments.
+Standalone build and run, without the repository compose file:
+
+```bash
+docker build --build-context preinstall=./pre-install -t opencode:local .
+docker run --rm -it -p 127.0.0.1:4097:4096 \
+  -e OPENCODE_API_KEY="<key>" \
+  -v "$PWD/config/opencode.json":/home/node/.config/opencode/opencode.json:ro \
+  opencode:local
+```
+
+The entrypoint boot chain: write `OPENCODE_API_KEY` to `auth.json` and unset it, optionally build the Graphify index, run the MCP readiness preflight, optionally run engine boot checks, then probe launch forms in order: `opencode serve --hostname 0.0.0.0 --port 4096` → `opencode web --hostname 0.0.0.0 --port 4096` → bare `opencode serve`.
 
 ## Configuration
 
-Compose file: [`docker-compose.example.yaml`](docker-compose.example.yaml). Host port binding is `127.0.0.1:4097 → container 4096`.
+Compose file: [`docker-compose.example.yaml`](../../../docker-compose.example.yaml) at the repository root is the canonical entry point; the sibling [`docker-compose.example.yaml`](docker-compose.example.yaml) in this folder runs the same stack standalone. Host port binding is `127.0.0.1:4097 → container 4096`.
 
 ### Runtime environment
 
@@ -51,6 +64,7 @@ Compose file: [`docker-compose.example.yaml`](docker-compose.example.yaml). Host
 | `SUMOPOD_BASE_MODEL` | Yes | `REPLACE_ME` | Executor model id |
 | `SUMOPOD_BASE_MODEL_NAME` | Yes | `REPLACE_ME` | Executor model display name |
 | `CONTEXT7_API_KEY` | Yes | `REPLACE_ME` | Context7 docs MCP key |
+| `FIRECRAWL_API_KEY` | No | (unset) | Firecrawl key; developer search works keyless, alexandria + firecrawl-cli skills need it |
 | `OPENCODE_AUTH_REQUIRED` | No | `true` | Fail boot when `OPENCODE_API_KEY` is missing |
 | `OPENCODE_CONFIG` | No | `/home/node/.config/opencode/opencode.json` | Config path inside the container |
 | `GRAPHIFY_ROOT` | No | `/home/node/workspace` | Graphify index root |
@@ -62,7 +76,6 @@ Compose file: [`docker-compose.example.yaml`](docker-compose.example.yaml). Host
 | `ENGINE_BOOT_CHECK` | No | `false` | Validate the bundled engine before launch |
 | `ENGINE_BOOT_STRICT` | No | `false` | Exit 1 when a boot check fails |
 | `ENGINE_BOOT_TIMEOUT` | No | `30` | Per-check timeout (seconds) |
-| `FIRECRAWL_API_KEY` | No | (unset) | Firecrawl key; developer search works keyless, alexandria + firecrawl-cli skills need it |
 
 ### Build args
 
@@ -79,6 +92,53 @@ Compose file: [`docker-compose.example.yaml`](docker-compose.example.yaml). Host
 | `FIRECRAWL_CLI_VERSION` | `1.26.24` | `firecrawl-cli` pin (binary `firecrawl`) |
 
 Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` (incl. a `firecrawl_alexandria` ask entry), `plugins` (vendored `/opt/engine/plugins/opencode-firecrawl`), `mcp.servers` + `disabled`, `providers.package`, `update`, `compaction.keep.tokens`; mounted read-only) and `config/opencode-model-fallback.json` (dormant, kept for a future `@opencode/plugin` port).
+
+## Ports and Volumes
+
+| Host | Container | Notes |
+|---|---|---|
+| `127.0.0.1:4097` | `4096` | OpenCode web UI / TUI attachment point; loopback only |
+| `./workspace` | `/home/node/workspace` | Working tree mounted into the container (repo compose) |
+| `config/opencode.json` | `/home/node/.config/opencode/opencode.json` | Read-only bind mount; restart to apply edits |
+| `config/opencode-model-fallback.json` | `/home/node/.config/opencode/opencode-model-fallback.json` | Read-only, dormant |
+| `opencode-data` (named volume) | `/home/node/.local/share/opencode` | Auth, session store, memory MCP file |
+| `pre-install/` | build context `preinstall` | Offline package store, consumed at build time |
+
+## MCP Servers
+
+Defined in `config/opencode.json`:
+
+| Server | Command | Purpose |
+|---|---|---|
+| `lean-ctx` | `lean-ctx` | Compressed reads/search/shell, code intelligence, knowledge and session persistence |
+| `graphify` | `sh -c "… graphify-mcp …"` | Knowledge graph MCP; configured but `disabled: true` by default, flip the flag and restart to enable |
+| `context7` | `context7-mcp` | Up-to-date library docs lookups; needs `CONTEXT7_API_KEY` |
+| `memory` | `mcp-server-memory` | Persistent memory graph, writes to `MEMORY_FILE_PATH` in the `opencode-data` volume |
+| `fetch` | `mcp-server-fetch` | Keyless single-page HTTP GET with readability extraction (deps baked at build) |
+| `everything` | `mcp-server-everything` | MCP diagnostics and test fixtures |
+| `@firecrawl/opencode` (plugin) | vendored at `engine/plugins/opencode-firecrawl` | Keyless `firecrawl_developer_search`; `firecrawl_alexandria` is ask-gated; keyed scrape/crawl via `firecrawl-cli` |
+
+## Health Checks
+
+Run from this folder (`workspace/agents/opencode`); every script exits 0 on a healthy tree:
+
+```bash
+bash engine/scripts/health-check.sh             # aggregates the full suite (6 dimensions)
+bash engine/scripts/check-cross-references.sh   # link/ID integrity across engine docs
+bash engine/scripts/validate-toolkit.sh         # symlinks, contract integrity, agent consistency
+bash engine/scripts/check-conventions.sh        # architecture conventions (non-blocking)
+bash engine/scripts/check-doc-style.sh          # doc style gate: dashes, vocabulary, placeholders
+bash engine/scripts/check-plugins.sh             # V2 plugin path rule (no file:// to file)
+bash engine/scripts/check-mcp.sh                # MCP server binaries present
+bash engine/scripts/boot/engine-check.sh        # boot-time engine validation
+bash engine/scripts/boot/mcp-check.sh           # boot-time MCP readiness probe
+```
+
+Details: [engine/doc/health-check.md](engine/doc/health-check.md).
+
+## Offline Pre-Install Store
+
+`pre-install/` holds apt `.deb` files, pip wheels, npm tarballs, git sources, and prebuilt binaries keyed to the pinned versions and `OPENCODE_ARCH` (default `arm64`). The compose `opencode-preinstall` service (profile `tools`) is a throwaway `node:22-bookworm-slim` container that fills it; repeat runs skip everything already present. The image build consumes the store via the `preinstall` build context; without it, installs fall back to the network and fail in offline environments. The store is gitignored except `.gitkeep` placeholders.
 
 ## Components
 
@@ -103,13 +163,14 @@ Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` 
 opencode/
 ├── Dockerfile                   # Image build; consumes the preinstall context
 ├── entrypoint.sh                # Boot chain: auth → graphify → MCP preflight → serve
-├── docker-compose.example.yaml  # opencode + populate + scheduler services
-├── populate-preinstall.sh       # Offline-store bootstrap (run inside populate)
+├── docker-compose.example.yaml  # opencode + preinstall + scheduler services
+├── populate-preinstall.sh       # Offline-store bootstrap (run inside preinstall service)
+├── .env.template                # Copy to repository-root .env
 ├── config/                      # opencode.json (V2-native), dormant fallback config
 ├── certs/                       # TLS certs placeholder (currently empty)
-├── pre-install/                 # Offline package store (apt/pip/npm/git/bin/dist)
-├── session/                     # Live orchestration contract + state log
-├── .github/                     # validate.yml CI + PR template
+├── pre-install/                 # Offline package store (gitignored)
+├── session/                     # Live orchestration contract + state log (gitignored)
+├── PLAN.md                      # Migration analysis
 └── engine/                      # Workflow-state-engine → copied to /opt/engine
     ├── agent.md                 # Orchestrator instructions (instructions[0])
     ├── agents/                  # 16 agent instruction files
@@ -117,33 +178,34 @@ opencode/
     ├── commands/                # 1 slash command (impeccable)
     ├── rules/                   # rules.json + rules.schema.json
     ├── contract/                # Contract templates + JSON Schema
-    ├── scripts/                 # 37 automation & validation scripts
+    ├── scripts/                 # Automation & validation scripts (incl. boot/)
     ├── usage/                   # 4 tool guides (lean-ctx, graphify, context7, opencode)
     ├── doc/                     # Workflow + health-check docs
     ├── templates/               # judge-prompt.md
     └── opencode.json.template   # Config template (V2-native shape)
 ```
 
+CI lives at the repository root: [.github/workflows/validate.yml](../../../.github/workflows/validate.yml) runs JSON validity, a `bash -n` sweep, cross-reference and doc style gates, and contract scoring on every push.
+
 ## Architecture
 
-```mermaid
-flowchart TD
-    B["Host browser"] -->|"127.0.0.1:4097"| M["Docker port map"]
-    M -->|"container 4096"| S["opencode serve :4096"]
-    E["entrypoint.sh boot chain"] --> A["1. auth: OPENCODE_API_KEY to auth.json, then unset"]
-    A --> G["2. Graphify build: if-missing / always / never, timeout 900"]
-    G --> P["3. MCP preflight: JSON-RPC initialize per enabled local server"]
-    P --> C["4. engine boot checks: validate-contract --score, check-plugins"]
-    C --> L["5. launch probe: serve, then web, then bare serve"]
-    L --> S
-    S --> MCP["MCP servers: lean-ctx, context7, memory, fetch, everything; graphify disabled"]
-    S --> FC["Firecrawl plugin (keyless developer search; alexandria ask-gated)"]
-    S --> ENG["workflow-state-engine: 16 agents, 66 skills, 37 scripts, session/"]
+```text
+Host browser → 127.0.0.1:4097 → Docker port map → opencode serve :4096 (container)
+
+entrypoint.sh boot chain:
+  1. auth: OPENCODE_API_KEY to auth.json, then unset
+  2. Graphify build: if-missing / always / never, timeout 900
+  3. MCP preflight: JSON-RPC initialize per enabled local server
+  4. engine boot checks: validate-contract --score, check-plugins
+  5. launch probe: serve, then web, then bare serve
+
+opencode serve attaches to:
+  - MCP servers: lean-ctx, context7, memory, fetch, everything (graphify disabled by default)
+  - Firecrawl plugin: keyless developer search, alexandria ask-gated
+  - workflow-state-engine: 16 agents, 66 skills, session/
 ```
 
-## Enforcement & Quality Gates
-
-All gates exist and are wired; details in [engine/doc/health-check.md](engine/doc/health-check.md). No CI badge is shown: this copy is intentionally not a git repository, so a passing badge would be untruthful.
+## Enforcement and Quality Gates
 
 | Gate | Checks | Wired into |
 |---|---|---|
@@ -154,9 +216,19 @@ All gates exist and are wired; details in [engine/doc/health-check.md](engine/do
 | `engine/scripts/check-conventions.sh` | Rule 1 FAILs stale contract paths; INFOs the V2 chain | `validate-toolkit.sh`, CI (non-blocking) |
 | `engine/rules/rules.schema.json` | `store_in` target schema + required top-level keys for rules | `validate-toolkit.sh` |
 | `engine/.githooks/pre-commit` | `bash -n` sweep + cross-references + doc style | `git config core.hooksPath engine/.githooks` |
-| `.github/workflows/validate.yml` | JSON validity, `bash -n`, cross-refs, doc style, contract score, conventions | Activates once this folder lands in a git remote |
+| `.github/workflows/validate.yml` (repository root) | JSON validity, `bash -n`, cross-refs, doc style, contract score, conventions | Runs on every push and pull request |
 | humanizer gate (`/skill humanizer`) | Strips AI writing patterns (em dashes, rule-of-three, promotional tone) from shipped user-facing docs; internal state files (`session/state.md`, contract JSON, code comments) exempt | `agent.md` ship flow, `engine/skills/release-plan`, `engine/skills/shipping-and-launch` |
 | context gate (`/skill context-standards`) | Loads target-project pattern standards (`context/*.md`) before edits and verifies them in review | `agent.md` Execute step, `developer.md`, `quality-analyst.md`, cross-reference check 7 |
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Build fails on x64 with missing platform package | The `pre-install/` store matches `OPENCODE_ARCH` (default `arm64`) | Set `OPENCODE_ARCH=x64`, re-run the preinstall profile, rebuild |
+| Web UI unreachable, port already allocated | Host port 4097 is taken by another process | Change the host side of the `ports:` mapping in the compose file |
+| Config edits have no effect | `config/opencode.json` is mounted read-only | Restart the container after editing; the mount itself never changes |
+| `fetch` MCP fails to extract pages | Image predates the baked readabilipy dependencies; older builds installed them per request and needed network | Rebuild from this Dockerfile; the readability node modules are baked in |
+| Memory disappears between sessions | Memory MCP persists to `MEMORY_FILE_PATH` inside the `opencode-data` volume | Removing the volume removes memory; inspect `docker volume` before wiping |
 
 ## Known Unknowns
 
@@ -169,10 +241,10 @@ All gates exist and are wired; details in [engine/doc/health-check.md](engine/do
 Never committed or pushed:
 
 - `pre-install/`: offline package store (gitignored except `.gitkeep` placeholders).
-- `session/`: **project-local runtime state**. Compose mounts this project at `/home/node/workspace`, so this `session/` *is* the container's global session directory: `contract.json` (seeded from `engine/contract/contract.template.json` via `snapshot-contract.sh`), `state.md`, `state.example.md` (tracked), `archive/`. Gitignore policy: `session/*` ignored, `state.example.md` negated.
+- `session/`: **project-local runtime state**. Compose mounts the workspace at `/home/node/workspace`, so this `session/` *is* the container's global session directory: `contract.json` (seeded from `engine/contract/contract.template.json` via `snapshot-contract.sh`), `state.md`, `state.example.md` (tracked), `archive/`. Gitignore policy: `session/*` ignored, `state.example.md` negated.
 
-This folder is intentionally **not a git repository**; v1 at `../opencode` remains the versioned source of truth. See [PLAN.md](PLAN.md) for the migration analysis.
+See [PLAN.md](PLAN.md) for the migration analysis. The engine reference ([engine/README.md](engine/README.md)) covers internals.
 
-## Contributing & License
+## Contributing and License
 
-The stack is internal and not open for external contribution. The v1 repository is the versioned source of truth; changes here are made in place. A PR template (`.github/PULL_REQUEST_TEMPLATE.md`) and the CI workflow ship so the usual gates apply automatically once this folder lands in a git remote; until then, run `engine/.githooks/pre-commit` checks by hand. No license file ships with this copy.
+The stack is internal and not open for external contribution. Changes are made in place; the CI workflow at the repository root and a PR template ([.github/PULL_REQUEST_TEMPLATE.md](../../../.github/PULL_REQUEST_TEMPLATE.md)) apply the usual gates automatically. For local commits, enable the pre-commit hook with `git config core.hooksPath engine/.githooks`. No license file ships with this repository.
