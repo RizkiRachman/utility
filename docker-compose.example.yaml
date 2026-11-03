@@ -11,7 +11,6 @@ services:
         preinstall: ./workspace/agents/opencode/pre-install
       args:
         OPENCODE_VERSION: "2.2.5"  # pinned for reproducible builds
-        OPENCODE_PLATFORM_PKG: "@opencode/cli-linux-arm64@2.2.5"
         GRAPHIFY_VERSION: "0.9.100"
         LEAN_CTX_VERSION: "3.12.0"
         CONTEXT7_VERSION: "4.4.4"

@@ -37,7 +37,10 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # engine/
-REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"                       # repo root (opencode/)
+# Repo root: shared resolver handles source checkouts and the /opt/engine deploy.
+# shellcheck source=lib/paths.sh
+. "$PROJECT_ROOT/scripts/lib/paths.sh"
+REPO_ROOT="$(resolve_project_root "$PROJECT_ROOT")"               # repo root (opencode/)
 
 # ── Config ──────────────────────────────────────────────────────────────────
 VERBOSE=false
@@ -285,6 +288,15 @@ main() {
 
     local f
     for f in "${targets[@]}"; do
+        # Bare engine deploy: REPO_ROOT resolved to the engine root itself and
+        # the project README is absent there — skip that one target instead of
+        # failing. Real source checkouts (REPO_ROOT != engine root) still fail
+        # when their README.md is missing.
+        if [[ "$f" == "$REPO_ROOT/README.md" && ! -f "$f" ]] \
+            && [[ "$(resolve_project_root "$PROJECT_ROOT")" == "$PROJECT_ROOT" ]]; then
+            echo "project README absent (engine-only deploy) — skipping"
+            continue
+        fi
         check_file "$f"
     done
 

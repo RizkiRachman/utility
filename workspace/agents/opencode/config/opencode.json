@@ -395,7 +395,10 @@
         "type": "local",
         "command": [
           "mcp-server-memory"
-        ]
+        ],
+        "env": {
+          "MEMORY_FILE_PATH": "/home/node/.local/share/opencode/memory/memory.jsonl"
+        }
       },
       "fetch": {
         "type": "local",

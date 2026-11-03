@@ -181,7 +181,7 @@ Interactive prompts: path, description, mode, permissions, model. Or define in `
 }
 ```
 
-Or as a markdown file at `.opencode/agents/my-agent.md`:
+Or as a markdown file at `~/.config/opencode/agents/my-agent.md`:
 
 ```markdown
 ---

@@ -138,7 +138,14 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
       PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx install /pi/pip/mcp_server_fetch-*.whl; \
     else \
       pipx install "mcp-server-fetch==${MCP_SERVER_FETCH_VERSION}"; \
-    fi
+    fi; \
+    # Bake readabilipy's Readability.js deps: without node_modules in the
+    # package dir, the fetch server shells out to `npm install` per request,
+    # which fails air-gapped. Small tree; network-at-build is acceptable
+    # (same trade-off as the graphify/firecrawl fallbacks above).
+    JS_DIR="/opt/pipx/venvs/mcp-server-fetch/lib/python3.11/site-packages/readabilipy/javascript"; \
+    npm install --prefix "$JS_DIR" --no-audit --no-fund; \
+    test -d "$JS_DIR/node_modules/@mozilla/readability"
 
 # Prepare OpenCode configuration and persistent-data directories.
 RUN mkdir -p \
