@@ -101,7 +101,7 @@ Compose file: [`docker-compose.example.yaml`](../../../docker-compose.example.ya
 | `ZOD_VERSION` | `4.1.8` | zod pin (runtime dep of `@firecrawl/opencode`, resolved once) |
 | `FIRECRAWL_CLI_VERSION` | `1.26.24` | `firecrawl-cli` pin (binary `firecrawl`) |
 
-Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` (incl. a `firecrawl_alexandria` ask entry), `plugins` (vendored `/opt/engine/plugins/opencode-firecrawl`), `mcp.servers` + `disabled`, `providers.package`, `update`, `compaction.keep.tokens`; mounted read-only) and `config/opencode-model-fallback.json` (dormant, kept for a future `@opencode/plugin` port).
+Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` (incl. a `firecrawl_alexandria` ask entry), `plugins` (vendored `/opt/engine/plugins/opencode-firecrawl`), `mcp.servers` + `disabled`, `providers.package`, `instructions` (loads `/opt/engine/agent.md` plus `opencode/config/rag-usage.md`, which tells agents to search the rag index before writing code), `update`, `compaction.keep.tokens`; mounted read-only) and `config/opencode-model-fallback.json` (dormant, kept for a future `@opencode/plugin` port).
 
 ## Ports and Volumes
 
@@ -128,7 +128,7 @@ Defined in `config/opencode.json`:
 | `memory` | `mcp-server-memory` | Persistent memory graph, writes to `MEMORY_FILE_PATH` in the `opencode-data` volume |
 | `fetch` | `mcp-server-fetch` | Keyless single-page HTTP GET with readability extraction (deps baked at build) |
 | `everything` | `mcp-server-everything` | MCP diagnostics and test fixtures |
-| `rag` | `node /opt/rag/server.js` | Workspace retrieval over SQLite FTS5 + vectors: `rag_search`, `rag_index`, `rag_status`, `rag_get`; offline hashed-vector embeddings, optional remote endpoint via `RAG_EMBEDDINGS_*` |
+| `rag` | `node /opt/rag/server.js` | Workspace retrieval over SQLite FTS5 + vectors: `rag_search`, `rag_index`, `rag_status`, `rag_get`; java-aware method-boundary chunking with `package > class > method` headings; offline hashed-vector embeddings, optional remote endpoint via `RAG_EMBEDDINGS_*`; agents get usage rules from the `opencode/config/rag-usage.md` instructions entry |
 | `@firecrawl/opencode` (plugin) | vendored at `engine/plugins/opencode-firecrawl` | Keyless `firecrawl_developer_search`; `firecrawl_alexandria` is ask-gated; keyed scrape/crawl via `firecrawl-cli` |
 
 ## Health Checks
@@ -185,11 +185,11 @@ opencode/
 ├── rag/                            # RAG MCP server (zero npm dependencies)
 │   ├── server.js                   # CLI + MCP stdio; SQLite FTS5 + vectors
 │   ├── README.md
-│   ├── test.sh                     # 8-case suite (CLI, MCP, remote embeddings)
+│   ├── test.sh                     # 10-case suite (CLI, Java chunking, MCP, remote embeddings)
 │   └── test/                       # corpus fixtures, embeddings stub, MCP checks
 ├── populate-preinstall.sh       # Offline-store bootstrap (run inside preinstall service)
 ├── .env.template                # Copy to repository-root .env
-├── config/                      # opencode.json (V2-native), dormant fallback config
+├── config/                      # opencode.json (V2-native), rag-usage.md agent guidance, dormant fallback config
 ├── certs/                       # TLS certs placeholder (currently empty)
 ├── pre-install/                 # Offline package store (gitignored)
 ├── session/                     # Live orchestration contract + state log (gitignored)

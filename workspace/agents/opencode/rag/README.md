@@ -15,7 +15,7 @@ It runs in two modes from the same script:
 | Tool | Arguments | Returns |
 |---|---|---|
 | `rag_search` | `query` (string, required), `k` (number, default 8), `glob` (string, e.g. `docs/**/*.md`) | Ranked hits as `path:startline-endline (score) heading` plus a snippet per hit; `structuredContent` carries the same hits as JSON |
-| `rag_index` | `root` (string, optional) | Incremental reindex stats: files, re-chunked, purged, chunks, dims, mode, elapsed |
+| `rag_index` | `root` (string, optional) | Incremental reindex stats: files, re-chunked, purged, chunks, skipped binary/extension/name counts, dims, mode, elapsed |
 | `rag_status` | (none) | JSON status: db path, root, file and chunk counts, last index time, stale file count, embedding mode, dims |
 | `rag_get` | `id` (number, required) | Full chunk text with path, heading, and line range |
 
@@ -57,13 +57,18 @@ One SQLite database (WAL mode) at `RAG_DB`:
 
 ## Indexing rules
 
+Markdown, Java, and everything else each get their own chunker. Java files (`.java`) are split on method boundaries: a brace-depth scan (line comments, string literals, and char literals are respected; block comments are not tracked) closes a chunk when depth returns to the class-body level and at least 400 characters have accumulated, and any chunk above about 1400 characters is hard split at the next line boundary. Headings carry `package > class > method` context (best effort: constructors use the class name, and files without recognizable braces fall back to plain-text chunking). Chunk text stays a raw slice of the file; the heading is metadata only, same as markdown.
+
 | Rule | Value |
 |---|---|
 | Markdown chunking | Split on headings; each chunk keeps its heading path |
-| Code and plain text | Split on blank-line boundaries, about 1200 chars per chunk with about 150 chars of overlap |
+| Java chunking | Split on method boundaries; heading carries `package > class > method` |
+| Other code and plain text | Split on blank-line boundaries, about 1200 chars per chunk with about 150 chars of overlap |
 | File cap | Files above 512 KB are skipped |
-| Binary detection | First bytes scanned for a null byte |
-| Skipped directories | `.git`, `node_modules`, `__pycache__`, `.next`, `dist`, `pre-install`, `graphify-out`, `session`, `.session`, `.venv` |
+| Binary detection | First bytes scanned for a null byte; extension skips run after it |
+| Skipped directories | `.git`, `node_modules`, `__pycache__`, `.next`, `dist`, `pre-install`, `graphify-out`, `session`, `.session`, `.venv`, and build outputs: `target`, `build`, `.gradle`, `.mvn`, `out`, `.settings`, `.idea`, `bin`, `.classpath` |
+| Skipped filenames | `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `gradle.lockfile`, `.DS_Store`, `Thumbs.db` |
+| Skipped extensions | Archives (`jar`, `war`, `zip`, `tar`, `gz`, ...), compiled artifacts (`class`, `exe`, `dll`, `so`, `dylib`, ...), images, fonts, office and media files; `svg` stays indexed |
 | Default root | `/home/node/workspace` |
 
 ## Offline guarantees

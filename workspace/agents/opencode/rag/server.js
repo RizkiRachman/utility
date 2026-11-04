@@ -5,6 +5,12 @@
  * Zero npm dependencies: node core modules only (node:sqlite, node:http via
  * global fetch, node:crypto, node:fs, node:path, node:os).
  *
+ * Chunking is language aware where it is cheap: markdown splits on headings,
+ * Java splits on method boundaries (brace depth, headings carry
+ * package > class > method), everything else splits on paragraph breaks.
+ * Build output directories (target/, build/, .gradle/, ...), lockfiles, and
+ * common binary extensions are excluded from the walk.
+ *
  * Dual mode:
  *   CLI  — `node server.js index [root] | search <q> [--k N] [--glob P] | status | get <id>`
  *   MCP  — no args: JSON-RPC 2.0 over stdio (newline-delimited). Only JSON-RPC
@@ -42,6 +48,8 @@ const MAX_FILE_SIZE = 512 * 1024;
 const CHUNK_TARGET = 1200;   // chars per chunk (paragraph accumulation)
 const CHUNK_OVERLAP = 150;   // chars carried into the next chunk
 const CHUNK_HARD_SPLIT = 4000; // single paragraph above this gets windowed
+const JAVA_CHUNK_MIN = 400;   // closed member below this merges into the next chunk
+const JAVA_CHUNK_HARD = 1400; // java chunk above this is split at the next line
 const LOCAL_DIMS = 256;      // hashed n-gram vector width
 const EMBED_BATCH = 32;      // max texts per remote embeddings request
 const FTS_TOP = 50;          // fts rows joined into the candidate set
@@ -53,6 +61,26 @@ const SNIPPET_CHARS = 200;
 const SKIP_DIRS = new Set([
   '.git', 'node_modules', '__pycache__', '.next', 'dist',
   'pre-install', 'graphify-out', 'session', '.session', '.venv',
+  // Java / JVM build outputs and IDE metadata
+  'target', 'build', '.gradle', '.mvn', 'out', '.settings', '.idea', 'bin',
+  '.classpath',
+]);
+// Exact filename matches: dependency lockfiles and OS metadata never index.
+const NAME_SKIPS = new Set([
+  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'gradle.lockfile',
+  '.DS_Store', 'Thumbs.db',
+]);
+// Extensions that are never worth indexing even when they decode as text.
+// Checked after the null-byte binary sniff, so genuinely binary formats
+// still count as skipped_binary. svg stays indexed (it is text).
+const EXT_SKIPS = new Set([
+  'jar', 'war', 'zip', 'tar', 'gz', 'tgz', '7z', 'rar',
+  'class', 'exe', 'dll', 'so', 'dylib', 'a', 'o', 'obj',
+  'png', 'jpg', 'jpeg', 'gif', 'ico',
+  'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+  'woff', 'woff2', 'ttf', 'eot', 'otf',
+  'mp3', 'mp4', 'mov', 'avi',
+  'sqlite', 'db', 'wasm', 'node', 'pyc', 'pyo', 'bin', 'iso', 'img',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -350,6 +378,125 @@ function isMarkdown(relPath) {
   return /\.(md|markdown)$/i.test(relPath);
 }
 
+function isJava(relPath) {
+  return /\.java$/i.test(relPath);
+}
+
+/**
+ * Split Java source on member boundaries using brace depth. Naive scan:
+ * braces are counted outside line comments, string literals, and char
+ * literals; block comments are not tracked. A chunk closes when depth
+ * returns to the class-body level (1) and JAVA_CHUNK_MIN chars have
+ * accumulated; any chunk above JAVA_CHUNK_HARD chars is hard split at the
+ * next line boundary. Headings carry package > class > method context
+ * (best effort: constructors use the class name, unparseable files fall
+ * back to chunkPlainText). Chunk text is always a raw slice of the file;
+ * the heading is metadata only, same as markdown.
+ */
+function chunkJava(text, relPath) {
+  const lines = text.split('\n');
+  const base = path.basename(relPath || '').replace(/\.java$/i, '') || 'file';
+  const memberRe = /([A-Za-z_$][A-Za-z0-9_$]*)\s*\(/g;
+  let pkg = '';
+  let cls = '';
+  let method = '';
+  let depth = 0;
+  let sawDepth = false;
+  const chunks = [];
+  let cur = null; // { startLine, lines, heading, members, len }
+
+  const headingNow = () => {
+    const parts = [];
+    if (pkg) parts.push(`package ${pkg};`);
+    parts.push(cls || base);
+    if (method) parts.push(method);
+    return parts.join(' > ');
+  };
+
+  const flush = () => {
+    if (!cur) return;
+    const body = cur.lines.join('\n');
+    if (body.trim()) {
+      chunks.push({
+        heading: cur.heading,
+        text: body,
+        startLine: cur.startLine,
+        endLine: cur.startLine + cur.lines.length - 1,
+      });
+    }
+    cur = null;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i];
+    const n = i + 1;
+
+    // Scan the line: brace depth plus package/class/method context.
+    let inStr = false;
+    let inChr = false;
+    let inComment = false;
+    let enteredMember = false; // depth crossed 1 -> 2 (a member body opened)
+    let leftMember = false;    // depth returned to 1 (a member body closed)
+    for (let j = 0; j < ln.length; j++) {
+      const c = ln[j];
+      if (inComment) break;
+      if (inStr) {
+        if (c === '\\') j++;
+        else if (c === '"') inStr = false;
+        continue;
+      }
+      if (inChr) {
+        if (c === '\\') j++;
+        else if (c === "'") inChr = false;
+        continue;
+      }
+      if (c === '/' && ln[j + 1] === '/') { inComment = true; continue; }
+      if (c === '"') { inStr = true; continue; }
+      if (c === "'") { inChr = true; continue; }
+      if (c === '{') {
+        depth++;
+        sawDepth = true;
+        if (depth === 2) enteredMember = true;
+      } else if (c === '}') {
+        if (depth > 0) depth--;
+        if (depth === 1) leftMember = true;
+      }
+    }
+    if (!pkg) {
+      const pm = /^\s*package\s+([\w.]+)\s*;/.exec(ln);
+      if (pm) pkg = pm[1];
+    }
+    if (!cls) {
+      const cm = /^\s*(?:@\w+\s+)*(?:public\s+|protected\s+|private\s+|abstract\s+|final\s+|sealed\s+|static\s+)*(?:class|interface|enum|record)\s+([A-Za-z_$][A-Za-z0-9_$]*)/.exec(ln);
+      if (cm) cls = cm[1];
+    }
+    if (enteredMember) {
+      // The method name is the last identifier followed by "(" in the
+      // lines accumulated since the previous member closed.
+      const buf = cur ? cur.lines.concat(ln).join('\n') : ln;
+      let m;
+      let last = null;
+      memberRe.lastIndex = 0;
+      while ((m = memberRe.exec(buf))) last = m[1];
+      if (last) method = last;
+    }
+
+    if (!cur) cur = { startLine: n, lines: [], heading: headingNow(), members: 0, len: 0 };
+    if (enteredMember) {
+      cur.members++;
+      if (cur.members === 1) cur.heading = headingNow();
+    }
+    cur.lines.push(ln);
+    cur.len += ln.length + 1;
+
+    if ((leftMember && cur.len >= JAVA_CHUNK_MIN) || cur.len > JAVA_CHUNK_HARD) flush();
+  }
+  flush();
+
+  if (!sawDepth) return chunkPlainText(text);
+  return chunks;
+}
+
 // ---------------------------------------------------------------------------
 // Database
 // ---------------------------------------------------------------------------
@@ -402,7 +549,7 @@ function metaSet(db, key, value) {
 // Filesystem walk
 // ---------------------------------------------------------------------------
 
-function walk(root) {
+function walk(root, skipStats) {
   const out = [];
   const visit = (dir) => {
     let entries;
@@ -420,6 +567,10 @@ function walk(root) {
         continue;
       }
       if (!ent.isFile()) continue;
+      if (NAME_SKIPS.has(ent.name)) {
+        if (skipStats) skipStats.skipped_name++;
+        continue;
+      }
       out.push({ abs, rel: path.relative(root, abs).split(path.sep).join('/') });
     }
   };
@@ -427,11 +578,13 @@ function walk(root) {
   return out;
 }
 
-function loadFile(abs) {
+function loadFile(abs, relPath) {
   const st = fs.statSync(abs);
   if (st.size > MAX_FILE_SIZE) return { skip: 'size', size: st.size, mtime: st.mtimeMs };
   const buf = fs.readFileSync(abs);
   if (buf.includes(0)) return { skip: 'binary', size: st.size, mtime: st.mtimeMs };
+  const ext = path.extname(relPath || abs).slice(1).toLowerCase();
+  if (EXT_SKIPS.has(ext)) return { skip: 'extension', size: st.size, mtime: st.mtimeMs };
   return { skip: null, buf, size: st.size, mtime: st.mtimeMs };
 }
 
@@ -456,7 +609,8 @@ function deleteChunksOfFiles(db, fileIds) {
 
 /**
  * Incremental index of root into the database.
- * Returns stats: { files, rechunked, purged, skipped_binary, chunks, dims, mode, ms }.
+ * Returns stats: { files, rechunked, purged, skipped_binary, skipped_ext,
+ * skipped_name, chunks, dims, mode, ms }.
  */
 async function indexRoot(db, rootRaw) {
   const t0 = Date.now();
@@ -467,10 +621,11 @@ async function indexRoot(db, rootRaw) {
   const cfg = embeddingsConfig();
   const stats = {
     root, files: 0, rechunked: 0, purged: 0, skipped_binary: 0,
+    skipped_ext: 0, skipped_name: 0,
     chunks: 0, dims: null, mode: null, ms: 0,
   };
 
-  const disk = walk(root);
+  const disk = walk(root, stats);
   const diskByPath = new Map(disk.map((f) => [f.abs, f]));
   const existing = db.prepare('SELECT id, path, hash FROM files').all();
   const existingByPath = new Map(existing.map((r) => [r.path, r]));
@@ -495,8 +650,9 @@ async function indexRoot(db, rootRaw) {
   let pending = [];
 
   for (const f of disk) {
-    const loaded = loadFile(f.abs);
+    const loaded = loadFile(f.abs, f.rel);
     if (loaded.skip === 'binary') { stats.skipped_binary++; continue; }
+    if (loaded.skip === 'extension') { stats.skipped_ext++; continue; }
     if (loaded.skip === 'size') continue;
     const hash = sha256(loaded.buf);
     const prev = existingByPath.get(f.abs);
@@ -504,7 +660,9 @@ async function indexRoot(db, rootRaw) {
     stats.rechunked++;
 
     const text = loaded.buf.toString('utf8');
-    const pieces = isMarkdown(f.rel) ? chunkMarkdown(text) : chunkPlainText(text);
+    const pieces = isJava(f.rel)
+      ? chunkJava(text, f.rel)
+      : isMarkdown(f.rel) ? chunkMarkdown(text) : chunkPlainText(text);
 
     db.exec('BEGIN');
     try {
@@ -755,18 +913,22 @@ function statusOf(db) {
 
   let stale = 0;
   let staleNote = '';
+  const skipCounts = { skipped_name: 0 };
+  let skippedExt = 0;
   if (files > 0 && fs.existsSync(root)) {
     const existing = new Map(
       db.prepare('SELECT id, path, hash FROM files').all().map((r) => [r.path, r])
     );
-    const disk = walk(root);
+    const disk = walk(root, skipCounts);
     const diskPaths = new Set();
     for (const f of disk) {
       diskPaths.add(f.abs);
+      const ext = path.extname(f.rel).slice(1).toLowerCase();
+      if (EXT_SKIPS.has(ext)) { skippedExt++; continue; } // never indexed: not stale
       const rec = existing.get(f.abs);
       if (!rec) { stale++; continue; }
       try {
-        const loaded = loadFile(f.abs);
+        const loaded = loadFile(f.abs, f.rel);
         if (loaded.skip || sha256(loaded.buf) !== rec.hash) stale++;
       } catch (e) {
         stale++;
@@ -787,6 +949,8 @@ function statusOf(db) {
     last_index_at: lastRaw ? nowIso(Number(lastRaw)) : null,
     stale_files: stale,
     stale_note: staleNote,
+    skipped_ext: skippedExt,
+    skipped_name: skipCounts.skipped_name,
     embedding_mode: mode,
     dims: dims === null ? null : Number(dims),
   };
@@ -817,7 +981,8 @@ function getChunk(db, id) {
 function printIndexStats(s) {
   console.log(
     `index complete: files=${s.files} rechunked=${s.rechunked} purged=${s.purged} ` +
-    `chunks=${s.chunks} skipped_binary=${s.skipped_binary} dims=${s.dims === null ? 'n/a' : s.dims} ` +
+    `chunks=${s.chunks} skipped_binary=${s.skipped_binary} skipped_ext=${s.skipped_ext} ` +
+    `skipped_name=${s.skipped_name} dims=${s.dims === null ? 'n/a' : s.dims} ` +
     `mode=${s.mode} elapsed=${s.ms}ms`
   );
   console.log(`root: ${s.root}`);
@@ -844,6 +1009,8 @@ function printStatus(s) {
   console.log(`chunks: ${s.chunks}`);
   console.log(`last_index_at: ${s.last_index_at || 'never'}`);
   console.log(`stale_files: ${s.stale_files}${s.stale_note ? ` (${s.stale_note})` : ''}`);
+  console.log(`skipped_ext: ${s.skipped_ext}`);
+  console.log(`skipped_name: ${s.skipped_name}`);
   console.log(`embedding_mode: ${s.embedding_mode}`);
   console.log(`dims: ${s.dims === null ? 'n/a' : s.dims}`);
 }
@@ -971,7 +1138,9 @@ async function callTool(params) {
       const stats = await indexRoot(db, args.root || metaGet(db, 'root') || DEFAULT_ROOT);
       return textResult(
         `index complete: files=${stats.files} rechunked=${stats.rechunked} purged=${stats.purged} ` +
-        `chunks=${stats.chunks} dims=${stats.dims === null ? 'n/a' : stats.dims} mode=${stats.mode} elapsed=${stats.ms}ms`,
+        `chunks=${stats.chunks} skipped_binary=${stats.skipped_binary} skipped_ext=${stats.skipped_ext} ` +
+        `skipped_name=${stats.skipped_name} dims=${stats.dims === null ? 'n/a' : stats.dims} ` +
+        `mode=${stats.mode} elapsed=${stats.ms}ms`,
         stats
       );
     }

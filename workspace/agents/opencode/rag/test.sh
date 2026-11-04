@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # rag/test.sh — self-contained test suite for the rag MCP server and CLI.
 # Covers: CLI index/search/glob/status/get, incremental reindex (change +
-# delete), MCP stdio handshake, and the remote embeddings path via a local
-# stub. Zero npm dependencies: needs node, curl, sed, grep, coreutils.
+# delete), Java method-boundary chunking, build-output and lockfile skips,
+# MCP stdio handshake, and the remote embeddings path via a local stub.
+# Zero npm dependencies: needs node, curl, sed, grep, coreutils.
 # All state lives in /tmp/rag-test-$$ and is removed on exit.
 set -u
 cd "$(dirname "$0")"   # rag/
@@ -40,23 +41,23 @@ srch() { RAG_DB="$DB" node server.js search "$@" 2>/dev/null; }
 
 echo "== syntax check =="
 if node --check server.js && node --check test/upstream-embeddings-stub.js \
-  && node --check test/mcp-check.js; then
-  pass "syntax check (server.js, stub, mcp-check)"
+  && node --check test/mcp-check.js && node --check test/java-check.js; then
+  pass "syntax check (server.js, stub, mcp-check, java-check)"
 else
   fail "syntax check"
   echo "passed: $PASS  failed: $FAIL"
   exit 1
 fi
 
-# --- Case 1: CLI index reports 3 indexed files, binary skipped, chunks > 3 ---
+# --- Case 1: CLI index reports 4 indexed files, binary skipped, chunks > 7 ---
 echo "== case 1: CLI index =="
 new_case c1
 OUT="$(idx)"
 FILES="$(field "$OUT" files)"
 CHUNKS="$(field "$OUT" chunks)"
 SKIPPED="$(field "$OUT" skipped_binary)"
-if [ "$FILES" = "3" ] && [ "$SKIPPED" = "1" ] && [ -n "$CHUNKS" ] && [ "$CHUNKS" -gt 3 ]; then
-  pass "case 1: index reports files=3, skipped_binary=1, chunks=$CHUNKS (>3)"
+if [ "$FILES" = "4" ] && [ "$SKIPPED" = "1" ] && [ -n "$CHUNKS" ] && [ "$CHUNKS" -gt 7 ]; then
+  pass "case 1: index reports files=4, skipped_binary=1, chunks=$CHUNKS (>7)"
 else
   fail "case 1: index stats wrong (files=$FILES skipped=$SKIPPED chunks=$CHUNKS)"
 fi
@@ -89,7 +90,7 @@ OUT="$(idx)"
 RECH="$(field "$OUT" rechunked)"
 CHUNKS2="$(field "$OUT" chunks)"
 FILES2="$(field "$OUT" files)"
-if [ "$RECH" = "0" ] && [ "$CHUNKS2" = "$CHUNKS" ] && [ "$FILES2" = "3" ]; then
+if [ "$RECH" = "0" ] && [ "$CHUNKS2" = "$CHUNKS" ] && [ "$FILES2" = "4" ]; then
   pass "case 4: reindex unchanged (rechunked=0, chunks=$CHUNKS2 stable)"
 else
   fail "case 4: reindex not a no-op (rechunked=$RECH chunks=$CHUNKS2 files=$FILES2)"
@@ -108,7 +109,7 @@ PURGED="$(field "$OUT" purged)"
 ST="$(RAG_DB="$DB" node server.js status 2>/dev/null)"
 FILES3="$(printf '%s\n' "$ST" | sed -n 's/^files: \([0-9]*\)$/\1/p')"
 GONE="$(srch "rename a user account")"
-if [ "$RECH" = "1" ] && [ "$PURGED" = "1" ] && [ "$FILES3" = "2" ] \
+if [ "$RECH" = "1" ] && [ "$PURGED" = "1" ] && [ "$FILES3" = "3" ] \
   && ! printf '%s' "$GONE" | grep -q "api/users.md"; then
   pass "case 5: changed file re-chunked, deleted file purged (files=$FILES3)"
 else
@@ -181,6 +182,44 @@ if printf '%s\n' "$OUT" | grep -q "^chunk 1:" && [ "$LINES" -gt 1 ]; then
   pass "case 8: get 1 returns metadata header and text ($LINES lines)"
 else
   fail "case 8: get 1 returned nothing usable"
+fi
+
+# --- Case 9: Java chunking (method boundaries, headings, hard split) ----------
+echo "== case 9: Java chunking =="
+new_case c9
+idx >/dev/null
+OUT="$(srch "marmaladeDeduplication")"
+TOP="$(printf '%s\n' "$OUT" | head -1)"
+CID=""
+GOT=""
+if node test/java-check.js "$DB" > "$WORK/c9.chk" 2>/dev/null \
+  && printf '%s' "$TOP" | grep -q "UserService.java"; then
+  CID="$(sed -n 's/^CHUNK_ID=//p' "$WORK/c9.chk")"
+  GOT="$(RAG_DB="$DB" node server.js get "$CID" 2>/dev/null | head -1)"
+fi
+if printf '%s' "$TOP" | grep -q "UserService.java" \
+  && grep -q ": ok" "$WORK/c9.chk" && ! grep -q "FAIL" "$WORK/c9.chk" \
+  && printf '%s' "$GOT" | grep -q "processBatch"; then
+  pass "case 9: java chunking (top hit UserService.java, get $CID: $GOT)"
+else
+  fail "case 9: java chunking wrong (top: $TOP get: $GOT)"
+  cat "$WORK/c9.chk" 2>/dev/null || true
+fi
+
+# --- Case 10: build-output dirs and lockfiles are skipped ---------------------
+echo "== case 10: build dir + lockfile skips =="
+new_case c10
+OUT="$(idx)"
+ST="$(RAG_DB="$DB" node server.js status 2>/dev/null)"
+FILES4="$(printf '%s\n' "$ST" | sed -n 's/^files: \([0-9]*\)$/\1/p')"
+NOJUNK="$(srch "compiled leftover")"
+if [ "$FILES4" = "4" ] \
+  && printf '%s\n' "$OUT" | grep -q "skipped_name=1" \
+  && printf '%s\n' "$ST" | grep -q "^skipped_name: 1$" \
+  && ! printf '%s' "$NOJUNK" | grep -q "junk.txt"; then
+  pass "case 10: target/ and package-lock.json skipped (files=$FILES4, no junk.txt hits)"
+else
+  fail "case 10: skip accounting wrong (files=$FILES4 out=$OUT junk=$NOJUNK)"
 fi
 
 echo "----"
