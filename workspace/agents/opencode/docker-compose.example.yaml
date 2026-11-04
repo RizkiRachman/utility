@@ -38,6 +38,10 @@ services:
       CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-REPLACE_ME}
       # Optional: keyless developer search works without it; alexandria + firecrawl-cli skills need it
       FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
+      # Optional rag embeddings upgrade; empty keeps offline hashed-vector mode
+      RAG_EMBEDDINGS_URL: ${RAG_EMBEDDINGS_URL:-}
+      RAG_EMBEDDINGS_MODEL: ${RAG_EMBEDDINGS_MODEL:-}
+      RAG_EMBEDDINGS_KEY: ${RAG_EMBEDDINGS_KEY:-}
       # Graphify disabled but config preserved
       GRAPHIFY_ROOT: /home/node/workspace
       GRAPHIFY_BUILD: if-missing
@@ -46,6 +50,7 @@ services:
       - .:/home/node/workspace
       - ./config/opencode.json:/home/node/.config/opencode/opencode.json:ro
       - ./config/opencode-model-fallback.json:/home/node/.config/opencode/opencode-model-fallback.json:ro
+      - ./rag:/opt/rag:ro
       - opencode-data:/home/node/.local/share/opencode
   opencode-portal:
     container_name: opencode-portal

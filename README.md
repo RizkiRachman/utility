@@ -8,7 +8,7 @@ Personal agent workspace: a containerized OpenCode + Workflow State Engine stack
 
 ## About
 
-This repository runs my AI coding environment in Docker. The product is [workspace/agents/opencode/](workspace/agents/opencode/README.md): an OpenCode 2.2.5 container that ships the Workflow State Engine (16 agents, 66 skills, contract-driven scoring), lean-ctx code intelligence, and a set of MCP servers, all version-pinned and pre-populated for offline builds. The `workspace/infrastructure/` tree holds empty scaffolding for services planned later. One compose file and one env file configure everything.
+This repository runs my AI coding environment in Docker. The product is [workspace/agents/opencode/](workspace/agents/opencode/README.md): an OpenCode 2.2.5 container that ships the Workflow State Engine (16 agents, 66 skills, contract-driven scoring), lean-ctx code intelligence, and seven MCP servers, all version-pinned and pre-populated for offline builds. The `workspace/infrastructure/` tree holds empty scaffolding for services planned later. One compose file and one env file configure everything.
 
 ## Table of Contents
 
@@ -154,6 +154,9 @@ The `opencode-portal` service answers on `127.0.0.1:4097`. It validates the key 
 
 **How do I update pinned versions?**
 Bump the build args in `docker-compose.example.yaml` (repository root) and the matching `ARG` defaults in `workspace/agents/opencode/Dockerfile`, then re-run the `opencode-preinstall` profile so the offline store picks up the new versions, and rebuild.
+
+**What does the rag server index?**
+The `rag` MCP server indexes a directory tree, by default `/home/node/workspace`: markdown is chunked per heading, other text and code per paragraph. It skips binary files, files above 512 KB, and vendored or transient directories (`.git`, `node_modules`, `dist`, `pre-install`, `session`, and similar). Indexing is incremental and hash based, so unchanged files are not re-chunked and deleted files are purged. Embeddings default to deterministic local hashed n-gram vectors, which works fully offline; set the three `RAG_EMBEDDINGS_*` variables to upgrade to a real OpenAI-compatible embeddings endpoint (see `workspace/agents/opencode/rag/README.md`).
 
 ## Contributing and License
 

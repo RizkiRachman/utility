@@ -411,6 +411,14 @@
         "command": [
           "mcp-server-everything"
         ]
+      },
+      "rag": {
+        "type": "local",
+        "command": [
+          "node",
+          "/opt/rag/server.js"
+        ],
+        "enabled": true
       }
     }
   }

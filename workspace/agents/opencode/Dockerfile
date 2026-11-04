@@ -180,6 +180,11 @@ USER root
 
 COPY engine/ /opt/engine/
 
+# RAG MCP server: zero-dependency node script (rag/server.js -> /opt/rag).
+# Image-baked as the base; compose additionally bind-mounts ./rag:/opt/rag:ro
+# so server edits activate without a rebuild (the mount wins when present).
+COPY rag/ /opt/rag/
+
 # Vendored @firecrawl/opencode plugin: install its single runtime dependency
 # (zod) from the offline store into the plugin dir, and firecrawl-cli
 # (binary: firecrawl) globally. Tarball-first from /pi/npm, network fallback,

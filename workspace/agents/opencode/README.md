@@ -9,7 +9,7 @@ Self-hosted OpenCode v2 stack in Docker: workflow-state-engine, lean-ctx, Graphi
 ![status](https://img.shields.io/badge/status-beta-orange)
 [![validate](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg)](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml)
 
-This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (16 agents, 66 skills, contract-driven scoring), lean-ctx, Graphify, and Context7 / memory / fetch / everything MCP servers, all version-pinned and pre-populated for offline builds. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md); the migration analysis lives in [PLAN.md](PLAN.md).
+This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (16 agents, 66 skills, contract-driven scoring), lean-ctx, Graphify, and Context7 / memory / fetch / everything / rag MCP servers, all version-pinned and pre-populated for offline builds. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md); the migration analysis lives in [PLAN.md](PLAN.md).
 
 ## Table of Contents
 
@@ -72,6 +72,9 @@ Compose file: [`docker-compose.example.yaml`](../../../docker-compose.example.ya
 | `SUMOPOD_BASE_MODEL_NAME` | Yes | `REPLACE_ME` | Executor model display name |
 | `CONTEXT7_API_KEY` | Yes | `REPLACE_ME` | Context7 docs MCP key |
 | `FIRECRAWL_API_KEY` | No | (unset) | Firecrawl key; developer search works keyless, alexandria + firecrawl-cli skills need it |
+| `RAG_EMBEDDINGS_URL` | No | (empty) | OpenAI-compatible `/v1/embeddings` endpoint for the rag server; all three `RAG_EMBEDDINGS_*` set switches it to remote embeddings |
+| `RAG_EMBEDDINGS_MODEL` | No | (empty) | Embeddings model id at the endpoint above |
+| `RAG_EMBEDDINGS_KEY` | No | (empty) | Bearer key for the embeddings endpoint |
 | `OPENCODE_AUTH_REQUIRED` | No | `true` | Fail boot when `OPENCODE_API_KEY` is missing |
 | `OPENCODE_CONFIG` | No | `/home/node/.config/opencode/opencode.json` | Config path inside the container |
 | `GRAPHIFY_ROOT` | No | `/home/node/workspace` | Graphify index root |
@@ -125,6 +128,7 @@ Defined in `config/opencode.json`:
 | `memory` | `mcp-server-memory` | Persistent memory graph, writes to `MEMORY_FILE_PATH` in the `opencode-data` volume |
 | `fetch` | `mcp-server-fetch` | Keyless single-page HTTP GET with readability extraction (deps baked at build) |
 | `everything` | `mcp-server-everything` | MCP diagnostics and test fixtures |
+| `rag` | `node /opt/rag/server.js` | Workspace retrieval over SQLite FTS5 + vectors: `rag_search`, `rag_index`, `rag_status`, `rag_get`; offline hashed-vector embeddings, optional remote endpoint via `RAG_EMBEDDINGS_*` |
 | `@firecrawl/opencode` (plugin) | vendored at `engine/plugins/opencode-firecrawl` | Keyless `firecrawl_developer_search`; `firecrawl_alexandria` is ask-gated; keyed scrape/crawl via `firecrawl-cli` |
 
 ## Health Checks
@@ -178,6 +182,11 @@ opencode/
 │   ├── README.md
 │   ├── test.sh
 │   └── test/upstream-stub.js
+├── rag/                            # RAG MCP server (zero npm dependencies)
+│   ├── server.js                   # CLI + MCP stdio; SQLite FTS5 + vectors
+│   ├── README.md
+│   ├── test.sh                     # 8-case suite (CLI, MCP, remote embeddings)
+│   └── test/                       # corpus fixtures, embeddings stub, MCP checks
 ├── populate-preinstall.sh       # Offline-store bootstrap (run inside preinstall service)
 ├── .env.template                # Copy to repository-root .env
 ├── config/                      # opencode.json (V2-native), dormant fallback config
@@ -217,7 +226,7 @@ entrypoint.sh boot chain:
   5. launch probe: serve, then web, then bare serve
 
 opencode serve attaches to:
-  - MCP servers: lean-ctx, context7, memory, fetch, everything (graphify disabled by default)
+  - MCP servers: lean-ctx, context7, memory, fetch, everything, rag (graphify disabled by default)
   - Firecrawl plugin: keyless developer search, alexandria ask-gated
   - workflow-state-engine: 16 agents, 66 skills, session/
 ```
@@ -248,6 +257,8 @@ opencode serve attaches to:
 | Config edits have no effect | `config/opencode.json` is mounted read-only | Restart the container after editing; the mount itself never changes |
 | `fetch` MCP fails to extract pages | Image predates the baked readabilipy dependencies; older builds installed them per request and needed network | Rebuild from this Dockerfile; the readability node modules are baked in |
 | Memory disappears between sessions | Memory MCP persists to `MEMORY_FILE_PATH` inside the `opencode-data` volume | Removing the volume removes memory; inspect `docker volume` before wiping |
+| `rag_search` returns nothing | The index is empty or the server reads a different database than expected | Run `rag_index` (or `node /opt/rag/server.js index`), then check `rag_status`: it prints the db path, the indexed root, and a stale file count; make sure `RAG_DB` matches the path you expect |
+| rag embedding mode looks wrong | An index keeps the embedding mode it was built with; `rag_search` uses that mode, and switching `RAG_EMBEDDINGS_*` only takes hold on the next `rag_index` | Re-run `rag_index` after changing the env; `rag_status` prints `embedding_mode` and `dims` |
 
 ## Known Unknowns
 

@@ -35,6 +35,10 @@ services:
       CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
+      # Optional rag embeddings upgrade; empty keeps offline hashed-vector mode
+      RAG_EMBEDDINGS_URL: ${RAG_EMBEDDINGS_URL:-}
+      RAG_EMBEDDINGS_MODEL: ${RAG_EMBEDDINGS_MODEL:-}
+      RAG_EMBEDDINGS_KEY: ${RAG_EMBEDDINGS_KEY:-}
       GRAPHIFY_ROOT: /home/node/workspace
       GRAPHIFY_BUILD: if-missing
       GRAPHIFY_TIMEOUT: "900"
@@ -42,6 +46,7 @@ services:
       - ./workspace:/home/node/workspace
       - ./workspace/agents/opencode/config/opencode.json:/home/node/.config/opencode/opencode.json:ro
       - ./workspace/agents/opencode/config/opencode-model-fallback.json:/home/node/.config/opencode/opencode-model-fallback.json:ro
+      - ./workspace/agents/opencode/rag:/opt/rag:ro
       - opencode-data:/home/node/.local/share/opencode
   opencode-portal:
     container_name: opencode-portal
