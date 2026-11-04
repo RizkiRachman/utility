@@ -14,6 +14,8 @@ sources:
 
 Code review checklists, SOLID principles enforcement, clean code standards, and anti-pattern detection for Java projects.
 
+Check project-specific conventions with `rag_search` before applying generic patterns from this skill; verify hits against the source before relying on them.
+
 ## Source
 
 References: **piomin/claude-ai-spring-boot** by piomin  

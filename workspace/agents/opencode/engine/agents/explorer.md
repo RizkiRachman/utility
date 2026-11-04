@@ -119,12 +119,14 @@ After completing your search, ensure your report is complete with: files found, 
 - Need a summarized map vs full contents
 - Broad or uncertain scope
 - Single specific lookup
+- First-pass semantic discovery with `rag_search` when the request is conceptual (how does X work here) rather than symbol-exact
 
 ## When NOT to Use
 - Know the path and need actual content
 - Need full file contents anyway
 - About to edit the file
 - Need architectural reasoning (use @software-architect)
+- Exact symbol or call-graph lookups: `ctx_search` and `ctx_callgraph` are authoritative; rag is a discovery aid
 
 ## Output Format
 Return a concise report:

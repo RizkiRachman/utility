@@ -14,6 +14,8 @@ sources:
 
 Enterprise-grade Spring Boot 3.x patterns covering REST APIs, JPA repositories, Security configuration, OAuth2 integration, and testing strategies.
 
+Check project-specific conventions with `rag_search` before applying generic patterns from this skill; verify hits against the source before relying on them.
+
 ## Source
 
 References: **piomin/claude-ai-spring-boot** by piomin  

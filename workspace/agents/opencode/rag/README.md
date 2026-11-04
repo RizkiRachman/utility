@@ -74,3 +74,14 @@ Markdown, Java, and everything else each get their own chunker. Java files (`.ja
 ## Offline guarantees
 
 No runtime downloads: the server is a single node script in the image (`/opt/rag/server.js`) and compose bind-mounts the same directory read-only so edits activate without a rebuild. Local hashed-vector mode does no network I/O at all, and the offline pre-install store needs nothing for rag. The optional remote embeddings endpoint is the only network path, and it is used only when its three variables are set. Nothing in the opencode boot chain depends on rag: a missing or failed index leaves every other server untouched.
+
+## Engine integration
+
+The engine wires rag in as an advisory discovery layer. Touchpoints:
+
+- [`../engine/agent.md`](../engine/agent.md): the Retrieval Balance section in the tool usage reference, including the guardrails against citing unverified snippets.
+- [`../engine/agents/developer.md`](../engine/agents/developer.md), [`../engine/agents/explorer.md`](../engine/agents/explorer.md), [`../engine/agents/system-analyst.md`](../engine/agents/system-analyst.md): convention lookup before non-trivial edits, conceptual first-pass discovery, and a complement to impact analysis.
+- [`../engine/doc/skill-conventions.md`](../engine/doc/skill-conventions.md): the paragraph that routes skill users to the index for project-specific facts.
+- [`../config/rag-usage.md`](../config/rag-usage.md): agent-facing usage instructions.
+
+Advisory only: no scoring gate, no mandatory tool call. Hits are anchors; open the cited file region before relying on them.

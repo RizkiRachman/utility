@@ -14,6 +14,8 @@ sources:
 
 Spring Boot 4.x patterns including virtual threads, GraalVM native image compilation, and modern Java 21+ features.
 
+Check project-specific conventions with `rag_search` before applying generic patterns from this skill; verify hits against the source before relying on them.
+
 ## Source
 
 References: **sivaprasadreddy/sivalabs-agent-skills** by Siva  

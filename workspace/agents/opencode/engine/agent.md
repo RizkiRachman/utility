@@ -200,6 +200,7 @@ See [`/opt/engine/doc/workflow.md`](/opt/engine/doc/workflow.md) for the canonic
 | **lean-ctx** | File reads, shell, search, edit, impact analysis, knowledge persistence, sessions | `/opt/engine/usage/lean-ctx.md` |
 | **Graphify** | Knowledge graph, community discovery, PR impact | `/opt/engine/usage/graphify.md` |
 | **Context7** | Library/framework docs lookup | `/opt/engine/usage/context7.md` |
+| **rag MCP** (`rag_search` / `rag_index` / `rag_status` / `rag_get`) | Semantic search over workspace code, docs, and engine skills before unfamiliar work | `/home/node/workspace/opencode/rag/README.md` |
 | **Firecrawl plugin** | First-party V2 plugin: keyless developer search, keyed alexandria gated to ask, CLI skills registered at runtime | `/opt/engine/plugins/opencode-firecrawl/VENDORED.md` |
 
 ### 4.3 Tool Comparison Matrix
@@ -218,6 +219,20 @@ See [`/opt/engine/doc/workflow.md`](/opt/engine/doc/workflow.md) for the canonic
 | **Primary-source passages (issues, PRs, READMEs)** | `firecrawl_developer_search` | Keyless plugin search over raw sources; best for error hunting and API contract questions |
 | **Single arbitrary page** | fetch MCP (`fetch`) | Keyless one-off HTTP GET; zero-dependency fallback |
 | **Multi-model consensus** | `council_session` | Fresh-context adversarial review for high-stakes decisions |
+
+### 4.4 Retrieval Balance (rag MCP)
+
+`rag_search` over the workspace index is advisory, not a gate. Use it when entering an unfamiliar area, discovering project conventions, surveying existing implementations before writing code, or answering questions that span workspace code and docs. Skip it when the file is already in context, when `ctx_search` answers an exact-symbol lookup, or when the edit is trivial.
+
+Guardrails:
+
+1. Snippets are discovery anchors: open the cited file region with `ctx_read` before editing or quoting it as fact.
+2. Stale index: if files changed since the last index, run `rag_index` first (incremental, hash-based, cheap).
+3. Empty or weak hits: say so and fall back to `ctx_search` and direct reads. Never present memory-filled gaps as project facts.
+4. Cite hits as `path:startline` so humans can verify.
+5. Skip the search when the answer is already in context or you hold the exact file; `rag_search` is for discovery across the workspace, not for reading a known file.
+
+Index scope: `/home/node/workspace`, built automatically at session boot when the server starts; run `rag_index` after bulk changes.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -260,9 +275,10 @@ Run this ladder in order before writing ANY code:
 
 1. **Refine phase** — Delegate to @product-manager: capture intent, write Given-When-Then acceptance criteria, declare scope + non-goals. Attach user-journey or story-map diagrams via diagram-design when intent spans multiple actors.
 2. **Discuss phase** — 5-lens check: Business, System, Dev, QA, DevOps. Clarify requirements.
+   - **Domain context (advisory)**: `rag_search` supplies domain context when the request touches unfamiliar code or docs.
 3. **Plan phase** — Delegate to @system-analyst: impact analysis, edge cases, implementation plan. @software-architect reviews the plan (independent model). Plans spanning >3 files or crossing services include an architecture/impact diagram (diagram-design).
 4. **Spec gate** (if >3 files, cross-service, or >30 min) — Write GWT-format specs. Cross-examine via DDD.
-5. **Execute phase** — Delegate to @developer: implement plan step by step, write tests alongside code. @devops-engineer owns pipeline/deploy/migration. @fixer for scoped fixes. UI tasks load design-taste-frontend; developer passes the impeccable detector before marking UI work done (EXECUTE exit gate).
+5. **Execute phase** — Delegate to @developer: implement plan step by step, write tests alongside code. @devops-engineer owns pipeline/deploy/migration. @fixer for scoped fixes. UI tasks load design-taste-frontend; developer passes the impeccable detector before marking UI work done (EXECUTE exit gate). Advisory retrieval: the developer consults `rag_search` for project conventions before writing non-trivial code, then verifies hits against the file before editing.
    - **Context gate**: @developer loads project standards via `/skill context-standards` before edits when the target project defines `context/` files; @quality-analyst verifies compliance during review.
 6. **Review phase** — Delegate to @quality-analyst (5-axis) AND @security-engineer (security) on the **reviewer model**, independent from the executor. Conflicting verdicts → BLOCKED, arbitrated by @council. UI diffs get the impeccable design-lens (slop detector) inside the readability axis.
 7. **Process gate** — @scrum-master audits transitions, enforces gates, and owns the Definition of Done before COMPLETE. Unblocks BLOCKED sessions.
@@ -372,10 +388,10 @@ session/
 #### Snapshot Command Reference
 
 ```bash
-scripts/snapshot-contract.sh                # Full snapshot: copy files + update state.md
-scripts/snapshot-contract.sh --snapshot-only  # Copy files only (skip state.md updates)
-scripts/snapshot-contract.sh --summary "State: ${STATE} — description"  # Custom entry
-scripts/snapshot-contract.sh --dry-run --verbose  # Preview without changes
+/opt/engine/scripts/snapshot-contract.sh                # Full snapshot: copy files + update state.md
+/opt/engine/scripts/snapshot-contract.sh --snapshot-only  # Copy files only (skip state.md updates)
+/opt/engine/scripts/snapshot-contract.sh --summary "State: ${STATE} — description"  # Custom entry
+/opt/engine/scripts/snapshot-contract.sh --dry-run --verbose  # Preview without changes
 ```
 
 #### Why It Matters

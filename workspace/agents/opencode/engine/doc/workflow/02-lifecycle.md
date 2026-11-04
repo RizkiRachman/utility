@@ -13,6 +13,8 @@
 - **Delegates to**: @product-manager (refine intent → GWT acceptance criteria, scope/non-goals) then @system-analyst (architecture analysis + implementation plan)
 - **Gate**: DDD fires here — orchestrator asks "What assumptions am I making about scope and constraints?" before delegating. If the task is complex (>3 files, cross-service, >30 min estimate), DDD may recommend expanding scope or requesting user clarification.
 - **Activity**: System-analyst runs ctx_impact on all affected symbols, traces execution flows, produces a structured plan with dependency graph, risk assessment, rollback strategy, task breakdown, and edge case analysis.
+- **Advisory (Discuss)**: `rag_search` supplies domain context during clarification when the request touches unfamiliar code or docs.
+- **Advisory (Plan)**: `rag_search` complements impact analysis, surfacing doc and code mentions the call graph misses; verify hits against the file before citing them.
 - **Outputs**: state=PLAN, session.* (task_id, created_at), scope.* (included paths, excluded paths, parallel_eligible) populated
 - **Scoring threshold**: n/a (always advances to PLAN_SCORED for scoring)
 - **Writes back**: contract.outputs.plan (full plan document), contract.decisions.* (architecture decisions made during planning)
@@ -44,6 +46,7 @@
 - **Simplicity**: The scoring pipeline includes a SIMPLICITY_001 rule (HIGH severity) that detects unnecessary abstractions, unused deps, and over-engineered patterns. An `over_engineering_deduction: 15` applies in Tier 1 when YAGNI violations are detected.
 - **Delegates to**: @developer (implement per spec, Writing Order: port → service → mapper → adapter → constants → events → tests)
 - **Activity**: TDD cycle per task (red → green → refactor), ctx_impact before every edit, tests alongside code
+- **Advisory**: developer searches project conventions with `rag_search` before non-trivial edits and verifies hits against the file before editing.
 - **Outputs**: outputs.code_changes[] (files_created, files_modified), outputs.test_results (test_count, pass, fail)
 - **Writes back**: state=EXECUTE_SCORED
 

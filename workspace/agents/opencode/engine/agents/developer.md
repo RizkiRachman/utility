@@ -165,6 +165,7 @@ Receive the plan or spec from orchestrator. If a GWT-format spec is provided (mo
 - Design decisions and alternatives are guidance, not constraints — if you find a better approach, flag it via DDD
 
 ### 2. Read Project Context
+- Before non-trivial implementation, `rag_search` for project conventions and existing implementations of the same pattern; open the hit's file region before basing an edit on it.
 - Read `AGENTS.md` — full project conventions
 - Read 2-3 existing files in the same package as each target file
 - Check `common/constant/` for existing constants

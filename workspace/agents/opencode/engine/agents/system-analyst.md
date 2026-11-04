@@ -159,6 +159,7 @@ Use MCP tools for deeper analysis:
 - `/skill business-analyst` — for requirements and acceptance criteria depth
 - `/skill system-analyst` — for architecture and dependency mapping depth
 - `ctx_impact({target, direction: "upstream"})` — verify blast radius for any referenced symbols
+- `rag_search`: complement `ctx_impact` when tracing a concept across docs and code; open the hit's file region before citing it
 
 ### 3. Identify Failure Modes
 What happens when:

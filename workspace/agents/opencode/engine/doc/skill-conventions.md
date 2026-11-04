@@ -19,6 +19,12 @@ skills/<name>/
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+## Project Conventions Retrieval
+
+Skills provide generic patterns; project-specific facts come from the workspace rag index (`rag_search`). When a skill's generic guidance may conflict with project reality, check the index first, then trust the project. A few implementation-facing skills (java-developer and its Spring, JPA, and code-quality companions) carry a one-line reminder of this; the rest rely on this paragraph.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Cross-Agent Placement
 
 Each skill is compatible with these agents depending on the target:

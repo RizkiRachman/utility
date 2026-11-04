@@ -32,6 +32,8 @@ triggers:
 
 # Java Developer
 
+Check project-specific conventions with `rag_search` before applying generic patterns from this skill; verify hits against the source before relying on them.
+
 ## Architecture
 
 ```text

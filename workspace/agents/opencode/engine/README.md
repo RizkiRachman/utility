@@ -318,7 +318,7 @@ Every task follows this sequence:
 | **Verify** | Quality gates | Validated JSON, conventions check |
 | **Ship** | Orchestrator (+ @learner) | Post-flight protocol, lessons captured |
 
-The definition of done for each phase is enforced by the gates in the table above and by the scoring thresholds in `rules/rules.json`; the full rules are documented in [`doc/workflow.md`](doc/workflow.md).
+The definition of done for each phase is enforced by the gates in the table above and by the scoring thresholds in `rules/rules.json`; the full rules are documented in [`doc/workflow.md`](doc/workflow.md). Retrieval is advisory across these phases: agents may consult `rag_search` for domain context, project conventions, and pre-implementation discovery, verifying hits against the source before relying on them; it is deliberately not a scoring gate.
 
 ### Frugality Ladder
 
@@ -411,6 +411,9 @@ Create a directory under `engine/skills/` containing a `SKILL.md` with frontmatt
 
 **Where do project pattern standards live?**
 In the target project, not here. A `context/` directory at the project root with `*.md` files is discovered and loaded via `/skill context-standards` before edits, and review verifies the files were applied. The engine itself ships no style defaults.
+
+**Where does RAG fit in the engine?**
+As an advisory discovery layer over workspace code, docs, and engine skills, wired via the rag MCP server and the agent-facing config instructions (`config/rag-usage.md`). Agents consult it for conventions and unfamiliar-area discovery, then verify hits against the source. It is deliberately not a scoring gate: forced retrieval on every step would anchor agents on possibly stale snippets.
 
 **Why keep the fetch MCP when Firecrawl exists?**
 Different tools. `fetch` is a keyless, single-page HTTP GET with no index; Firecrawl adds an indexed primary-source search (`firecrawl_developer_search`, also keyless) plus keyed scrape/crawl/map/alexandria through the vendored plugin and `firecrawl-cli`. `fetch` stays as the zero-dependency fallback for one-off pages.
