@@ -9,7 +9,7 @@ Self-hosted OpenCode v2 stack in Docker: workflow-state-engine, lean-ctx, Graphi
 ![status](https://img.shields.io/badge/status-beta-orange)
 [![validate](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg)](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml)
 
-This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (16 agents, 66 skills, contract-driven scoring), lean-ctx, Graphify, and Context7 / memory / fetch / everything / rag MCP servers, all version-pinned and pre-populated for offline builds. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md); the migration analysis lives in [PLAN.md](PLAN.md).
+This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (16 agents, 66 skills, contract-driven scoring), lean-ctx, Graphify, and Context7 / memory / fetch / everything / rag MCP servers, all version-pinned and pre-populated for offline builds. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md).
 
 ## Table of Contents
 
@@ -183,7 +183,6 @@ opencode/
 ├── certs/                       # TLS certs placeholder (currently empty)
 ├── pre-install/                 # Offline package store (gitignored)
 ├── session/                     # Live orchestration contract + state log (gitignored)
-├── PLAN.md                      # Migration analysis
 └── engine/                      # Workflow-state-engine → copied to /opt/engine
     ├── agent.md                 # Orchestrator instructions (instructions[0])
     ├── agents/                  # 16 agent instruction files
@@ -259,7 +258,7 @@ Never committed or pushed:
 - `pre-install/`: offline package store (gitignored except `.gitkeep` placeholders).
 - `session/`: **project-local runtime state**. Compose mounts the workspace at `/home/node/workspace`, so this `session/` *is* the container's global session directory: `contract.json` (seeded from `engine/contract/contract.template.json` via `snapshot-contract.sh`), `state.md`, `state.example.md` (tracked), `archive/`. Gitignore policy: `session/*` ignored, `state.example.md` negated.
 
-See [PLAN.md](PLAN.md) for the migration analysis. The engine reference ([engine/README.md](engine/README.md)) covers internals.
+The engine reference ([engine/README.md](engine/README.md)) covers internals.
 
 ## Contributing and License
 
