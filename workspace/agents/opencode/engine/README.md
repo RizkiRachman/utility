@@ -136,7 +136,7 @@ docker run --rm -it \
 
 The entrypoint configures auth (writes `OPENCODE_API_KEY` to `auth.json`, then unsets it), optionally builds the Graphify index, runs an MCP readiness preflight, optionally runs engine boot checks, then probes launch forms in order: `opencode serve --hostname 0.0.0.0 --port 4096` → fallback `opencode web --hostname 0.0.0.0 --port 4096` → fallback bare `opencode serve`.
 
-Under compose, the host binding is `127.0.0.1:4097 → container 4096`.
+Under compose, the host binding is `127.0.0.1:4096 → container 4096` (loopback only).
 
 ### Verify
 
@@ -400,8 +400,8 @@ bash /opt/engine/scripts/snapshot-contract.sh          # Seed/refresh session/co
 
 ## FAQ
 
-**Why port 4097?**
-Compose binds host `127.0.0.1:4097` → container 4096 so host port 4096 stays free for other stacks and the UI never exposes beyond loopback. Inside the container OpenCode always binds 4096.
+**Why is the UI loopback-only?**
+Compose publishes host `127.0.0.1:4096` → container 4096, so the UI never exposes beyond loopback. Inside the container OpenCode always binds 4096.
 
 **Why were the custom plugins removed?**
 They target the V1 plugin API, and V2 rejects their `file://<file>` entries (`configured plugin path must be a directory`); they never loaded. They are dropped until ported to the `@opencode/plugin` V2 API; `scripts/check-plugins.sh` now enforces the no-`file`-to-`file` rule at setup, toolkit validation, and engine boot.

@@ -48,11 +48,11 @@
 ## 4. Phased plan
 
 - **P0 — Plan (this doc)** ✅
-- **P1 — Scaffold copy:** copy `opencode/` → `opencode/` (exclude `.git`, `session/`, `.session/`, `pre-install/*` contents, `node_modules`, `.idea`). No `git init`. Independent compose project name (`opencode`) + same port? → use 4097 to allow parallel run.
+- **P1 — Scaffold copy:** copy `opencode/` → `opencode/` (exclude `.git`, `session/`, `.session/`, `pre-install/*` contents, `node_modules`, `.idea`). No `git init`. Independent compose project name (`opencode`) + same port? → use 4098 to allow parallel run.
 - **P2 — Readiness gate (repeat before each attempt):** `npm view @opencode/cli` functional release? docs `/v2/docs/config` reachable? `@opencode/plugin` API stable? If any NO → stay on v1, revisit later (v1 is maintained; no urgency).
 - **P3 — Upgrade:** Dockerfile package/ARG swaps; config migration (map every v1 key; keep model IDs + permissions); entrypoint web flags; plugins port; populate-preinstall.sh package list; engine doc URL touch-ups.
-- **P4 — Build + smoke:** `populate` → `up -d --build`; verify: web UI on :4097, agents load (16 + build/plan), MCPs healthy, pre-install offline path used, auth works, engine instructions load (instructions[0] = /opt/engine/agent.md).
-- **P5 — Stabilize:** run both stacks in parallel (v1 :4096, v2 :4097) until v2 proves stable; then optionally promote.
+- **P4 — Build + smoke:** `populate` → `up -d --build`; verify: web UI on :4096, agents load (16 + build/plan), MCPs healthy, pre-install offline path used, auth works, engine instructions load (instructions[0] = /opt/engine/agent.md).
+- **P5 — Stabilize:** run both stacks in parallel (v1 :4096, v2 :4098) until v2 proves stable; then optionally promote.
 
 ## 5. Risk register
 
@@ -64,7 +64,7 @@
 
 ## 6. Open questions (user)
 
-1. Parallel run OK (v2 on port 4097) or replace v1 outright when ready?
+1. Parallel run OK (v2 on port 4098) or replace v1 outright when ready?
 2. When PR #1 merges, rebase opencode scaffold copy from `main` instead of PR branch?
 3. Should v2 keep `everything` demo MCP, or drop it (v1 keeps it enabled)?
 

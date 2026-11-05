@@ -4,7 +4,7 @@ Personal agent workspace: a containerized OpenCode + Workflow State Engine stack
 
 [![validate](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg)](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml)
 ![OpenCode](https://img.shields.io/badge/OpenCode-2.2.5-111111)
-![Docker Compose](https://img.shields.io/badge/docker%20compose-4%20services-2496ED?logo=docker&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/docker%20compose-3%20services-2496ED?logo=docker&logoColor=white)
 
 ## About
 
@@ -28,10 +28,10 @@ Prerequisite: Docker with compose v2. From the repository root:
 ```bash
 cp workspace/agents/opencode/.env.template .env   # then fill in your keys
 docker compose -f docker-compose.example.yaml up -d --build
-open http://127.0.0.1:4097   # enter your key once
+open http://127.0.0.1:4096   # enter your key once
 ```
 
-The portal landing page publishes on `127.0.0.1:4097` (loopback only). Enter `OPENCODE_SERVER_PASSWORD` from your `.env` once; the portal keeps the session in an HttpOnly cookie and injects the Authorization header toward OpenCode for you. The first build downloads packages from the network; the optional offline store below removes that need for later rebuilds. To attach a TUI instead, run `docker exec -it opencode opencode`.
+OpenCode publishes directly on `127.0.0.1:4096` (loopback only). On first visit OpenCode shows its own pairing screen; enter `OPENCODE_SERVER_PASSWORD` from your `.env` there. The first build downloads packages from the network; the optional offline store below removes that need for later rebuilds. To attach a TUI instead, run `docker exec -it opencode opencode`.
 
 Optional services:
 
@@ -47,8 +47,7 @@ docker compose -f docker-compose.example.yaml --profile scheduler up -d opencode
 
 | Service | Profile | Purpose |
 |---|---|---|
-| `opencode` | default | The agent stack. OpenCode serve on the internal compose network (container port 4096, unpublished), 3 GB memory, 2 CPUs, restart unless-stopped |
-| `opencode-portal` | default | Landing-page reverse proxy on `127.0.0.1:4097`: enter the key once, portal injects Basic auth toward OpenCode, 256 MB memory, 0.5 CPU |
+| `opencode` | default | The agent stack. OpenCode serve published on `127.0.0.1:4096` (loopback only), 3 GB memory, 2 CPUs, restart unless-stopped |
 | `opencode-preinstall` | `tools` | One-shot container that fills `workspace/agents/opencode/pre-install/` with apt, pip, and npm packages for offline builds |
 | `opencode-scheduler` | `scheduler` | Runs `scripts/scheduled-runner.sh` with the `drift-detect` task daily against the mounted workspace |
 
@@ -59,10 +58,7 @@ Copy `workspace/agents/opencode/.env.template` to `.env` at the repository root.
 | Variable | Default | Description |
 |---|---|---|
 | `OPENCODE_API_KEY` | (empty) | OpenCode auth; written to `auth.json` at boot, then unset from the environment |
-| `OPENCODE_SERVER_PASSWORD` | (empty) | The key you enter on the portal landing page; also enables HTTP basic auth on OpenCode itself |
-| `OPENCODE_SERVER_USERNAME` | `opencode` | Username for the injected Basic credential |
-| `PORTAL_AUTO_LOGIN` | `false` | Zero-click mode: portal proxies without showing the landing page |
-| `PORTAL_COOKIE_SECRET` | (empty) | Stable HMAC secret for portal sessions; unset, sessions reset on portal restart |
+| `OPENCODE_SERVER_PASSWORD` | (empty) | Auth key for OpenCode's own HTTP basic auth / pairing screen |
 | `SUMOPOD_API_KEY` | (empty) | Model provider API key |
 | `SUMOPOD_BASE_URL` | `https://ai.sumopod.com/v1` | Model provider endpoint |
 | `SUMOPOD_BASE_MODEL` | `glm-5.3-flash` | Executor model id |
@@ -77,7 +73,7 @@ Runtime knobs that are not env-driven (`OPENCODE_AUTH_REQUIRED=true`, `GRAPHIFY_
 
 ```text
 utility/
-├── docker-compose.example.yaml       # 4 services: opencode, opencode-portal, opencode-preinstall, opencode-scheduler
+├── docker-compose.example.yaml       # 3 services: opencode, opencode-preinstall, opencode-scheduler
 ├── .github/
 │   └── workflows/validate.yml        # CI: JSON validity, bash -n, doc checks, contract score
 └── workspace/
@@ -88,7 +84,6 @@ utility/
     │       ├── entrypoint.sh         # Boot chain: auth, graphify, MCP preflight, serve
     │       ├── config/               # opencode.json: MCP servers, plugins, 20 agent entries
     │       ├── engine/               # Workflow State Engine, copied to /opt/engine at build
-    │       ├── portal/               # Landing-page reverse proxy published on 127.0.0.1:4097
     │       ├── pre-install/          # Offline package store (gitignored)
     │       ├── session/              # Live orchestration state (gitignored)
     │       └── .env.template         # Copy to repository-root .env
@@ -149,8 +144,8 @@ The `opencode-scheduler` service runs `scripts/scheduled-runner.sh` with the `dr
 **Where does session state live?**
 In `workspace/agents/opencode/session/`: `contract.json` (the live orchestration envelope), `state.md` (append-only log), and `archive/` (snapshots). It is gitignored except for `state.example.md`, which documents the format.
 
-**Why do I no longer see OpenCode's pairing page?**
-The `opencode-portal` service answers on `127.0.0.1:4097`. It validates the key you enter on its landing page, sets a signed HttpOnly cookie, and injects `Authorization: Basic` on every proxied request, so OpenCode's own HTTP Basic prompt (the pairing page) never appears. OpenCode's port 4096 stays inside the compose network and is no longer published.
+**Where do I sign in?**
+OpenCode's web UI is published directly on `127.0.0.1:4096` (loopback only). The first visit shows OpenCode's own pairing screen; enter `OPENCODE_SERVER_PASSWORD` there. OpenCode's own HTTP Basic auth checks the key directly; there is no proxy in between.
 
 **How do I update pinned versions?**
 Bump the build args in `docker-compose.example.yaml` (repository root) and the matching `ARG` defaults in `workspace/agents/opencode/Dockerfile`, then re-run the `opencode-preinstall` profile so the offline store picks up the new versions, and rebuild.
