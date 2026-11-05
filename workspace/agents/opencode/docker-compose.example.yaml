@@ -55,6 +55,8 @@ services:
       - ./rag:/opt/rag:ro
       - opencode-data:/home/node/.local/share/opencode
       - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID:-101}"
   opencode-preinstall:
     image: node:22-bookworm-slim
     profiles: ["tools"]
