@@ -1,0 +1,78 @@
+# ============================================================
+# Root .gitignore - agents/opencode platform repo
+# (subtree-specific rules live in workspace/agents/opencode/.gitignore
+#  and workspace/agents/opencode/certs/.gitignore)
+# ============================================================
+
+# ---- Secrets & environment ---------------------------------
+.env
+.env.*
+!.env.template
+*.pem
+*.key
+!*.pub
+
+# ---- Orchestration session state (runtime-only) ------------
+session/*
+!session/state.example.md
+!session/state.template.md
+.session/
+
+# ---- Docker runtime artifacts ------------------------------
+docker-compose.override.yml
+docker-compose.override.yaml
+docker-compose.*.local.yml
+docker-compose.*.local.yaml
+.docker/
+
+# ---- Generated data / databases ----------------------------
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+
+# ---- Node --------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.npm/
+coverage/
+
+# ---- Python ------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# ---- Tooling state (lean-ctx, graphify, firecrawl) ---------
+.lean-ctx/
+graphify-out/
+.firecrawl/
+
+# ---- Build output ------------------------------------------
+dist/
+build/
+
+# ---- Logs & temp -------------------------------------------
+*.log
+logs/
+tmp/
+.tmp/
+*.tmp
+*.bak
+
+# ---- Editors & OS junk -------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
