@@ -54,6 +54,7 @@ services:
       - ./config/opencode-model-fallback.json:/home/node/.config/opencode/opencode-model-fallback.json:ro
       - ./rag:/opt/rag:ro
       - opencode-data:/home/node/.local/share/opencode
+      - /var/run/docker.sock:/var/run/docker.sock
   opencode-preinstall:
     image: node:22-bookworm-slim
     profiles: ["tools"]

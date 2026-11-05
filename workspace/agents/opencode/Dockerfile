@@ -32,6 +32,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get install -y --no-install-recommends \
       git \
       curl \
+      sudo \
+      iproute2 \
       jq \
       ripgrep \
       ca-certificates \
@@ -98,6 +100,17 @@ RUN --mount=from=preinstall,src=/,dst=/pi,ro \
       rm -rf /root/.local /tmp/leanctx-install.sh; \
     fi; \
     lean-ctx --version
+
+# Docker CLI (client only - talks to the host daemon via the compose socket mount).
+ARG DOCKER_CLI_VERSION=27.3.1
+RUN case "${OPENCODE_ARCH}" in \
+      arm64) DC_ARCH=aarch64 ;; \
+      *) DC_ARCH=x86_64 ;; \
+    esac \
+ && curl -fsSL "https://download.docker.com/linux/static/stable/${DC_ARCH}/docker-${DOCKER_CLI_VERSION}.tgz" -o /tmp/docker-cli.tgz \
+ && tar -xzf /tmp/docker-cli.tgz -C /tmp \
+ && install -m 0755 /tmp/docker/docker /usr/local/bin/docker \
+ && rm -rf /tmp/docker /tmp/docker-cli.tgz
 
 # Install Graphify and its MCP server (wheel-first from the offline store).
 ENV PIPX_HOME=/opt/pipx \
