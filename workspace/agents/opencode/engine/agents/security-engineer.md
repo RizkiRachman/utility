@@ -26,6 +26,7 @@ permission:
 1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
    → Extract: `requirements.*`, `governance.*`, `outputs.code_changes[]`, `retry.issues[]`
    → If empty → create from `contract/contract.template.json`
+   Gate: `/opt/engine/scripts/state-guard.sh --agent security-engineer --contract session/contract.json` || STOP
 2. **Validate state**: Must be one of: REVIEW, REVIEW_SCORED
    → Expected states: `["REVIEW", "REVIEW_SCORED"]` (per rules.json agent_states)
    → If wrong state → STOP, report the state mismatch

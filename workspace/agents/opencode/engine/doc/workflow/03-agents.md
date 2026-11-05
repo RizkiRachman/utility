@@ -6,29 +6,31 @@
 
 This part maps all 16 agents (scrum team) to their contract states, MCPs, and skills. It also documents the toolkit data flow, agent pipeline, and cross-reference table for every concept in the orchestration system.
 
-## C1. Full 15-Agent × 3-Dimension Table
+## C1. Full 16-Agent × 3-Dimension Table
 
 | Agent | Contract States | Key MCPs | Skills to Load | Usage Pattern |
 |---|---|---|---|---|
-| **orchestrator** | all states | lean-ctx, context7, graphify | (orchestrator — agent.md) | delegate → score → persist |
+| **orchestrator** | all states | lean-ctx, context7 | (orchestrator — agent.md) | delegate → score → persist |
+| **design-orchestrator** | all states | lean-ctx, context7 | design-exemplar, ui-ux-pro-max, design-taste-frontend, impeccable | plan UI → enforce 4-layer pipeline → gate |
 | **product-manager** | INIT, PLAN | lean-ctx, context7 | business-analyst, brainstorming, writing-plans | intent → GWT criteria → scope |
-| **scrum-master** | all, BLOCKED | lean-ctx, graphify | orchestration-template, audit-observability, adaptive-solver | audit → enforce → unblock |
-| **system-analyst** | INIT, PLAN, PLAN_SCORED | lean-ctx, graphify | brainstorming, writing-plans, doubt-driven-development | analyze → plan/spec |
-| **software-architect** | INIT, PLAN, PLAN_SCORED, REVIEW | lean-ctx, graphify | system-analyst, java-developer | independent design review |
+| **scrum-master** | all, BLOCKED | lean-ctx | orchestration-template, audit-observability, adaptive-solver | audit → enforce → unblock |
+| **system-analyst** | INIT, PLAN, PLAN_SCORED | lean-ctx | brainstorming, writing-plans, doubt-driven-development | analyze → plan/spec |
+| **software-architect** | INIT, PLAN, PLAN_SCORED, REVIEW | lean-ctx | system-analyst, java-developer | independent design review |
 | **developer** | EXECUTE, EXECUTE_SCORED | lean-ctx | test-driven-development, software-developer | implement spec → tests |
 | **devops-engineer** | EXECUTE, EXECUTE_SCORED, REVIEW | lean-ctx | devops-expert, observability-and-instrumentation | pipeline → deploy → rollback |
 | **fixer** | EXECUTE | lean-ctx | systematic-debugging | bounded fix |
 | **quality-analyst** | REVIEW, REVIEW_SCORED | lean-ctx | code-review-and-quality, qa-expert, security-expert | review 5 axes |
 | **security-engineer** | REVIEW, REVIEW_SCORED | lean-ctx | security-expert, code-review-and-quality | threat model → verdict |
-| **explorer** | PLAN, REVIEW | lean-ctx, graphify | (exploration) | read-only code map |
+| **explorer** | PLAN, REVIEW | lean-ctx | (exploration) | read-only code map |
 | **librarian** | any | context7 | (research) | docs/library lookup |
-| **council** | any (high-stakes) | lean-ctx, graphify | (multi-LLM consensus) | council_session → consensus → report |
+| **council** | any (high-stakes) | lean-ctx | (multi-LLM consensus) | council_session → consensus → report |
 | **observer** | any | lean-ctx | (visual analysis) | images / PDFs / diagrams |
 | **learner** | COMPLETE | lean-ctx (knowledge) | verification-before-completion | extract lessons → knowledge |
 
 ## C2. Agent Profiles
 
 - **orchestrator**: Orchestrator — delegates, scores, drives state machine. Highest privilege: read/write all contract fields.
+- **design-orchestrator**: UI/UX specialist orchestrator — enforces the 4-layer design pipeline (Exemplar > Generator > Taste > Gate) for all UI work. Read/write within design scope.
 - **product-manager**: Requirements owner — turns intent into testable GWT acceptance criteria and declares scope/non-goals. Read-only, reviewer model.
 - **scrum-master**: Process owner — audits transitions, enforces gates and DoD, unblocks BLOCKED, drives retros. Read-only, reviewer model.
 - **system-analyst**: Planner — analyzes, traces, produces specs/plans. Read-only: never writes code.

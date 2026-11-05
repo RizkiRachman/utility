@@ -26,6 +26,7 @@ permission:
 1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
    → Extract: `state`, `governance.*`, `score.*`, `retry.*`, `validation.*`, `audit_log[]`
    → If empty → report "no active envelope" and audit the template instead
+   Gate: `/opt/engine/scripts/state-guard.sh --agent scrum-master --contract session/contract.json` || STOP
 2. **Validate workflow**: Compare `state` against `rules/rules.json` `state_machine.states` and the legal transitions.
    → Illegal transition, missing required fields, or a gate that was skipped = process violation
 3. **Read rules.json**: Load `enforcement`, `agent_watchdog`, and `scoring.validation_gates`

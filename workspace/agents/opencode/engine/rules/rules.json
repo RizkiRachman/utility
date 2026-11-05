@@ -43,6 +43,12 @@
         "from": "*",
         "to": "BLOCKED",
         "require_score": 50
+      },
+      {
+        "from": "BLOCKED",
+        "to": "INIT",
+        "require_score": null,
+        "requires": "user_override"
       }
     ],
     "states": [
@@ -154,6 +160,34 @@
       "retry_range": "50-69 (max 3 attempts)",
       "escalation": "Below 50 or retry >= 3 → BLOCKED",
       "example": "Tier1=70, Tier2=80 → combined=(70+80)/2=75 → PASS"
+    }
+  },
+  "service_type_rules": {
+    "Core": {
+      "score_threshold": 75,
+      "retry_max_attempts": 3
+    },
+    "UI": {
+      "score_threshold": 70,
+      "retry_max_attempts": 5
+    },
+    "Support": {
+      "score_threshold": 65,
+      "retry_max_attempts": 8
+    },
+    "Infrastructure": {
+      "score_threshold": 80,
+      "retry_max_attempts": 2
+    }
+  },
+  "rules_registry": {
+    "IMPACT_001": {
+      "deduction": 40,
+      "description": "ctx_impact required before any edit"
+    },
+    "LEARN_001": {
+      "deduction": 15,
+      "description": "learner must update all memory systems"
     }
   },
   "agent_watchdog": {
@@ -324,7 +358,6 @@
       "open_timeout_ms": 60000,
       "half_open_requests": 1,
       "monitored_services": [
-        "graphify-mcp",
         "lean-ctx-mcp",
         "lean-ctx"
       ]
@@ -333,10 +366,6 @@
       "enabled": true,
       "script": "scripts/mcp-health.sh",
       "services": {
-        "graphify": {
-          "url": "graphify-out/graph.json",
-          "check": "file_exists"
-        },
         "lean-ctx": {
           "cmd": "lean-ctx context",
           "timeout_ms": 5000
@@ -522,6 +551,9 @@
     "orchestrator": [
       "*"
     ],
+    "design-orchestrator": [
+      "*"
+    ],
     "product-manager": [
       "INIT",
       "PLAN"
@@ -579,6 +611,7 @@
     ],
     "available_agents": [
       "council",
+      "design-orchestrator",
       "explorer",
       "fixer",
       "librarian",

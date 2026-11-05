@@ -28,7 +28,7 @@
 - **Gate**: Score ≥ 70 → PASS advances to EXECUTE. 50-69 → RETRY — re-delegate to system-analyst with issues[]. <50 → BLOCKED.
 - **SDD gate trigger**: If score ≥ 70, SDD spec gate fires at the next transition. The plan is ready for spec-driven implementation.
 
-### B1d. PLAN_SCORED → EXECUTE [Gate: SDD]
+### B1c. PLAN_SCORED → EXECUTE [Gate: SDD]
 
 - **Reads**: score.* (proves ≥70), decisions.* (approved architecture), outputs.plan (full spec to implement from)
 - **Gate**: SDD fires here — mandatory spec approval before any code is written. The plan must be in Given/When/Then format (or equivalent formal specification) before execution begins:
@@ -40,7 +40,7 @@
 - **Delegates to**: @developer (implementation per spec, TDD cycle)
 - **Writes back**: state=EXECUTE, governance.mode: spec, governance.current_guidance (any execution direction from orchestrator)
 
-### B1e. EXECUTE → EXECUTE_SCORED
+### B1d. EXECUTE → EXECUTE_SCORED
 
 - **Reads**: outputs.plan (task breakdown, dependency graph), decisions.* (approved architecture, coding standard)
 - **Simplicity**: The scoring pipeline includes a SIMPLICITY_001 rule (HIGH severity) that detects unnecessary abstractions, unused deps, and over-engineered patterns. An `over_engineering_deduction: 15` applies in Tier 1 when YAGNI violations are detected.
@@ -50,7 +50,7 @@
 - **Outputs**: outputs.code_changes[] (files_created, files_modified), outputs.test_results (test_count, pass, fail)
 - **Writes back**: state=EXECUTE_SCORED
 
-### B1f. EXECUTE_SCORED → REVIEW [Gate: DDD]
+### B1e. EXECUTE_SCORED → REVIEW [Gate: DDD]
 
 - **Reads**: outputs.code_changes[], outputs.test_results, outputs.plan (for scope comparison)
 - **Delegates to**: @orchestrator (scoring pipeline — self-scored)
@@ -58,7 +58,7 @@
 - **Activity**: Score implementation (Tier 1 → Tier 2 → Tier 3). Pass ≥ 70 advances to REVIEW.
 - **Writes back**: state=REVIEW, score.* (updated with implementation score)
 
-### B1g. REVIEW → REVIEW_SCORED [Gate: Scoring + Over-Engineering Check]
+### B1f. REVIEW → REVIEW_SCORED [Gate: Scoring + Over-Engineering Check]
 
 - **Reads**: score.* (proves ≥70), outputs.* (code_changes, test_results, risks_introduced[])
 - **Delegates to**: @quality-analyst + @security-engineer (independent, cross-model review — 5 axes)
@@ -71,7 +71,7 @@
 - **Outputs**: outputs.agent_reports[] with findings per dimension, outputs.review_verdict (PASS/BLOCK/FLAG)
 - **Writes back**: state=REVIEW_SCORED
 
-### B1h. REVIEW_SCORED → COMPLETE
+### B1g. REVIEW_SCORED → COMPLETE
 
 - **Reads**: outputs.agent_reports[], score.*, outputs.code_changes[], outputs.test_results
 - **Delegates to**: @orchestrator (score review findings) + @learner (post-exec analysis); @scrum-master enforces the Definition of Done before COMPLETE
@@ -84,7 +84,7 @@
 Doubt-Driven Development (DDD) subjects non-trivial decisions to adversarial review. It fires at 5 points across the lifecycle:
 
 1. **B1a** (INIT→PLAN) — "What assumptions am I making about scope and constraints?" Before delegating to system-analyst, the orchestrator challenges the task framing.
-2. **B1f** (EXECUTE_SCORED→REVIEW) — "What would I criticize about my own code?" Before review, the orchestrator runs an adversarial self-review of the implementation.
+2. **B1e** (EXECUTE_SCORED→REVIEW) — "What would I criticize about my own code?" Before review, the orchestrator runs an adversarial self-review of the implementation.
 3. **Before commit** — "What did I miss?" Developer runs DDD on every non-trivial change before committing (branches, cross-service calls, shared state modifications).
 4. **After review** — "Did the reviewer find what I expected?" After quality-analyst review, the orchestrator compares DDD predictions against actual findings.
 5. **At BLOCKED** — "What assumption was wrong?" Every BLOCKED event triggers a root-cause challenge to avoid repeating the same failure.

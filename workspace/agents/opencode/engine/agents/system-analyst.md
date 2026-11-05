@@ -26,6 +26,7 @@ permission:
 1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
    → Extract: `requirements.*`, `governance.*`, `retry.issues[]`, `scope.*`
    → If empty → create from `contract.json` template
+   Gate: `/opt/engine/scripts/state-guard.sh --agent system-analyst --contract session/contract.json` || STOP
 2. **Validate state**: Must be one of: INIT, PLAN, PLAN_SCORED
    → Expected states: `["INIT", "PLAN", "PLAN_SCORED"]` (per rules.json agent_states)
    → If wrong state → STOP, report "Contract state is ${state}, expected one of: INIT, PLAN, PLAN_SCORED"
@@ -101,7 +102,6 @@ If found → extract `requirements.*`, `governance.*`, `retry.issues[]`, `scope.
 | `PROJECT.md` | Read via `ctx_read` — project vision, scope, constraints |
 | `lean-ctx knowledge` | Recall recent patterns: `ctx_knowledge recall --query "architecture"` |
 | `lean-ctx` | Re-index if stale: `lean-ctx ctx_shell` `bash graphify --update` (skip if within 5 min of last index) |
-| `graphify` | Check if knowledge graph is current with `graphify_graph_stats` |
 
 Freshness rule: If lean-ctx/graphify index was built >1 hour ago or after any code change, re-index before proceeding.
 

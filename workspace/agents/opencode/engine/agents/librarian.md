@@ -28,6 +28,7 @@ permission:
 1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
    → Extract: `requirements.*`, `constraints`
    → If empty → create from `contract.json` template
+   Gate: `/opt/engine/scripts/state-guard.sh --agent librarian --contract session/contract.json` || STOP
 2. **Validate state**: Expected states: `["*"]` (support agent — callable from any state)
    → If contract.state is BLOCKED → STOP, report "Contract is BLOCKED, cannot proceed"
 3. **Read rules.json**: Check library research rules

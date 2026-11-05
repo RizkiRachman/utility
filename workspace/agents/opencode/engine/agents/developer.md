@@ -20,13 +20,14 @@ permission:
 
 ## Permissions
 - Read: All project files
-- Write: All project files (via lean-ctx ctx_edit/create — write tool is blocked)
+- Write: All project files (via the host's native edit tool — lean-ctx handles reads only)
 - Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
 1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
    → Extract: `decisions.*`, `governance.*`, `retry.issues[]`, `scope.included`
    → If empty → create from `contract.json` template
+   Gate: `/opt/engine/scripts/state-guard.sh --agent developer --contract session/contract.json` || STOP
 2. **Validate state**: Must be one of: EXECUTE, EXECUTE_SCORED
    → Expected states: `["EXECUTE", "EXECUTE_SCORED"]` (per rules.json agent_states)
    → If wrong state → STOP, report "Contract state is ${state}, expected one of: EXECUTE, EXECUTE_SCORED"
@@ -96,7 +97,6 @@ If found → extract `decisions.*`, `governance.*`, `retry.issues[]`, `scope.inc
 | `PROJECT.md` | Read via `ctx_read` — project vision, scope, constraints |
 | `lean-ctx knowledge` | Recall recent patterns: `ctx_knowledge recall --query "architecture"` |
 | `lean-ctx` | Re-index if stale: `lean-ctx ctx_shell` `bash graphify --update` |
-| `graphify` | Check graph stats: `graphify_graph_stats` |
 
 Freshness rule: If lean-ctx/graphify index was built >1 hour ago or after any code change, re-index before proceeding.
 
@@ -155,7 +155,7 @@ Use lean-ctx MCP tools for token savings:
 - `ctx_read(path, mode)` over `Read` — cached, compressed re-reads (~13 tokens)
 - `ctx_search(pattern, path)` over `grep` — compact results
 - `ctx_tree(path, depth)` over `ls` — compact directory maps
-- `ctx_edit` over `Edit` (when Read unavailable) — search-and-replace without native Read
+- host native `edit` tool for file edits — search-and-replace edits (lean-ctx handles reads only)
 
 ### 1. Read Plan / Spec
 Receive the plan or spec from orchestrator. If a GWT-format spec is provided (mode=spec):

@@ -38,6 +38,7 @@ FAIL_COUNT=0
 DEDUCTION=0
 MAX_SCORE=100
 BC_UNAVAILABLE=false
+BLOCK_ON_VIOLATION=false
 
 # Check for optional dependencies
 command -v bc >/dev/null 2>&1 || { echo "[WARN] bc not available, score gates disabled" >&2; BC_UNAVAILABLE=true; }
@@ -92,6 +93,41 @@ detect_contract_file() {
     done
     echo "ERROR: No contract file found. Use --file to specify." >&2
     exit 1
+}
+
+# --- Step 0: JSON Schema validation (optional — requires python3 jsonschema) -
+check_jsonschema() {
+    local file="$1"
+    local schema="$PROJECT_DIR/contract/contract.schema.json"
+    if [[ ! -f "$schema" ]]; then
+        log_verbose "contract.schema.json not found at $schema — skipping schema validation"
+        return 0
+    fi
+    if ! python3 -c "import jsonschema" 2>/dev/null; then
+        log_verbose "python3 jsonschema module not installed — skipping schema validation (graceful skip)"
+        return 0
+    fi
+    if python3 -c "
+import json, sys
+from jsonschema import validators
+with open('$schema') as f:
+    schema = json.load(f)
+with open('$file') as f:
+    data = json.load(f)
+cls = validators.validator_for(schema)
+errors = sorted(cls(schema).iter_errors(data), key=lambda e: list(e.path))
+if errors:
+    for e in errors[:10]:
+        print('  [SCHEMA] ' + '/'.join(str(p) for p in e.path) + ': ' + e.message[:160])
+    sys.exit(1)
+sys.exit(0)
+" 2>&1; then
+        log_pass "JSON Schema validation passed (contract.schema.json)"
+        return 0
+    else
+        log_fail "JSON Schema validation failed (see above)"
+        return 1
+    fi
 }
 
 # --- Step 1: JSON validity -------------------------------------------------
@@ -178,7 +214,7 @@ check_nested_fields() {
     local file="$1"
     local nested_checks=(
         "session:task_id"
-        "session:session"
+        "session:session_id"
         "session:created_at"
         "session:archived_at"
         "requirements:goal"
@@ -221,11 +257,11 @@ check_nested_fields() {
         "metrics:phases_completed"
         "metrics:phase_durations"
         "token_budget:max_per_session"
-        "token_budget:W_threshold"
+        "token_budget:warning_threshold"
         "token_budget:hard_limit"
         "token_budget:max_per_phase"
         "token_budget:max_per_subagent_call"
-        "token_budget:cur_session_usage"
+        "token_budget:current_session_usage"
         "token_budget:phase_usage"
         "scope:included"
         "scope:excluded"
@@ -699,6 +735,61 @@ check_score_gate() {
     return 0
 }
 
+# --- Step 7a: Security review trigger (F-12) ---------------------------------
+check_security_trigger() {
+    local file="$1"
+    local rules_file="$2"
+    # Keywords sourced from rules.json security_trigger (fallback list if rules missing)
+    local keywords=""
+    if [[ -f "$rules_file" ]]; then
+        keywords=$(jq -r '.enforcement.cross_model_review.security_trigger.keywords[]?' "$rules_file" 2>/dev/null | tr '\n' ' ')
+    fi
+    [[ -z "$keywords" ]] && keywords="password secret token apikey api_key private_key jwt oauth crypto"
+    local trigger_hit=""
+    for kw in $keywords; do
+        if jq -e --arg kw "$kw" '[(.requirements | tostring), (.outputs.code_changes | tostring)] | join(" ") | ascii_downcase | test($kw)' "$file" >/dev/null 2>&1; then
+            trigger_hit="$kw"
+            break
+        fi
+    done
+    if [[ -z "$trigger_hit" ]]; then
+        log_verbose "No security-trigger keywords in requirements/outputs.code_changes"
+        return 0
+    fi
+    local used
+    used=$(jq -r '[.metrics.agents_used[]?] | join(",")' "$file" 2>/dev/null)
+    if [[ ",${used}," == *",security-engineer,"* ]]; then
+        log_pass "Security trigger ('$trigger_hit') satisfied — security-engineer in metrics.agents_used"
+        return 0
+    fi
+    log_fail "Security trigger: contract references '$trigger_hit' (auth/secrets/credentials/config/crypto) but metrics.agents_used has no security-engineer"
+    return 1
+}
+
+# --- Step 7b: block_on threshold enforcement (F-13) -------------------------
+check_block_on() {
+    local file="$1"
+    local violations=0
+    # max_test_failures vs outputs.test_results (fail/failed/failed_count)
+    local test_failures max_test_failures
+    max_test_failures=$(jq -r '.validation.block_on.max_test_failures // empty' "$file" 2>/dev/null)
+    if [[ -n "$max_test_failures" ]]; then
+        test_failures=$(jq -r '.outputs.test_results.fail // .outputs.test_results.failed // .outputs.test_results.failed_count // 0' "$file" 2>/dev/null)
+        if [[ "$test_failures" -gt "$max_test_failures" ]] 2>/dev/null; then
+            log_fail "block_on exceeded: test failures ($test_failures) > max_test_failures ($max_test_failures)"
+            violations=$((violations + 1))
+        fi
+    fi
+    # max_score_drop / max_compile_errors: the contract schema carries no
+    # previous-score or compile-error counter — those two criteria are enforced
+    # by the orchestrator's Verify loop (see doc/workflow/04-scoring.md D2).
+    if [[ $violations -eq 0 ]]; then
+        log_verbose "block_on thresholds satisfied (or not computable from contract)"
+        return 0
+    fi
+    return 1
+}
+
 # --- Scoring ---------------------------------------------------------------
 compute_score() {
     local total_checks=$((PASS_COUNT + FAIL_COUNT))
@@ -762,6 +853,14 @@ main() {
         echo " File: $CONTRACT_FILE"
         echo "=========================================="
         echo ""
+    fi
+
+    # Step 0: JSON Schema validation (graceful skip when jsonschema unavailable)
+    if run_check check_jsonschema "$CONTRACT_FILE"; then
+        PASS_COUNT=$((PASS_COUNT + 1))
+    else
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+        DEDUCTION=$((DEDUCTION + 15))
     fi
 
     # Step 1: JSON validity
@@ -899,6 +998,18 @@ main() {
                 DEDUCTION=$((DEDUCTION + 15))
             fi
         fi
+
+        # Step 6g (F-12): Security review trigger — hard gate.
+        # If requirements/outputs.code_changes reference auth/secrets/credentials/config/crypto
+        # surfaces, @security-engineer must appear in metrics.agents_used.
+        if ! run_check check_security_trigger "$CONTRACT_FILE" "$RULES_FILE"; then
+            if [[ "$SCORE_MODE" == false ]]; then
+                echo ""
+                echo "BLOCKED: security-sensitive changes require @security-engineer review (metrics.agents_used)"
+            fi
+            exit 2
+        fi
+        PASS_COUNT=$((PASS_COUNT + 1))
     fi
 
     # Step 7: Transition (conditional)
@@ -909,6 +1020,16 @@ main() {
             FAIL_COUNT=$((FAIL_COUNT + 1))
             DEDUCTION=$((DEDUCTION + 20))
         fi
+    fi
+
+    # Step 7b (F-13): block_on enforcement — read contract validation.block_on,
+    # fail with exit 1 when a threshold is exceeded (regardless of score).
+    if run_check check_block_on "$CONTRACT_FILE"; then
+        PASS_COUNT=$((PASS_COUNT + 1))
+    else
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+        DEDUCTION=$((DEDUCTION + 20))
+        BLOCK_ON_VIOLATION=true
     fi
 
     # Compute score
@@ -927,6 +1048,15 @@ main() {
     if [[ "$SCORE_MODE" == true ]]; then
         # Suppress all non-score output in score mode
         echo "$score"
+    fi
+
+    # F-13: block_on threshold exceeded forces a failing exit (exit 1) even
+    # when the computed score would otherwise pass.
+    if [[ "$BLOCK_ON_VIOLATION" == true && $score -ge 70 ]]; then
+        if [[ "$SCORE_MODE" == false ]]; then
+            echo -e "${YELLOW}VERDICT: FAIL — validation.block_on threshold exceeded${NC}"
+        fi
+        exit 1
     fi
 
     # Exit code

@@ -26,6 +26,7 @@ permission:
 1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
    → Extract: `requirements.*`, `governance.*`, `outputs.code_changes[]`
    → If empty → create from `contract.json` template
+   Gate: `/opt/engine/scripts/state-guard.sh --agent quality-analyst --contract session/contract.json` || STOP
 2. **Validate state**: Must be one of: REVIEW, REVIEW_SCORED
    → Expected states: `["REVIEW", "REVIEW_SCORED"]` (per rules.json agent_states)
    → If wrong state → STOP, report "Contract state is ${state}, expected one of: REVIEW, REVIEW_SCORED"
@@ -99,7 +100,6 @@ If found → extract `requirements.*`, `governance.*`, `retry.issues[]`, `output
 | `PROJECT.md` | Read via `ctx_read` — project vision, scope, constraints |
 | `lean-ctx knowledge` | Recall recent patterns: `ctx_knowledge recall --query "architecture"` |
 | `lean-ctx` | Re-index if stale: `lean-ctx ctx_shell` `bash graphify --update` — ensures impact analysis is accurate |
-| `graphify` | Check graph stats before exploring unfamiliar code |
 
 Freshness rule: If lean-ctx/graphify index was built >1 hour ago or after any code change, re-index before proceeding.
 

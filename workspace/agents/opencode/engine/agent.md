@@ -105,8 +105,7 @@ Engine changes take effect on container rebuild; the bind-mounted config on rest
 The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy:
 
 ```
-├── agent.md           ← THIS FILE (instructions[0])
-├── AGENTS.md          ← lean-ctx code intelligence (loaded at session start)
+├── agent.md           ← THIS FILE (instructions[0]; includes the §lean-ctx code-intelligence block)
 ├── README.md          ← Project overview (diagram, badges)
 ├── /opt/engine/agents/            ← 16 agent instruction files
 ├── /opt/engine/doc/               ← Workflow guides, project.md, reports
@@ -132,16 +131,16 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **orchestrator** | Scrum lead / primary orchestrator — delegates, scores, drives the state machine | lean-ctx, graphify, context7 | Read/write | `*` (all) | executor | (orchestrator — agent.md) | `/opt/engine/agents/orchestrator.md` |
-| **design-orchestrator** | UI/UX specialist orchestrator — enforces 4-layer design pipeline (Exemplar > Generator > Taste > Gate) | lean-ctx, graphify, context7 | Read/write | `*` (all) | executor | design-exemplar, ui-ux-pro-max, design-taste-frontend, impeccable | `/opt/engine/agents/design-orchestrator.md` |
+| **orchestrator** | Scrum lead / primary orchestrator — delegates, scores, drives the state machine | lean-ctx, context7 | Read/write | `*` (all) | executor | (orchestrator — agent.md) | `/opt/engine/agents/orchestrator.md` |
+| **design-orchestrator** | UI/UX specialist orchestrator — enforces 4-layer design pipeline (Exemplar > Generator > Taste > Gate) | lean-ctx, context7 | Read/write | `*` (all) | executor | design-exemplar, ui-ux-pro-max, design-taste-frontend, impeccable | `/opt/engine/agents/design-orchestrator.md` |
 
 ### Product & Planning Agents (read-only)
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
 | **product-manager** | Requirements + acceptance-criteria backlog (GWT) | lean-ctx, context7 | Read-only | `INIT`, `PLAN` | reviewer | business-analyst, brainstorming, writing-plans, diagram-design | `/opt/engine/agents/product-manager.md` |
-| **system-analyst** | Impact analysis, specs, detailed plans | lean-ctx, graphify | Read-only | `INIT`, `PLAN`, `PLAN_SCORED` | executor | system-analyst, business-analyst, writing-plans, diagram-design | `/opt/engine/agents/system-analyst.md` |
-| **software-architect** | Architecture trade-offs, tech-debt assessment | lean-ctx, graphify | Read-only | `INIT`, `PLAN`, `PLAN_SCORED`, `REVIEW` | reviewer | system-analyst, java-developer, diagram-design | `/opt/engine/agents/software-architect.md` |
+| **system-analyst** | Impact analysis, specs, detailed plans | lean-ctx | Read-only | `INIT`, `PLAN`, `PLAN_SCORED` | executor | system-analyst, business-analyst, writing-plans, diagram-design | `/opt/engine/agents/system-analyst.md` |
+| **software-architect** | Architecture trade-offs, tech-debt assessment | lean-ctx | Read-only | `INIT`, `PLAN`, `PLAN_SCORED`, `REVIEW` | reviewer | system-analyst, java-developer, diagram-design | `/opt/engine/agents/software-architect.md` |
 
 ### Implementation Agents (read/write)
 
@@ -157,16 +156,16 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 |-------|------|----------|--------|----------------|-------|--------|------|
 | **quality-analyst** | Independent quality review (5-axis: correctness, readability, architecture, security, performance) | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | reviewer | qa-expert, security-expert, code-review-and-quality, impeccable | `/opt/engine/agents/quality-analyst.md` |
 | **security-engineer** | Independent security review — threat model, vulns, secrets, trust boundaries | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | reviewer | security-expert, code-review-and-quality | `/opt/engine/agents/security-engineer.md` |
-| **scrum-master** | Process owner — guards the contract, state machine, and workflow; unblocks BLOCKED, DoD gate | lean-ctx, graphify | Read-only | `*` (all), `BLOCKED` | reviewer | orchestration-template, audit-observability, adaptive-solver | `/opt/engine/agents/scrum-master.md` |
+| **scrum-master** | Process owner — guards the contract, state machine, and workflow; unblocks BLOCKED, DoD gate | lean-ctx | Read-only | `*` (all), `BLOCKED` | reviewer | orchestration-template, audit-observability, adaptive-solver | `/opt/engine/agents/scrum-master.md` |
 | **learner** | Post-execution retro — extract lessons, gotchas, patterns | lean-ctx | Read-only | `REVIEW_SCORED`, `COMPLETE` | executor | verification-before-completion | `/opt/engine/agents/learner.md` |
 
 ### Support Agents (read-only)
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **explorer** | Fast codebase search / unknowns discovery | lean-ctx, graphify | Read-only | `*` (all) | executor | (exploration) | `/opt/engine/agents/explorer.md` |
+| **explorer** | Fast codebase search / unknowns discovery | lean-ctx | Read-only | `*` (all) | executor | (exploration) | `/opt/engine/agents/explorer.md` |
 | **librarian** | External docs / library research | context7 | Read-only | `*` (all) | executor | (research) | `/opt/engine/agents/librarian.md` |
-| **council** | Multi-model consensus + cross-model arbitration | lean-ctx, graphify | Read-only | `*` (all) | multi | (multi-LLM consensus) | `/opt/engine/agents/council.md` |
+| **council** | Multi-model consensus + cross-model arbitration | lean-ctx | Read-only | `*` (all) | multi | (multi-LLM consensus) | `/opt/engine/agents/council.md` |
 | **observer** | Visual analysis — images, PDFs, diagrams | lean-ctx | Read-only | `*` (all) | executor | (visual analysis), impeccable, diagram-design | `/opt/engine/agents/observer.md` |
 
 ### Lane Name Mapping
@@ -209,8 +208,6 @@ See [`/opt/engine/doc/workflow.md`](/opt/engine/doc/workflow.md) for the canonic
 |------|-----------|-----|
 | **Check blast radius before editing** | `ctx_impact` | Knowledge graph tracks callers/importers at d=1/d=2/d=3 depths |
 | **Explore unfamiliar code flows** | `ctx_compose` | Returns process-grouped execution flows ranked by relevance |
-| **Broader codebase exploration** | `graphify_query_graph` | BFS/DFS traversal across communities, finds concept relationships |
-| **Find core abstractions** | `graphify_god_nodes` | Most connected symbols in the graph (hubs) |
 | **Read/edit files** | `lean-ctx ctx_read`/`ctx_edit` | Cached reads (~13 tok), safe search-and-replace edits |
 | **Shell commands** | `lean-ctx ctx_shell` | Compressed output, 95+ patterns, replaces bash |
 | **Persist decisions/knowledge** | `lean-ctx ctx_knowledge remember` | Cross-session persistence with embeddings |
@@ -305,21 +302,13 @@ Use **Doubt-Driven Development (DDD)** when uncertain: spawn a fresh-context adv
 
 ### Before Commit (Post-Flight Protocol)
 
-| # | Step | Tool |
-|---|------|------|
-| **0** | Validate contract | `bash /opt/engine/scripts/validate-contract.sh --file session/contract.json --score` |
-| 1 | Impact verify | `ctx_impact` |
-| 2 | Change detect | `ctx_delta` |
-| 3 | Knowledge persist | `lean-ctx ctx_knowledge remember` |
-| 4 | Graphify sync | `lean-ctx ctx_shell` `bash graphify --update` |
-| 5 | STATE.md | `ctx_edit` |
-| 6 | Session save (complete) | See **Save Session Protocol** below
+The canonical post-flight protocol is the **E1 table in [`doc/workflow/05-operations.md`](/opt/engine/doc/workflow/05-operations.md)** (8 steps: validate contract → impact verify → change detect → knowledge persist → session archive → save conversation → re-index graphify → metrics aggregation). Run it before every commit — do not maintain a second step list here.
 
 **Pre-flight**: `bash /opt/engine/scripts/validate-contract.sh --file session/contract.json --score` (score < 70 = BLOCKED)
 **Parallel conflict check**: `bash /opt/engine/scripts/detect-parallel-conflicts.sh --file1 /tmp/a.txt --file2 /tmp/b.txt`
 **Atomic persist**: `bash /opt/engine/scripts/persist-contract.sh --file session/contract.json --inject-score 85` |
 
-Exceptions: docs-only changes skip 1, 2, 4. Config-only skip 1, 2.
+Exceptions: docs-only changes skip impact, change-detect, and re-index steps. Config-only changes skip impact and change-detect.
 
 ### Save Session Protocol
 
@@ -511,6 +500,8 @@ All skills at `/opt/engine/skills/` (symlinked into the OpenCode config dir). Us
 | `shipping-and-launch` | End-to-end release orchestration — pre-launch verification, canary rollout, rollback planning, post-deploy smoke tests |
 | `spec` | Specification writing, requirements documentation, acceptance criteria |
 | `lean-ctx` | LeanCTX Context Gateway — select task-relevant context, apply controls, reuse local knowledge, inspect recorded evidence |
+| `context-standards` | Discover and load project-specific pattern and standards files (context/*.md) before implementation, review, or design work |
+| `dispatching-parallel-agents` | Coordinating multiple sub-agents for parallel execution — file-disjoint sharding, conflict avoidance, reconciliation |
 
 *Last updated: 2026-10-30. If you modify conventions, workflows, or config, update this file.*
 

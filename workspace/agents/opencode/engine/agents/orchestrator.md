@@ -29,6 +29,7 @@ You MUST complete these steps BEFORE any tool call or work:
 1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
    → If empty: create from `contract/contract.template.json`
    → FAILURE TO LOAD = GOVERNANCE VIOLATION
+   Gate: `/opt/engine/scripts/state-guard.sh --agent orchestrator --contract session/contract.json` || STOP
 2. **Validate envelope**: Run `bash scripts/validate-contract.sh --file session/contract.json --rules rules/rules.json --score`
    → If exit code != 0 (score < 70): envelope is corrupt or in illegal state
    → If contract.json doesn't exist (fresh session): validate template with `bash scripts/validate-contract.sh --file contract/contract.template.json --score`
@@ -326,8 +327,9 @@ BLOCKED (any phase) → user intervention → retry with guidance
 
 **Before each delegation:**
 1. Read envelope state via `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
-2. Validate the transition is legal (e.g., cannot EXECUTE without approved architecture)
-3. If illegal: set `state = BLOCKED`, write issue to `retry.issues[]`, persist envelope, stop
+2. Run state-guard: `/opt/engine/scripts/state-guard.sh --agent orchestrator --contract session/contract.json || STOP` — run state-guard.sh before each delegation
+3. Validate the transition is legal (e.g., cannot EXECUTE without approved architecture)
+4. If illegal: set `state = BLOCKED`, write issue to `retry.issues[]`, persist envelope, stop
 
 **After each delegation + scoring:**
 1. Update envelope state to SCORED variant (e.g., PLAN → PLAN_SCORED)

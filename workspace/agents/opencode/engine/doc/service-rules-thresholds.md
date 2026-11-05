@@ -1,5 +1,7 @@
 # Service Type Rules Thresholds
 
+> **Canonical source: `rules/rules.json` §`service_type_rules`.** The values below mirror rules.json; if they ever disagree, rules.json wins.
+
 ## Threshold Matrix
 
 |---|---|---|---|---|---|

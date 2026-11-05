@@ -16,13 +16,13 @@ else
   FAILED_MCP=1
 fi
 
-# graphify — MANDATORY
-if command -v graphify &>/dev/null || command -v graphify-mcp &>/dev/null; then
-  echo "    ✅ graphify — found"
+# graphify — OPTIONAL (CLI only; the graphify MCP server is disabled in opencode.json,
+# but the `graphify --update` CLI used in save-session protocols stays installed)
+if command -v graphify &>/dev/null; then
+  echo "    ✅ graphify (CLI) — found"
 else
-  echo "    ❌ graphify — NOT FOUND (MANDATORY)"
-  echo "       Install: pipx install 'graphifyy[mcp]'"
-  FAILED_MCP=1
+  echo "    ℹ️  graphify CLI — not found (OPTIONAL — re-index CLI only; MCP server is disabled)"
+  echo "       Install: pipx install graphifyy"
 fi
 
 # context7 — OPTIONAL

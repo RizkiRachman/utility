@@ -26,6 +26,7 @@ permission:
 1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
    → Extract: `requirements.*`, `governance.*`, `retry.issues[]`, `scope.*`
    → If empty → create from `contract/contract.template.json`
+   Gate: `/opt/engine/scripts/state-guard.sh --agent product-manager --contract session/contract.json` || STOP
 2. **Validate state**: Must be one of: INIT, PLAN
    → Expected states: `["INIT", "PLAN"]` (per rules.json agent_states)
    → If wrong state → STOP, report "Contract state is ${state}, expected one of: INIT, PLAN"

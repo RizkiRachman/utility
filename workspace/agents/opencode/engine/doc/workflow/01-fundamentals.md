@@ -10,8 +10,8 @@ This part covers the core orchestration mechanics: state machine transitions, co
 
 ```
 INIT → PLAN → PLAN_SCORED → EXECUTE → EXECUTE_SCORED → REVIEW → REVIEW_SCORED → COMPLETE
-                                                                                       ↓
-                                                                                  BLOCKED
+   ↘ (any phase) ↘                                        ↙ (any phase) ↙
+                     BLOCKED — score < 50 or retry ≥ 3, escalated to user
 ```
 
 ### Transitions

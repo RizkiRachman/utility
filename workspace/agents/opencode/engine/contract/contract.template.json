@@ -31,7 +31,7 @@
     "applicable_skills": [],
     "current_guidance": "",
     "permissions": {
-      "allowed_exec": {
+      "allowed_execution": {
         "tools": [],
         "denied": []
       },
@@ -95,11 +95,11 @@
   },
   "token_budget": {
     "max_per_session": 200000,
-    "W_threshold": 0.8,
+    "warning_threshold": 0.8,
     "hard_limit": 0.95,
     "max_per_phase": {},
     "max_per_subagent_call": 50000,
-    "cur_session_usage": 0,
+    "current_session_usage": 0,
     "phase_usage": {}
   },
   "scope": {

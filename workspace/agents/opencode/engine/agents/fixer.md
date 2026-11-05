@@ -22,12 +22,13 @@ permission:
 
 ## Permissions
 - Read: All project files
-- Write: All project files (via lean-ctx ctx_edit/create — write tool is blocked)
+- Write: All project files (via the host's native edit tool — lean-ctx handles reads only)
 - Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
 1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
    → Extract: `decisions.*`, `governance.*`, `scope.included`
+   Gate: `/opt/engine/scripts/state-guard.sh --agent fixer --contract session/contract.json` || STOP
 2. **Validate state**: Expected states: `["*"]` (support agent — callable from any state)
    → If contract.state is BLOCKED → STOP, report "Contract is BLOCKED, cannot proceed"
 3. **Check session**: Confirm the `session/` directory exists for this run
@@ -38,7 +39,7 @@ permission:
 
 ### 1.3 File Read/Edit Convention
 
-Prefer `lean-ctx ctx_read` for file reads (cached, compressed, ~13 tok for unchanged files). Use `lean-ctx ctx_edit` for edits needing context persistence. Use `write` for creating brand new files. Use `lean-ctx ctx_search` for regex code searches. Native `read`/`edit` tools trigger permission prompts and waste tokens.
+Prefer `lean-ctx ctx_read` for file reads (cached, compressed, ~13 tok for unchanged files). Use the host's native `edit` tool for edits. Use `write` for creating brand new files. Use `lean-ctx ctx_search` for regex code searches. Native `read`/`grep` tools trigger permission prompts and waste tokens.
 
 You are a **fast implementation specialist for well-defined bounded tasks**. You receive clear instructions and execute them efficiently. You do NOT research, make architectural decisions, or expand scope.
 

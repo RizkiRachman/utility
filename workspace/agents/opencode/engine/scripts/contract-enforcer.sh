@@ -17,6 +17,7 @@ OPTIONS:
   --mode MODE          Enforcement mode: validate|enforce|mcp (default: validate)
   --agent AGENT        Agent name for MCP enforcement (e.g. orchestrator, developer)
   --state STATE        Target state for MCP enforcement (e.g. EXECUTE, REVIEW)
+  --rules FILE         Path to rules.json (default: auto-detect)
   --timeout MS         Timeout in milliseconds (default: 30000)
   --hardening LEVEL    Hardening level: soft|medium|hard (default: medium)
   --dry-run            Show what would be enforced without acting
@@ -46,6 +47,13 @@ DRY_RUN=0
 VERBOSE=0
 JSON_OUTPUT=0
 
+# Resolve rules.json: --rules flag > script-relative > /opt/engine fallback
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RULES_FILE="$(ls "$SCRIPT_DIR/../rules/rules.json" 2>/dev/null || true)"
+if [[ -z "$RULES_FILE" && -f /opt/engine/rules/rules.json ]]; then
+    RULES_FILE="/opt/engine/rules/rules.json"
+fi
+
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -53,6 +61,7 @@ parse_args() {
             --mode) MODE="$2"; shift 2 ;;
             --agent) AGENT="$2"; shift 2 ;;
             --state) TARGET_STATE="$2"; shift 2 ;;
+            --rules) RULES_FILE="$2"; shift 2 ;;
             --timeout) TIMEOUT_MS="$2"; shift 2 ;;
             --hardening) HARDENING="$2"; shift 2 ;;
             --dry-run) DRY_RUN=1; shift ;;
@@ -88,6 +97,32 @@ get_epoch_ms() {
   fi
 }
 
+# Resolve the violation_action configured in rules.json (default: BLOCKED)
+get_violation_action() {
+    if [[ -n "$RULES_FILE" && -f "$RULES_FILE" ]]; then
+        jq -r '.enforcement.agent_state_mcp.violation_action // "BLOCKED"' "$RULES_FILE" 2>/dev/null || echo "BLOCKED"
+    else
+        echo "BLOCKED"
+    fi
+}
+
+# Apply the configured violation_action. BLOCKED (or any hard action) → exit 1.
+# Anything else → warn-only (return 1 to caller, caller decides severity).
+apply_violation_action() {
+    local msg="$1"
+    local action
+    action=$(get_violation_action)
+    if [[ "$action" == "BLOCKED" || "$action" == "BLOCK" || "$action" == "HARD" ]]; then
+        log_fail "$msg"
+        log_fail "violation_action=$action → enforcement BLOCKED (exit 1)"
+        return 2
+    else
+        log_fail "$msg"
+        log_info "violation_action=$action → soft warning (not blocking)"
+        return 1
+    fi
+}
+
 validate_contract() {
     log_info "Validating contract: $CONTRACT_FILE"
     if [[ ! -f "$CONTRACT_FILE" ]]; then
@@ -103,7 +138,8 @@ validate_contract() {
         errors=$((errors + 1))
     fi
     local score
-    score=$(jq -r '.score // 0' "$CONTRACT_FILE")
+    # score is an object — the numeric verdict lives at .score.combined
+    score=$(jq -r '.score.combined // 0' "$CONTRACT_FILE")
     if [[ "$score" -lt 0 ]] || [[ "$score" -gt 100 ]]; then
         log_fail "Invalid score: $score (must be 0-100)"
         errors=$((errors + 1))
@@ -132,7 +168,8 @@ enforce_contract() {
     log_info "Enforcing contract rules (hardening: $HARDENING)"
     local violations=0
     local score
-    score=$(jq -r '.score // 0' "$CONTRACT_FILE")
+    # score is an object — the numeric verdict lives at .score.combined
+    score=$(jq -r '.score.combined // 0' "$CONTRACT_FILE")
     local threshold
     case "$HARDENING" in
         soft) threshold=50 ;;
@@ -145,9 +182,16 @@ enforce_contract() {
         violations=$((violations + 1))
     fi
     local retry_count
-    retry_count=$(jq -r '.retry_count // 0' "$CONTRACT_FILE")
-    if [[ "$retry_count" -ge 3 ]]; then
-        log_fail "Retry limit exceeded: $retry_count >= 3"
+    # retry counter lives at .retry.attempt (.retry_count does not exist in the schema)
+    retry_count=$(jq -r '.retry.attempt // 0' "$CONTRACT_FILE")
+    local max_attempts
+    if [[ -n "$RULES_FILE" && -f "$RULES_FILE" ]]; then
+        max_attempts=$(jq -r '.scoring.thresholds.retry_max_attempts // 3' "$RULES_FILE" 2>/dev/null || echo "3")
+    else
+        max_attempts=3
+    fi
+    if [[ "$retry_count" -ge "$max_attempts" ]]; then
+        log_fail "Retry limit exceeded: $retry_count >= $max_attempts"
         violations=$((violations + 1))
     fi
     if [[ "$violations" -eq 0 ]]; then
@@ -157,8 +201,17 @@ enforce_contract() {
         log_info "Dry run: would block due to $violations violations"
         return 0
     else
+        # Honor the configured violation_action: BLOCKED → exit 1 (hard stop)
+        local action
+        action=$(get_violation_action)
         log_fail "Contract blocked due to $violations violations"
-        return 1
+        if [[ "$action" == "BLOCKED" || "$action" == "BLOCK" || "$action" == "HARD" ]]; then
+            log_fail "violation_action=$action → enforcement BLOCKED (exit 1)"
+            return 1
+        else
+            log_info "violation_action=$action → soft warning (not blocking)"
+            return 0
+        fi
     fi
 }
 
@@ -168,16 +221,48 @@ mcp_enforce_agent_state() {
         log_fail "Missing --agent or --state for MCP enforcement"
         return 1
     fi
+    if [[ -z "$RULES_FILE" || ! -f "$RULES_FILE" ]]; then
+        log_fail "rules.json not found (tried --rules, script-relative, /opt/engine/rules/rules.json)"
+        return 1
+    fi
     local current_state
     current_state=$(jq -r '.state // "INIT"' "$CONTRACT_FILE")
     local current_agent
-    current_agent=$(jq -r '.agent // "orchestrator"' "$CONTRACT_FILE")
+    # active agent lives at .governance.active_agent (.agent does not exist in the schema)
+    current_agent=$(jq -r '.governance.active_agent // "orchestrator"' "$CONTRACT_FILE")
     log_verbose "Current: agent=$current_agent, state=$current_state"
+
     if [[ "$DRY_RUN" -eq 1 ]]; then
         log_pass "Dry run: transition $current_state → $TARGET_STATE allowed"
         return 0
     fi
-    log_pass "MCP enforcement: transition validated"
+
+    # Real agent↔state lookup: agent must be registered for the TARGET state
+    # (rules.json agent_states[agent] lists allowed states; "*" = wildcard)
+    local allowed
+    allowed=$(jq -r --arg agent "$AGENT" --arg target "$TARGET_STATE" '
+        .agent_states[$agent]
+        | if . == null then "unknown_agent"
+          elif index("*") != null or index($target) != null then "allowed"
+          else "denied"
+          end
+    ' "$RULES_FILE" 2>/dev/null || echo "unknown_agent")
+
+    if [[ "$allowed" == "unknown_agent" ]]; then
+        if apply_violation_action "Agent '$AGENT' is not registered in rules.json agent_states"; then
+            return 0
+        else
+            return 1
+        fi
+    elif [[ "$allowed" == "denied" ]]; then
+        if apply_violation_action "Agent '$AGENT' is NOT allowed in state '$TARGET_STATE' (violation of rules.json agent_states)"; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+
+    log_pass "MCP enforcement: agent '$AGENT' may act in state '$TARGET_STATE' (per rules.json agent_states)"
     return 0
 }
 

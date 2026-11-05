@@ -26,13 +26,13 @@ permission:
 1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
    → Extract ALL fields: `session`, `requirements`, `decisions`, `outputs`, `score`, `metrics`, `retry`, `lessons_learned[]`
    → If empty → STOP. Cannot analyze without contract.
+   Gate: `/opt/engine/scripts/state-guard.sh --agent learner --contract session/contract.json` || STOP
 2. **Validate state**: Expected states: `["REVIEW_SCORED", "COMPLETE"]` (post-execution learning)
    → If wrong state → STOP, report "Contract state is ${state}, expected one of: REVIEW_SCORED, COMPLETE"
 3. **Sync ALL memory systems** before analysis:
    - session/state.md, PROJECT.md, AGENTS.md
    - lean-ctx knowledge (recall architecture, conventions, testing)
    - lean-ctx: re-index + detect_changes
-   - graphify: check stats
 4. **Read rules.json**: Check LEARN_001 (must update ALL memory systems)
 5. **Use ctx_shell for shell commands**: Use `lean-ctx ctx_shell` for all shell commands. `bash` is denied in `opencode.json` — triggers permission prompts and blocks automation.
 6. **Cross-session context**: Query for lessons from prior sessions via
@@ -108,7 +108,6 @@ If found → extract ALL fields: `session`, `requirements`, `decisions`, `output
 | `AGENTS.md` | Read via `ctx_read` — project conventions |
 | `lean-ctx knowledge` | Recall ALL categories: `ctx_knowledge recall --query "architecture"`, `ctx_knowledge recall --query "conventions"`, `ctx_knowledge recall --query "testing"` |
 | `lean-ctx` | Re-index: `lean-ctx ctx_shell` `bash graphify --update`. Then run `ctx_delta()` to verify expected scope |
-| `graphify` | Check current graph: `graphify_graph_stats` |
 | `lean-ctx ctx_knowledge` | `recall` | Retrieve system primer and recent context about the completed task |
 
 Freshness rule: Run ALL sync operations regardless of staleness — you are the final checkpoint.

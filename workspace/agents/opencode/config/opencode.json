@@ -52,7 +52,7 @@
     "orchestrator": {
       "description": "Scrum team lead and primary orchestrator — delegates to the team, runs the scoring pipeline, drives the state machine.",
       "mode": "all",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "opencode/big-pickle",
       "steps": 50,
       "permissions": [
         { "action": "shell", "resource": "*", "effect": "deny" },
@@ -124,7 +124,7 @@
     "system-analyst": {
       "description": "Analyzes requests, traces impact across the codebase, identifies edge cases, and produces a structured implementation plan or GWT spec.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "opencode/big-pickle",
       "steps": 80,
       "permissions": [
         { "action": "shell", "resource": "*", "effect": "deny" },
@@ -142,7 +142,7 @@
     "software-architect": {
       "description": "Strategic architecture advisor and independent design reviewer — trade-offs, system-level debugging, YAGNI enforcement. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "sumopod/deepseek-flash",
       "steps": 60,
       "permissions": [
         { "action": "shell", "resource": "*", "effect": "deny" },
@@ -160,7 +160,7 @@
     "developer": {
       "description": "Implements the plan task by task following project conventions, writing tests alongside code.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "opencode/big-pickle",
       "steps": 100,
       "permissions": [
         { "action": "shell", "resource": "*", "effect": "deny" },
@@ -269,7 +269,7 @@
     "council": {
       "description": "Multi-model consensus engine for high-stakes decisions and cross-model enforcement. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "opencode/big-pickle",
       "steps": 30,
       "permissions": [
         { "action": "shell", "resource": "*", "effect": "deny" },
@@ -305,7 +305,7 @@
     "fixer": {
       "description": "Fast implementation specialist for well-defined bounded tasks and review fixes. Scoped edits only.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "opencode/big-pickle",
       "steps": 40,
       "permissions": [
         { "action": "shell", "resource": "*", "effect": "deny" },
@@ -324,7 +324,7 @@
     "learner": {
       "description": "Post-execution retro facilitator. Extracts lessons, patterns, and gotchas after completion to make the system smarter. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "opencode/big-pickle",
       "steps": 40,
       "permissions": [
         { "action": "shell", "resource": "*", "effect": "deny" },

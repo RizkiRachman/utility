@@ -1,7 +1,7 @@
 {
   "_comment": "Meta-contract \u2014 tracks 8-service integration state. Used by root orchestrator cross-service orchestration.",
   "contract_version": "0.8.0",
-  "workspace_root": "/Users/rizkirachman/IdeaProjects",
+  "workspace_root": "/home/node/workspace",
   "services": [
     {
       "name": "service",
@@ -96,7 +96,7 @@
   },
   "token_budget": {
     "max_per_session": 200000,
-    "W_threshold": 0.8,
+    "warning_threshold": 0.8,
     "hard_limit": 0.95
   }
 }

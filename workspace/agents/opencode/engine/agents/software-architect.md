@@ -26,6 +26,7 @@ permission:
 1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
    → Extract: `requirements.*`, `governance.*`, `decisions.*`
    → If empty → create from `contract.json` template
+   Gate: `/opt/engine/scripts/state-guard.sh --agent software-architect --contract session/contract.json` || STOP
 2. **Validate state**: Must be one of: INIT, PLAN, PLAN_SCORED
    → Expected states: `["INIT", "PLAN", "PLAN_SCORED"]` (per rules.json agent_states)
    → If wrong state → STOP, report "Contract state is ${state}, expected one of: INIT, PLAN, PLAN_SCORED"
@@ -105,7 +106,6 @@ lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"
 | `docs/ARCHITECTURE_HYBRID.md` | Read via `ctx_read` — architecture reference |
 | `lean-ctx knowledge` | Recall recent patterns: `ctx_knowledge recall --query "architecture"` |
 | `lean-ctx` | Re-index if stale: `lean-ctx ctx_shell` `bash graphify --update` |
-| `graphify` | Check graph stats: `graphify_graph_stats` |
 
 Freshness rule: If gitnensus/graphify index was built >1 hour ago or after any code change, re-index.
 

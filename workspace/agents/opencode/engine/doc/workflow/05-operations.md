@@ -8,7 +8,7 @@ This part covers operational procedures (post-flight protocol, session lifecycle
 
 ## E1. Post-Flight Protocol
 
-This 9-step protocol runs before every commit. It verifies impact, persists knowledge, archives session state, and re-indexes code intelligence. Execute all 9 steps unless exceptions apply.
+This 8-step protocol runs before every commit. It verifies impact, persists knowledge, archives session state, and re-indexes code intelligence. Execute all 8 steps unless exceptions apply.
 
 | # | Step | Tool | Exceptions |
 |---|---|---|---|
@@ -18,9 +18,8 @@ This 9-step protocol runs before every commit. It verifies impact, persists know
 | 3 | Knowledge persist | `lean-ctx ctx_knowledge remember` | — |
 | 4 | Session archive | `bash scripts/snapshot-contract.sh --snapshot-only` | — |
 | 5 | Save conversation | `lean-ctx ctx_session save` | — |
-| 6 | Re-index lean-ctx | `bash graphify --update` | Docs-only skip |
+| 6 | Re-index graphify | `bash graphify --update 2>/dev/null \|\| true` | Docs-only skip |
 | 7 | Run metrics aggregation | `bash scripts/metrics-aggregator.sh` | Docs-only skip |
-| 8 | Re-index Graphify | `graphify --update 2>/dev/null || true` | Docs-only skip |
 
 ### Pre-Flight Protocol (Session Start)
 
@@ -36,7 +35,7 @@ Every agent runs this protocol at session start, before any work:
 | 6 | Check graph stats | graphify_graph_stats |
 | 7 | Load relevant skills | /skill matching domain |
 
-**One-shot alias**: `save session` = all 9 post-flight steps. Always run the full protocol — partial saves lose audit trail, break resumption, or leave stale indexes.
+**One-shot alias**: `save session` = all 8 post-flight steps. Always run the full protocol — partial saves lose audit trail, break resumption, or leave stale indexes.
 
 ## E2. Session Lifecycle
 

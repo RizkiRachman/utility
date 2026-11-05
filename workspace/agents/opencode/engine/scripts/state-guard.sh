@@ -2,7 +2,11 @@
 set -euo pipefail
 
 # ─── Config ────────────────────────────────────────────────────────────────
-RULES_FILE="rules/rules.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RULES_FILE="$(ls "$SCRIPT_DIR/../rules/rules.json" 2>/dev/null || true)"
+if [[ -z "$RULES_FILE" && -f /opt/engine/rules/rules.json ]]; then
+  RULES_FILE="/opt/engine/rules/rules.json"
+fi
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -125,8 +129,9 @@ if $DRY_RUN; then
 fi
 
 # ─── Resolve agent allowed states ──────────────────────────────────────────
+# rules.json declares agent_states at the top level (not under state_machine)
 ALLOWED=$(jq -r --arg agent "$AGENT" '
-  .state_machine.agent_states[$agent] // empty | @json
+  .agent_states[$agent] // empty | @json
 ' "$RULES_FILE")
 
 if [[ -z "$ALLOWED" ]]; then

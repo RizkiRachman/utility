@@ -101,4 +101,7 @@ fi
 
 echo "All symlinks valid."
 echo ""
+echo "NOTE: .githooks/pre-commit stays dormant unless the workspace is a git repo;"
+echo "      hooks activate only when the target directory is a git repository."
+echo ""
 echo "Setup complete. The toolkit is ready."

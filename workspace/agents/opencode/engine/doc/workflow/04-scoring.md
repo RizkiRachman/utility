@@ -44,7 +44,17 @@ See `rules/rules.json` §scoring for threshold values and rule configuration.
 
 ## D2. Validation Gates (block_on)
 
-These gates are enforced at every state transition. If any gate triggers, the transition is BLOCKED regardless of score.
+These gates are enforced by `scripts/validate-contract.sh` (check_block_on reads `validation.block_on` and fails with exit 1 when a threshold is exceeded) and by the orchestrator's Verify loop (§5 in agent.md). Enforcement points per criterion:
+
+| Criterion | Enforced by |
+|---|---|
+| Test failures > max_test_failures | `validate-contract.sh` check_block_on (exit 1) |
+| Score drop > max_score_drop | Orchestrator Verify loop (no contract field carries the previous score — honor-system at orchestration level) |
+| Compile errors > max_compile_errors | Orchestrator Verify loop (honor-system at orchestration level) |
+| Code-reviewer verdict BLOCK | Orchestrator §5 Verify loop |
+| Cross-model disagreement | `rules.json` §enforcement.cross_model_review.disagreement_policy → council arbitration |
+
+If any gate triggers, the workflow enters BLOCKED regardless of score.
 
 | Criterion | Threshold | Action |
 |---|---|---|
