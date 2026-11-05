@@ -102,9 +102,11 @@ RUN --mount=from=preinstall,src=/,dst=/pi,ro \
     lean-ctx --version
 
 # Docker CLI (client only - talks to the host daemon via the compose socket mount).
+ARG TARGETARCH
 ARG DOCKER_CLI_VERSION=27.3.1
-RUN case "${OPENCODE_ARCH}" in \
+RUN case "${TARGETARCH}" in \
       arm64) DC_ARCH=aarch64 ;; \
+      amd64) DC_ARCH=x86_64 ;; \
       *) DC_ARCH=x86_64 ;; \
     esac \
  && curl -fsSL "https://download.docker.com/linux/static/stable/${DC_ARCH}/docker-${DOCKER_CLI_VERSION}.tgz" -o /tmp/docker-cli.tgz \
