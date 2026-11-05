@@ -154,6 +154,10 @@ RUN mkdir -p \
       /home/node/workspace \
  && chown -R node:node /home/node
 
+# Web uploads stage into /tmp/opencode/uploads — must be writable by the node
+# user (root runtime processes can otherwise create it root-owned first).
+RUN mkdir -p /tmp/opencode && chown node:node /tmp/opencode
+
 # Install the entrypoint and normalize Windows CRLF line endings.
 # (Placed before COPY engine/ so engine edits don't invalidate these layers.)
 COPY entrypoint.sh /usr/local/bin/opencode-entrypoint.sh

@@ -2,6 +2,10 @@
 
 set -eu
 
+# Web uploads stage into /tmp/opencode/uploads. The image bakes /tmp/opencode
+# node-owned; this guard re-creates it if absent (no-op if root-owned).
+mkdir -p /tmp/opencode/uploads 2>/dev/null || true
+
 # -----------------------------------------------------------------------------
 # OpenCode authentication
 # -----------------------------------------------------------------------------
