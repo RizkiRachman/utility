@@ -255,8 +255,10 @@
       "enabled": true,
       "desc": "Per-phase model separation and independent (cross-model) review enforcement.",
       "model_tiers": {
-        "executor": "opencode/big-pickle",
-        "reviewer": "sumopod/deepseek-flash"
+        "executor": ["opencode/big-pickle"],
+        "default": ["sumopod/glm-5.3-flash"],
+        "fallback": ["sumopod/deepseek-flash"],
+        "separation_rule": "reviewer primary/default must differ from executor primary and executor fallback"
       },
       "phase_assignment": {
         "INIT": { "owner": "product-manager", "tier": "reviewer" },

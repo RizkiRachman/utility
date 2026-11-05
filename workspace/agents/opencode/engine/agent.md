@@ -125,48 +125,48 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 
 > Full agent instruction files at `/opt/engine/agents/` (symlinked into the OpenCode config dir). Each file defines role, MCPs, skills, and post-flight protocol.
 >
-> **Model tiers**: `executor` = `opencode/big-pickle`; `reviewer` = `sumopod/deepseek-flash` (independent model). Reviewers never share the executor's model — this is the basis of **cross-model review**.
+> **Model tiers**: `executor` = `opencode/big-pickle` (build/plan tier — developer, fixer, system-analyst); `default` = `sumopod/glm-5.3-flash`, fallback `sumopod/deepseek-flash` (all other agents). Reviewers never share the executor's model — this is the basis of **cross-model review**.
 
 ### Orchestrator
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **orchestrator** | Scrum lead / primary orchestrator — delegates, scores, drives the state machine | lean-ctx, context7 | Read/write | `*` (all) | executor | (orchestrator — agent.md) | `/opt/engine/agents/orchestrator.md` |
-| **design-orchestrator** | UI/UX specialist orchestrator — enforces 4-layer design pipeline (Exemplar > Generator > Taste > Gate) | lean-ctx, context7 | Read/write | `*` (all) | executor | design-exemplar, ui-ux-pro-max, design-taste-frontend, impeccable | `/opt/engine/agents/design-orchestrator.md` |
+| **orchestrator** | Scrum lead / primary orchestrator — delegates, scores, drives the state machine | lean-ctx, context7 | Read/write | `*` (all) | default | (orchestrator — agent.md) | `/opt/engine/agents/orchestrator.md` |
+| **design-orchestrator** | UI/UX specialist orchestrator — enforces 4-layer design pipeline (Exemplar > Generator > Taste > Gate) | lean-ctx, context7 | Read/write | `*` (all) | default | design-exemplar, ui-ux-pro-max, design-taste-frontend, impeccable | `/opt/engine/agents/design-orchestrator.md` |
 
 ### Product & Planning Agents (read-only)
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **product-manager** | Requirements + acceptance-criteria backlog (GWT) | lean-ctx, context7 | Read-only | `INIT`, `PLAN` | reviewer | business-analyst, brainstorming, writing-plans, diagram-design | `/opt/engine/agents/product-manager.md` |
+| **product-manager** | Requirements + acceptance-criteria backlog (GWT) | lean-ctx, context7 | Read-only | `INIT`, `PLAN` | default | business-analyst, brainstorming, writing-plans, diagram-design | `/opt/engine/agents/product-manager.md` |
 | **system-analyst** | Impact analysis, specs, detailed plans | lean-ctx | Read-only | `INIT`, `PLAN`, `PLAN_SCORED` | executor | system-analyst, business-analyst, writing-plans, diagram-design | `/opt/engine/agents/system-analyst.md` |
-| **software-architect** | Architecture trade-offs, tech-debt assessment | lean-ctx | Read-only | `INIT`, `PLAN`, `PLAN_SCORED`, `REVIEW` | reviewer | system-analyst, java-developer, diagram-design | `/opt/engine/agents/software-architect.md` |
+| **software-architect** | Architecture trade-offs, tech-debt assessment | lean-ctx | Read-only | `INIT`, `PLAN`, `PLAN_SCORED`, `REVIEW` | default | system-analyst, java-developer, diagram-design | `/opt/engine/agents/software-architect.md` |
 
 ### Implementation Agents (read/write)
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
 | **developer** | Implements the plan, writes tests alongside code | lean-ctx | Read/write | `EXECUTE`, `EXECUTE_SCORED` | executor | test-driven-development, software-developer, design-taste-frontend, impeccable | `/opt/engine/agents/developer.md` |
-| **devops-engineer** | CI/CD, containerization, deploy, migrations, observability, rollback | lean-ctx | Read/write | `EXECUTE`, `EXECUTE_SCORED`, `REVIEW` | executor | devops-expert, observability-and-instrumentation, diagram-design | `/opt/engine/agents/devops-engineer.md` |
+| **devops-engineer** | CI/CD, containerization, deploy, migrations, observability, rollback | lean-ctx | Read/write | `EXECUTE`, `EXECUTE_SCORED`, `REVIEW` | default | devops-expert, observability-and-instrumentation, diagram-design | `/opt/engine/agents/devops-engineer.md` |
 | **fixer** | Bounded, scoped fixes for well-defined tasks | lean-ctx | Read/write | `EXECUTE` | executor | systematic-debugging | `/opt/engine/agents/fixer.md` |
 
 ### Quality & Process Agents (read-only)
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **quality-analyst** | Independent quality review (5-axis: correctness, readability, architecture, security, performance) | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | reviewer | qa-expert, security-expert, code-review-and-quality, impeccable | `/opt/engine/agents/quality-analyst.md` |
-| **security-engineer** | Independent security review — threat model, vulns, secrets, trust boundaries | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | reviewer | security-expert, code-review-and-quality | `/opt/engine/agents/security-engineer.md` |
-| **scrum-master** | Process owner — guards the contract, state machine, and workflow; unblocks BLOCKED, DoD gate | lean-ctx | Read-only | `*` (all), `BLOCKED` | reviewer | orchestration-template, audit-observability, adaptive-solver | `/opt/engine/agents/scrum-master.md` |
-| **learner** | Post-execution retro — extract lessons, gotchas, patterns | lean-ctx | Read-only | `REVIEW_SCORED`, `COMPLETE` | executor | verification-before-completion | `/opt/engine/agents/learner.md` |
+| **quality-analyst** | Independent quality review (5-axis: correctness, readability, architecture, security, performance) | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | default | qa-expert, security-expert, code-review-and-quality, impeccable | `/opt/engine/agents/quality-analyst.md` |
+| **security-engineer** | Independent security review — threat model, vulns, secrets, trust boundaries | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | default | security-expert, code-review-and-quality | `/opt/engine/agents/security-engineer.md` |
+| **scrum-master** | Process owner — guards the contract, state machine, and workflow; unblocks BLOCKED, DoD gate | lean-ctx | Read-only | `*` (all), `BLOCKED` | default | orchestration-template, audit-observability, adaptive-solver | `/opt/engine/agents/scrum-master.md` |
+| **learner** | Post-execution retro — extract lessons, gotchas, patterns | lean-ctx | Read-only | `REVIEW_SCORED`, `COMPLETE` | default | verification-before-completion | `/opt/engine/agents/learner.md` |
 
 ### Support Agents (read-only)
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **explorer** | Fast codebase search / unknowns discovery | lean-ctx | Read-only | `*` (all) | executor | (exploration) | `/opt/engine/agents/explorer.md` |
-| **librarian** | External docs / library research | context7 | Read-only | `*` (all) | executor | (research) | `/opt/engine/agents/librarian.md` |
-| **council** | Multi-model consensus + cross-model arbitration | lean-ctx | Read-only | `*` (all) | multi | (multi-LLM consensus) | `/opt/engine/agents/council.md` |
-| **observer** | Visual analysis — images, PDFs, diagrams | lean-ctx | Read-only | `*` (all) | executor | (visual analysis), impeccable, diagram-design | `/opt/engine/agents/observer.md` |
+| **explorer** | Fast codebase search / unknowns discovery | lean-ctx | Read-only | `*` (all) | default | (exploration) | `/opt/engine/agents/explorer.md` |
+| **librarian** | External docs / library research | context7 | Read-only | `*` (all) | default | (research) | `/opt/engine/agents/librarian.md` |
+| **council** | Multi-model consensus + cross-model arbitration | lean-ctx | Read-only | `*` (all) | default | (multi-LLM consensus) | `/opt/engine/agents/council.md` |
+| **observer** | Visual analysis — images, PDFs, diagrams | lean-ctx | Read-only | `*` (all) | default | (visual analysis), impeccable, diagram-design | `/opt/engine/agents/observer.md` |
 
 ### Lane Name Mapping
 | Lane | Agent | subagent_type |
@@ -402,7 +402,7 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 - **Never commit secrets, credentials, tokens, `.env` files**
 
 ### Cross-Model Review
-- **Reviewers must run on a different model than the executor** they audit — executor `opencode/big-pickle` vs reviewer `sumopod/deepseek-flash`
+- **Reviewers (default tier, glm-5.3-flash) must run on a different model than the executor (build/plan tier, big-pickle)** they audit; fallbacks must not collapse separation — on double-fallback set `governance.cross_model_degraded` and cap verdict at RETRY.
 - **Conflicting reviewer verdicts** (PASS vs BLOCK) → `BLOCKED`, arbitrated by `@council` (see `rules.json → enforcement.cross_model_review`)
 - **Security-sensitive changes** (auth, secrets, credentials, config, crypto) auto-require `@security-engineer` review
 
