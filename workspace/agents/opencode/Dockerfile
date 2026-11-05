@@ -158,6 +158,17 @@ RUN mkdir -p \
 # user (root runtime processes can otherwise create it root-owned first).
 RUN mkdir -p /tmp/opencode && chown node:node /tmp/opencode
 
+# lean-ctx shell allowlist extension: merged on top of the built-in defaults
+# (shell_allowlist_extra per lean-ctx docs config-keys reference) so agent sessions
+# can run docker/sh/bash/sudo/ss through ctx_shell without refusals. Baked at build
+# time because lean-ctx deliberately blocks agents from changing their own policy
+# at runtime — the user approved this expansion explicitly.
+ARG LEAN_CTX_CONFIG_DIR=/home/node/.config/lean-ctx
+RUN mkdir -p ${LEAN_CTX_CONFIG_DIR} \
+ && printf 'shell_allowlist_extra = ["docker", "sh", "bash", "sudo", "ss"]\n' \
+      > ${LEAN_CTX_CONFIG_DIR}/config.toml \
+ && chown node:node ${LEAN_CTX_CONFIG_DIR}/config.toml
+
 # Install the entrypoint and normalize Windows CRLF line endings.
 # (Placed before COPY engine/ so engine edits don't invalidate these layers.)
 COPY entrypoint.sh /usr/local/bin/opencode-entrypoint.sh
