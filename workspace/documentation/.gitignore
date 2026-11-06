@@ -1,0 +1,14 @@
+# OS / editor noise
+.DS_Store
+*.swp
+*~
+
+# runtime scratch
+tests/tmp/
+*.out
+*.log
+
+# never commit secrets under any name
+*.env
+.env.*
+CONFLUENCE_TOKEN*

@@ -1,0 +1,20 @@
+{
+  "space": "NPG",
+  "base_url": "https://infinitium.atlassian.net/wiki",
+  "root_folder_id": "4125949974",
+  "known_folders": {
+    "4125949974": {
+      "title": "Local Toolkit Setup",
+      "type": "folder",
+      "parent_id": null
+    },
+    "4157603973": {
+      "title": "CI/CD",
+      "type": "folder",
+      "parent_id": "4125949974"
+    }
+  },
+  "scope_cache": {},
+  "discovered_pages": {},
+  "pages": {}
+}
