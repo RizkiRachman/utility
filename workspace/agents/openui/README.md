@@ -16,6 +16,7 @@ the opencode client through a stdio MCP bridge.
 | `app/src/agent.ts` | Model provider: `SUMOPOD_API_KEY` / `SUMOPOD_BASE_URL` via ChatOpenAI; key read lazily so image builds need no secrets; Thesys cloud-history middleware removed (in-memory history) |
 | `app/src/lib/models.tsx` | Model catalog: `glm-5.3-flash` (single entry, also the default) |
 | `app/src/app/layout.tsx` | System font stack (no Google Fonts fetch at build; hermetic image builds) |
+| `src/components/cloud-chat.tsx` | Cloud storage removed - AgentInterface runs on in-memory history (no Thesys, no `/api/frontend-token`) |
 | `app/Dockerfile` | Multi-stage, Next standalone output, non-root user, healthcheck |
 | `app/certs/` | Corporate CA drop-in (PEM `.crt`, gitignored) - baked into image trust store |
 | `mcp-bridge.mjs` | stdio MCP server, zero deps: tools `generate_ui` and `preview_url` |

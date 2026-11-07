@@ -11,7 +11,6 @@ import {
   langGraphMessageFormat,
   ModelSwitcher,
   openuiLibrary,
-  useOpenuiCloudStorage,
   useThemeModePreference,
   WelcomeMascot,
 } from "@openuidev/react-ui";
@@ -31,15 +30,9 @@ export default function CloudChat() {
     body: { model: selectedModel },
   });
 
-  const storage = useOpenuiCloudStorage({
-    token: "/api/frontend-token",
-    apiBaseUrl: "https://api.thesys.dev",
-    features: { artifact: false },
-  });
 
   return (
     <AgentInterface
-      storage={storage}
       llm={llm}
       componentLibrary={openuiLibrary}
       logoUrl={OPENUI_LOGO}
