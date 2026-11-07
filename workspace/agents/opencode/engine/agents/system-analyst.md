@@ -120,6 +120,19 @@ Scan the available skills list at session start. Load matching skills via `/skil
 
 If you're unsure whether a skill applies, load it — it's better to check and skip than to miss relevant guidance.
 
+
+## Tool Call Economy (mandatory)
+
+Every tool call is one full LLM inference. Discipline:
+
+1. **Batch**: independent calls go out in one turn, parallel.
+2. **Chain**: dependent same-tool commands in one call with `&&`.
+3. **Gate-first**: check shell-policy constraints before composing a command; never retry a blocked command blind — reroute through the sanctioned path first.
+4. **No re-discovery**: work only from the context given in this prompt/envelope; do not re-read state already provided.
+5. **Single-shot verdicts**: mechanical decisions are one no-tools inference on the cheapest capable model — never a tool-loop turn.
+6. **Route retrieval**: scope rag_search with `glob` for domain-targeted queries; one well-routed query over several broad ones.
+
+Full reference: engine agent.md §4.5 and §6 Tool Call Economy.
 ## 🚀 Post-Flight Protocol (MANDATORY)
 
 After completing your work, run these steps **in order** before declaring done:

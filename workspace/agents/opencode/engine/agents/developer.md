@@ -284,6 +284,19 @@ The orchestrator will score on:
 
 Score ≥70 required. Below 50 → BLOCKED.
 
+
+## Tool Call Economy (mandatory)
+
+Every tool call is one full LLM inference. Discipline:
+
+1. **Batch**: independent calls go out in one turn, parallel.
+2. **Chain**: dependent same-tool commands in one call with `&&`.
+3. **Gate-first**: check shell-policy constraints before composing a command; never retry a blocked command blind — reroute through the sanctioned path first.
+4. **No re-discovery**: work only from the context given in this prompt/envelope; do not re-read state already provided.
+5. **Single-shot verdicts**: mechanical decisions are one no-tools inference on the cheapest capable model — never a tool-loop turn.
+6. **Route retrieval**: scope rag_search with `glob` for domain-targeted queries; one well-routed query over several broad ones.
+
+Full reference: engine agent.md §4.5 and §6 Tool Call Economy.
 ## 🚀 Post-Flight Protocol (MANDATORY)
 
 After completing work, run these steps **in order** before notifying the orchestrator:

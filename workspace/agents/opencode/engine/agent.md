@@ -231,6 +231,21 @@ Guardrails:
 
 Index scope: `/home/node/workspace`, built automatically at session boot when the server starts; run `rag_index` after bulk changes.
 
+### 4.5 Retrieval Routing — ask the right layer once
+
+Every retrieval question has exactly one right tool. Query the wrong layer and you pay an inference round-trip for nothing.
+
+| Question type | Tool (1 call) | Never do |
+|------|------|------|
+| Exact symbol, callers, blast radius | `ctx_search` symbol / `ctx_impact` | grep sweeps across files |
+| "How does our code do X" | `rag_search` | opening many files to re-derive |
+| Library / framework API | `context7` | guessing from memory, random web search |
+| Errors, issues, PR discussions | `firecrawl_developer_search` | broad web search |
+| Single known page | `fetch` | scrape-first patterns |
+| Past decisions, conventions, lessons | `ctx_knowledge recall` | re-deriving from scratch |
+
+Scope `rag_search` with `glob` (e.g. `agents/opencode/engine/**`) before widening the query. Run `rag_index` after bulk edits — it is incremental and hash-based.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
@@ -430,6 +445,25 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 
 ---
 
+
+### Tool Call Economy (all agents)
+
+Every tool call is one full LLM inference round-trip. The rules below are mandatory discipline, not style:
+
+1. **Batch rule** — 2+ independent tool calls: issue them in ONE turn (parallel), never serialized.
+2. **Chain rule** — dependent commands on the same tool: ONE call chained with `&&` (commit-push-sync-verify is one call), never one call per step.
+3. **Gate-first rule** — check policy/security constraints BEFORE composing a command. A blocked command costs a full wasted inference; never retry-blind — reroute through the sanctioned path.
+4. **Spawn-tax rule** — every subagent prompt carries complete context (requirements, decisions, retry issues, exact paths). Subagents start at turn 1 of real work — zero re-discovery turns.
+5. **Tier rule** — execution tiers by blast radius × reversibility × ambiguity:
+   - **T1 Direct** (1–2 files, git-revertible, clear scope): orchestrator executes inline — edit → check → commit → push → verify. No subagent, no ceremony. Budget ≤10 turns.
+   - **T2 Light** (3–10 files, parallelizable): max ONE subagent with a full-context prompt; orchestrator verifies after. Budget ≤20 turns.
+   - **T3 Full** (security-sensitive, ambiguous scope, multi-service, or user-requested audit): analyst → developer → review with all gates.
+6. **Verdict rule** — mechanical decisions (score pass/fail, routing choice, risk class): single-shot, no-tools inference on the cheapest capable model. Never a tool-loop turn.
+
+7. **lean-ctx fluency rule** — follow usage/lean-ctx.md §13 (Field Guide): descend the discovery→zoom→edit ladder, use `diff`-mode re-reads, verify exit status alongside compressed output, recover archives with `ctx_expand` — and never edit from compressed views.
+
+Known platform gap: subagent spawn does not fall back automatically on provider quota errors. On quota exhaustion, re-dispatch the same task with the fallback model set explicitly.
+
 ## 7. Skills Reference
 
 All skills at `/opt/engine/skills/` (symlinked into the OpenCode config dir). Use `/skill <name>` for deep dives. Each skill directory contains a `SKILL.md` with full guidance.
@@ -502,8 +536,9 @@ All skills at `/opt/engine/skills/` (symlinked into the OpenCode config dir). Us
 | `lean-ctx` | LeanCTX Context Gateway — select task-relevant context, apply controls, reuse local knowledge, inspect recorded evidence |
 | `context-standards` | Discover and load project-specific pattern and standards files (context/*.md) before implementation, review, or design work |
 | `dispatching-parallel-agents` | Coordinating multiple sub-agents for parallel execution — file-disjoint sharding, conflict avoidance, reconciliation |
+| `tool-economy` | Tool-call discipline — batching, chaining, gate-first, spawn-tax, execution tiers, single-shot verdicts; retrieval routing table (§4.5) |
 
-*Last updated: 2026-10-30. If you modify conventions, workflows, or config, update this file.*
+*Last updated: 2026-11-07. If you modify conventions, workflows, or config, update this file.*
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

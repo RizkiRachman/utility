@@ -29,6 +29,7 @@ Token-efficient MCP tools for reading, searching, and persisting context. Replac
 10. [Full Tool Inventory — All lean-ctx Capabilities](#10-full-tool-inventory--all-lean-ctx-capabilities)
 11. [Quick Reference — Mini Pattern Card](#11-quick-reference--mini-pattern-card)
 12. [Common Pitfalls](#common-pitfalls)
+13. [Field Guide — Effective Usage Patterns](#13-field-guide--effective-usage-patterns-leanctxcomdocs)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -443,4 +444,68 @@ This survives OpenCode restarts and enables session resume.
 [leanctx-url]: https://github.com/yvgude/lean-ctx
 [version-shield]: https://img.shields.io/badge/Version-latest-7B68EE?style=for-the-badge
 [version-url]: #
+## 13. Field Guide — Effective Usage Patterns (leanctx.com/docs)
+
+> Distilled from the official docs (reviewed 2026-11-07, runtime 3.12.2). These patterns separate using lean-ctx from using it effectively.
+
+### 13.1 The discovery → zoom → edit ladder
+
+Never open a file at `full` just to find something. Descend only as deep as the task needs:
+
+1. **Discover**: `ctx_search` (regex `pattern` / semantic `query` / symbol `name` — distinct actions) or `ctx_compose` for execution flows
+2. **Survey**: `ctx_read mode=map` (structure) or `mode=signatures` (API surface)
+3. **Zoom**: `ctx_read mode=lines:N-M, fresh=true` using a range returned by search/signatures — never guess line numbers
+4. **Edit**: recover exact text (`raw: true` or `full`) before writing; `mode=anchored` provides line/hash anchors for patch edits
+5. **Verify**: re-read the edited region (`lines:N-M`) — a stale anchor is a reason to re-read, never to force an overwrite
+
+**Mode overrides to know**: instruction files (`AGENTS.md`, `SKILL.md`, `CLAUDE.md`, …) are ALWAYS delivered in full regardless of mode. Files lean-ctx has learned (you edited them) are re-served in full too (`[mode overridden: map -> full, reason=learned]`). Expect larger responses on your own working set.
+
+### 13.2 Extended read modes
+
+| Mode | Behavior |
+|------|------|
+| `lines:5,10-20` | multiple ranges in one read |
+| `lines:-20` | last 20 lines |
+| `diff` | changes since the READ CACHE (not git HEAD — use `git diff` for repo changes) |
+| `anchored` / `anchored:N-M` | text with line/hash refs for patch edits |
+| `density:0.40` | target-density compressed view (lossy — recover before exact edits) |
+| `raw` / `full-compact` | verbatim / headerless trimmed text |
+
+`diff` mode is the cheap re-read after bulk changes: one call shows what moved since your last read instead of re-reading whole files.
+
+### 13.3 Three stores — know where things live
+
+| Store | Holds | Recover with |
+|------|------|------|
+| Read cache | prior representations | unchanged re-read → ~13 tok stub |
+| Output archive | large tool output, outside the prompt | `ctx_expand` with the returned archive/job id — supports `search`, line ranges, `head`/`tail` |
+| Project knowledge | durable facts and decisions | `ctx_knowledge recall` |
+
+A cache hit is not knowledge; an archive is not a live repo view. Archive handles expire — persist durable evidence with `ctx_knowledge remember`.
+
+### 13.4 Shell discipline
+
+- **A compressed success-looking summary is NOT the exit status. Check both** — recover omitted output when diagnosing a failure.
+- Long-running work: `ctx_shell` returns a `job_id`; poll/act with `background_action` + that exact id; recover results via `ctx_expand` (accepts `shell_*` job ids). Do not launch duplicate jobs because the first call returned early.
+- A blocked command is NOT made permissible by switching tools — execution tools enforce the same allowlist. Reroute through the sanctioned path (gate-first rule, agent.md §6).
+- The child shell parses the command — prefer single simple commands or POSIX syntax over shell-specific operators.
+
+### 13.5 Search & code intelligence
+
+- `ctx_search` has three DISTINCT actions: regex (`pattern`), semantic (`query`), symbol (`name`) — pick explicitly; semantic results depend on index freshness.
+- Build/rebuild indexes with `ctx_index` (the old `ctx_search action=reindex` is not accepted in current contracts).
+- Callers/callees/impact: `ctx_callgraph` / `ctx_impact` — static extraction misses dynamic imports and generated code; treat HIGH/CRITICAL as warnings to inspect, not blockers.
+
+### 13.6 Context controls
+
+- `ctx_control` (include/exclude/pin/view/priority) shapes planning and retrieval — pin the narrowest source for the task lifetime, unpin when the task changes.
+- `ctx_ledger` inspects and prunes retained context pressure. Exclusions are NOT a security boundary — use policy/jail when access must be prevented.
+
+### 13.7 Golden rules
+
+1. Never edit from a compressed view — recover the original, confirm it is current, then edit.
+2. Never write summaries, omission markers, or archive notices into source code.
+3. Re-read after any conflicting edit instead of forcing stale anchors.
+4. Batch with `ctx_multi_read` (2–10 files, one call) instead of N reads.
+5. Check exit status and compressed output separately.
 

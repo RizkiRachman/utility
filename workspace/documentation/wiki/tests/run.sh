@@ -16,6 +16,17 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 export MAPPINGS_FILE="$TMP_DIR/mappings.json"
 cp "$ROOT/mappings.json" "$MAPPINGS_FILE"
 
+# Strip runtime state: scope_cache/pages depend on local init runs; tests must
+# start from the pristine post-clone registry regardless of machine state.
+python3 - "$MAPPINGS_FILE" <<'PYFIX'
+import json, sys
+m = sys.argv[1]
+d = json.load(open(m, encoding="utf-8"))
+d["scope_cache"] = {}
+d["pages"] = {}
+json.dump(d, open(m, "w", encoding="utf-8"), indent=2)
+PYFIX
+
 unset CONFLUENCE_TOKEN
 
 # shellcheck source=../publish.sh

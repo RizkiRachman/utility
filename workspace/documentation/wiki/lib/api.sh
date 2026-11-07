@@ -10,6 +10,7 @@
 API_BASE_URL="${CONFLUENCE_BASE_URL:-https://infinitium.atlassian.net/wiki}"
 API_EMAIL="${CONFLUENCE_EMAIL:-rizki.rachman@infinitium.com}"
 API_LAST_STATUS="000"
+API_STATUS_FILE="${CONFLUENCE_API_STATUS_FILE:-/tmp/confluence_api_last_status}"
 
 api_require_token() {
   if [[ -z "${CONFLUENCE_TOKEN:-}" ]]; then
@@ -43,8 +44,10 @@ api_curl() {
     rm -f "$tmp"
     echo "ERROR: curl network failure talking to $API_BASE_URL$path" >&2
     API_LAST_STATUS="000"
+    printf '%s' "000" > "$API_STATUS_FILE"
     return 1
   fi
+  printf '%s' "$API_LAST_STATUS" > "$API_STATUS_FILE"
   cat "$tmp"
   rm -f "$tmp"
 }

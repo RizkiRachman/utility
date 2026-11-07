@@ -207,8 +207,8 @@ verify_scope() { # PARENT_ID MODE(dry|live) → rc 0 in scope, exit 3 refused
   if ! body="$(api_curl GET "/rest/api/content/$pid?expand=ancestors")"; then
     die "$EX_SCOPE" "network failure during scope check for parent $pid — refusing (fail closed)"
   fi
-  if [[ "$API_LAST_STATUS" != "200" ]]; then
-    die "$EX_SCOPE" "scope check got HTTP $API_LAST_STATUS for parent $pid — refusing (fail closed)"
+  if [[ "$(cat "$API_STATUS_FILE" 2>/dev/null || printf 000)" != "200" ]]; then
+    die "$EX_SCOPE" "scope check got HTTP $(cat "$API_STATUS_FILE" 2>/dev/null || printf 000) for parent $pid — refusing (fail closed)"
   fi
   if ! verdict="$(printf '%s' "$body" | python3 -c "$(cat <<'PYSCOPE'
 import datetime, json, os, sys, tempfile
@@ -374,7 +374,7 @@ plan_update() {
     if ! body="$(api_curl GET "/rest/api/content/$FM_ID?expand=version")"; then
       die "$EX_API" "network error fetching current version of page $FM_ID"
     fi
-    status="$API_LAST_STATUS"
+    status="$(cat "$API_STATUS_FILE" 2>/dev/null || printf 000)"
     if [[ "$status" == "200" ]]; then
       ver="$(json_field "$body" version.number)"
       [[ -n "$ver" ]] || die "$EX_API" "could not parse version of page $FM_ID"
@@ -397,7 +397,7 @@ do_create() { # XHTML_FILE REL_PATH
   if ! body="$(api_curl POST "/rest/api/content" "$payload")"; then
     die "$EX_API" "network error during page creation"
   fi
-  status="$API_LAST_STATUS"
+  status="$(cat "$API_STATUS_FILE" 2>/dev/null || printf 000)"
   if [[ "$status" != "200" && "$status" != "201" ]]; then
     echo "CREATE failed: HTTP $status" >&2
     echo "${body:0:600}" >&2
@@ -419,7 +419,7 @@ do_update() { # XHTML_FILE REL_PATH
   if ! body="$(api_curl GET "/rest/api/content/$FM_ID?expand=version")"; then
     die "$EX_API" "network error fetching page $FM_ID"
   fi
-  status="$API_LAST_STATUS"
+  status="$(cat "$API_STATUS_FILE" 2>/dev/null || printf 000)"
   if [[ "$status" == "404" ]]; then
     die "$EX_API" "page $FM_ID not found — the confluence-id in $rel may be stale; verify it or clear the field"
   fi
@@ -441,14 +441,14 @@ do_update() { # XHTML_FILE REL_PATH
   if ! body="$(api_curl GET "/rest/api/content/$FM_ID?expand=version")"; then
     die "$EX_API" "network error re-checking version of page $FM_ID"
   fi
-  [[ "$API_LAST_STATUS" == "200" ]] || die "$EX_API" "version re-check failed: HTTP $API_LAST_STATUS"
+  [[ "$(cat "$API_STATUS_FILE" 2>/dev/null || printf 000)" == "200" ]] || die "$EX_API" "version re-check failed: HTTP $(cat "$API_STATUS_FILE" 2>/dev/null || printf 000)"
   ver2="$(json_field "$body" version.number)"
   [[ "$ver2" == "$ver" ]] || die "$EX_CONFLICT" "page changed mid-publish (v$ver → v$ver2). Nothing was written. Re-run dry-run + --publish."
 
   if ! body="$(api_curl PUT "/rest/api/content/$FM_ID" "$payload")"; then
     die "$EX_API" "network error during page update"
   fi
-  status="$API_LAST_STATUS"
+  status="$(cat "$API_STATUS_FILE" 2>/dev/null || printf 000)"
   if [[ "$status" == "409" ]]; then
     die "$EX_CONFLICT" "version conflict (HTTP 409) on page $FM_ID — it was modified concurrently. Re-run dry-run to fetch the latest version, review, then --publish."
   fi

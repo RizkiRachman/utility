@@ -14,7 +14,62 @@
       "parent_id": "4125949974"
     }
   },
-  "scope_cache": {},
-  "discovered_pages": {},
-  "pages": {}
+  "scope_cache": {
+    "4125949974": {
+      "in_scope": true,
+      "ancestors": [],
+      "title": "Local Toolkit Setup",
+      "verified_at": "2026-11-06T07:49:36Z"
+    },
+    "4157603973": {
+      "in_scope": true,
+      "ancestors": [
+        "763265132",
+        "770015245",
+        "4125949974"
+      ],
+      "title": "CI/CD",
+      "verified_at": "2026-11-06T10:05:33Z"
+    }
+  },
+  "discovered_pages": {
+    "4126244948": {
+      "title": "PowerShell Script Template for Running Non-Container Services",
+      "parent_id": "4125949974"
+    },
+    "4125949982": {
+      "title": "Docker Setup with Rancher Desktop on Windows",
+      "parent_id": "4125949974"
+    },
+    "4126310425": {
+      "title": "BPG v5 Container Setup Guideline",
+      "parent_id": "4125949974"
+    },
+    "4126212142": {
+      "title": "Grafana with BPG v5 Container Setup",
+      "parent_id": "4125949974"
+    }
+  },
+  "pages": {
+    "NPG/local-toolkit-setup/cicd/architecture-plan.md": {
+      "confluence-id": "4186734675",
+      "title": "CI/CD Architecture Plan",
+      "last_published_version": 8
+    },
+    "NPG/local-toolkit-setup/cicd/pipeline-steps-plan.md": {
+      "confluence-id": "4186308668",
+      "title": "CI/CD Pipeline Steps (Plan)",
+      "last_published_version": 1
+    },
+    "NPG/local-toolkit-setup/cicd/dashboard-plan.md": {
+      "confluence-id": "4186112140",
+      "title": "Dashboard (Plan)",
+      "last_published_version": 1
+    },
+    "NPG/local-toolkit-setup/cicd/introduction.md": {
+      "confluence-id": "4186538072",
+      "title": "Introduction (Plan)",
+      "last_published_version": 1
+    }
+  }
 }
