@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns='http://www.w3.org/2000/svg' width='1640' height='880' viewBox='0 0 1640 880' role='img' font-family='Arial, Helvetica, sans-serif'>
+<title>opencode platform pipeline</title>
+<rect width='1640' height='880' fill='#ffffff'/>
+<defs><marker id='arr' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7.5' markerHeight='7.5' orient='auto-start-reverse'><path d='M0,0L10,5L0,10z' fill='#6e7781'/></marker><marker id='arrB' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7.5' markerHeight='7.5' orient='auto-start-reverse'><path d='M0,0L10,5L0,10z' fill='#0969DA'/></marker></defs>
+<text x='46' y='50' font-size='24' font-weight='bold' fill='#1f2328' text-anchor='start'>opencode platform - from workspace sources to agents in session</text>
+<text x='46' y='78' font-size='15' font-weight='normal' fill='#57606a' text-anchor='start'>Docs stay canonical and relative in the repo; the build bakes absolute runtime paths. Config is one bind-mounted inode.</text>
+<rect x='39' y='150' width='298' height='520' rx='12' fill='#f6f8fa' stroke='#d0d7de' stroke-width='1.6'/>
+<text x='188.0' y='186' font-size='16.5' font-weight='bold' fill='#1f2328' text-anchor='middle'>Workspace sources</text>
+<line x1='55' y1='202' x2='321' y2='202' stroke='#d0d7de' stroke-width='1.4'/>
+<text x='57' y='236' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>engine/ + config/ (canonical)</text>
+<text x='57' y='263' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>relative doc paths in markdown</text>
+<text x='57' y='290' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>CRLF markdown, LF scripts+py</text>
+<text x='57' y='317' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>CI gates run here first</text>
+<rect x='355' y='150' width='298' height='520' rx='12' fill='#f6f8fa' stroke='#d0d7de' stroke-width='1.6'/>
+<text x='504.0' y='186' font-size='16.5' font-weight='bold' fill='#1f2328' text-anchor='middle'>CI - validate.yml</text>
+<line x1='371' y1='202' x2='637' y2='202' stroke='#d0d7de' stroke-width='1.4'/>
+<text x='373' y='236' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>JSON validity (jq)</text>
+<text x='373' y='263' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>bash -n syntax sweep</text>
+<text x='373' y='290' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>cross-reference integrity</text>
+<text x='373' y='317' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>doc style gate</text>
+<text x='373' y='344' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>contract score &gt;= 70</text>
+<rect x='671' y='150' width='298' height='520' rx='12' fill='#f6f8fa' stroke='#d0d7de' stroke-width='1.6'/>
+<text x='820.0' y='186' font-size='16.5' font-weight='bold' fill='#1f2328' text-anchor='middle'>docker build</text>
+<line x1='687' y1='202' x2='953' y2='202' stroke='#d0d7de' stroke-width='1.4'/>
+<text x='689' y='236' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>COPY engine/ -&gt; /opt/engine</text>
+<text x='689' y='263' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>normalize-doc-paths.py</text>
+<text x='689' y='290' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>(absolutizes doc links)</text>
+<text x='689' y='317' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>offline pre-install store</text>
+<text x='689' y='344' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>version-pinned MCPs</text>
+<rect x='987' y='150' width='298' height='520' rx='12' fill='#f6f8fa' stroke='#d0d7de' stroke-width='1.6'/>
+<text x='1136.0' y='186' font-size='16.5' font-weight='bold' fill='#1f2328' text-anchor='middle'>container runtime</text>
+<line x1='1003' y1='202' x2='1269' y2='202' stroke='#d0d7de' stroke-width='1.4'/>
+<text x='1005' y='236' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>opencode serve :4096 loopback</text>
+<text x='1005' y='263' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>config bind-mount (one inode)</text>
+<text x='1005' y='290' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>MCP: lean-ctx context7 memory</text>
+<text x='1005' y='317' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>fetch everything rag</text>
+<text x='1005' y='344' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>Firecrawl plugin (keyless)</text>
+<rect x='1303' y='150' width='298' height='520' rx='12' fill='#f6f8fa' stroke='#d0d7de' stroke-width='1.6'/>
+<text x='1452.0' y='186' font-size='16.5' font-weight='bold' fill='#1f2328' text-anchor='middle'>agents in session</text>
+<line x1='1319' y1='202' x2='1585' y2='202' stroke='#d0d7de' stroke-width='1.4'/>
+<text x='1321' y='236' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>16 agents, tiered models</text>
+<text x='1321' y='263' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>read-only: no write tool</text>
+<text x='1321' y='290' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>path gates on opencode.json</text>
+<text x='1321' y='317' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>and session/contract.json</text>
+<text x='1321' y='344' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>loop-validate before REVIEW</text>
+<line x1='339' y1='410' x2='353' y2='410' stroke='#0969DA' stroke-width='2' marker-end='url(#arrB)'/>
+<rect x='311.0' y='369' width='70' height='22' rx='4' fill='#ffffff' stroke='#eaeef2'/>
+<text x='346.0' y='385' font-size='12.5' font-weight='normal' fill='#57606a' text-anchor='middle'>git push</text>
+<line x1='655' y1='410' x2='669' y2='410' stroke='#0969DA' stroke-width='2' marker-end='url(#arrB)'/>
+<rect x='616.0' y='369' width='92' height='22' rx='4' fill='#ffffff' stroke='#eaeef2'/>
+<text x='662.0' y='385' font-size='12.5' font-weight='normal' fill='#57606a' text-anchor='middle'>image build</text>
+<line x1='971' y1='410' x2='985' y2='410' stroke='#0969DA' stroke-width='2' marker-end='url(#arrB)'/>
+<rect x='935.5' y='369' width='85' height='22' rx='4' fill='#ffffff' stroke='#eaeef2'/>
+<text x='978.0' y='385' font-size='12.5' font-weight='normal' fill='#57606a' text-anchor='middle'>compose up</text>
+<line x1='1287' y1='410' x2='1301' y2='410' stroke='#0969DA' stroke-width='2' marker-end='url(#arrB)'/>
+<rect x='1237.5' y='369' width='113' height='22' rx='4' fill='#ffffff' stroke='#eaeef2'/>
+<text x='1294.0' y='385' font-size='12.5' font-weight='normal' fill='#57606a' text-anchor='middle'>session starts</text>
+<text x='820' y='742' font-size='14' font-weight='normal' fill='#57606a' text-anchor='middle'>Executor done-gate: scripts/loop-validate.sh mirrors the CI gates locally before an agent declares a change done.</text>
+<text x='1594' y='856' font-size='13' font-weight='normal' fill='#57606a' text-anchor='end'>regenerate: python3 engine/scripts/generate_diagrams.py</text>
+</svg>

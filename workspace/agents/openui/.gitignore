@@ -1,0 +1,27 @@
+.idea/
+
+.session/
+session/*
+!session/state.example.md
+
+pre-install/**
+!pre-install/**/
+!pre-install/**/.gitkeep
+
+# --- openui: deps, build artifacts, generated spec (never commit) ---
+node_modules/
+.next/
+out/
+app/src/generated/
+
+# env files: real keys stay local; .env.example IS committed
+.env
+.env.*
+!.env.example
+
+# logs / misc
+*.log
+.DS_Store
+
+# corporate CA bundle: never commit (see app/certs/.gitignore)
+app/certs/*.crt

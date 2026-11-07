@@ -1104,6 +1104,16 @@
           "/opt/rag/server.js"
         ],
         "enabled": true
+      },
+      "openui": {
+        "type": "local",
+        "command": [
+          "node",
+          "/home/node/workspace/agents/openui/mcp-bridge.mjs"
+        ],
+        "environment": {
+          "OPENUI_URL": "http://openui:3000"
+        }
       }
     }
   }

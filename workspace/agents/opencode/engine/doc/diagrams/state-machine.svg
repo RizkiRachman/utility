@@ -1,0 +1,69 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns='http://www.w3.org/2000/svg' width='1640' height='660' viewBox='0 0 1640 660' role='img' font-family='Arial, Helvetica, sans-serif'>
+<title>Workflow State Engine state machine</title>
+<rect width='1640' height='660' fill='#ffffff'/>
+<defs><marker id='arr' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7.5' markerHeight='7.5' orient='auto-start-reverse'><path d='M0,0L10,5L0,10z' fill='#6e7781'/></marker><marker id='arrB' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7.5' markerHeight='7.5' orient='auto-start-reverse'><path d='M0,0L10,5L0,10z' fill='#0969DA'/></marker></defs>
+<text x='46' y='50' font-size='24' font-weight='bold' fill='#1f2328' text-anchor='start'>Workflow State Engine - scoring-gated state machine</text>
+<text x='46' y='78' font-size='15' font-weight='normal' fill='#57606a' text-anchor='start'>Every delegation is scored; a combined score below the threshold escalates to BLOCKED.</text>
+<rect x='45' y='200' width='164' height='64' rx='10' fill='#dbeafe' stroke='#0969DA' stroke-width='1.6'/>
+<text x='127.0' y='227' font-size='14.5' font-weight='bold' fill='#0969DA' text-anchor='middle'>INIT</text>
+<text x='127.0' y='248' font-size='12' font-weight='normal' fill='#57606a' text-anchor='middle'>session created</text>
+<rect x='243' y='200' width='164' height='64' rx='10' fill='#dbeafe' stroke='#0969DA' stroke-width='1.6'/>
+<text x='325.0' y='227' font-size='14.5' font-weight='bold' fill='#0969DA' text-anchor='middle'>PLAN</text>
+<text x='325.0' y='248' font-size='12' font-weight='normal' fill='#57606a' text-anchor='middle'>impact + plan</text>
+<rect x='441' y='200' width='164' height='64' rx='10' fill='#dbeafe' stroke='#0969DA' stroke-width='1.6'/>
+<text x='523.0' y='227' font-size='14.5' font-weight='bold' fill='#0969DA' text-anchor='middle'>PLAN_SCORED</text>
+<text x='523.0' y='248' font-size='12' font-weight='normal' fill='#57606a' text-anchor='middle'>plan scored</text>
+<rect x='639' y='200' width='164' height='64' rx='10' fill='#dbeafe' stroke='#0969DA' stroke-width='1.6'/>
+<text x='721.0' y='227' font-size='14.5' font-weight='bold' fill='#0969DA' text-anchor='middle'>EXECUTE</text>
+<text x='721.0' y='248' font-size='12' font-weight='normal' fill='#57606a' text-anchor='middle'>implement + tests</text>
+<rect x='837' y='200' width='164' height='64' rx='10' fill='#dbeafe' stroke='#0969DA' stroke-width='1.6'/>
+<text x='919.0' y='227' font-size='14.5' font-weight='bold' fill='#0969DA' text-anchor='middle'>EXECUTE_SCORED</text>
+<text x='919.0' y='248' font-size='12' font-weight='normal' fill='#57606a' text-anchor='middle'>build scored</text>
+<rect x='1035' y='200' width='164' height='64' rx='10' fill='#dbeafe' stroke='#0969DA' stroke-width='1.6'/>
+<text x='1117.0' y='227' font-size='14.5' font-weight='bold' fill='#0969DA' text-anchor='middle'>REVIEW</text>
+<text x='1117.0' y='248' font-size='12' font-weight='normal' fill='#57606a' text-anchor='middle'>quality + security</text>
+<rect x='1233' y='200' width='164' height='64' rx='10' fill='#dbeafe' stroke='#0969DA' stroke-width='1.6'/>
+<text x='1315.0' y='227' font-size='14.5' font-weight='bold' fill='#0969DA' text-anchor='middle'>REVIEW_SCORED</text>
+<text x='1315.0' y='248' font-size='12' font-weight='normal' fill='#57606a' text-anchor='middle'>review scored</text>
+<rect x='1431' y='200' width='164' height='64' rx='10' fill='#d8f5e0' stroke='#1a7f37' stroke-width='1.6'/>
+<text x='1513.0' y='227' font-size='14.5' font-weight='bold' fill='#1a7f37' text-anchor='middle'>COMPLETE</text>
+<text x='1513.0' y='248' font-size='12' font-weight='normal' fill='#57606a' text-anchor='middle'>shipped</text>
+<line x1='211' y1='232.0' x2='241' y2='232.0' stroke='#6e7781' stroke-width='2' marker-end='url(#arr)'/>
+<rect x='198.0' y='205.0' width='56' height='22' rx='4' fill='#ffffff' stroke='#eaeef2'/>
+<text x='226.0' y='221.0' font-size='13' font-weight='normal' fill='#57606a' text-anchor='middle'>always</text>
+<line x1='409' y1='232.0' x2='439' y2='232.0' stroke='#6e7781' stroke-width='2' marker-end='url(#arr)'/>
+<rect x='396.0' y='205.0' width='56' height='22' rx='4' fill='#ffffff' stroke='#eaeef2'/>
+<text x='424.0' y='221.0' font-size='13' font-weight='normal' fill='#57606a' text-anchor='middle'>always</text>
+<line x1='607' y1='232.0' x2='637' y2='232.0' stroke='#6e7781' stroke-width='2' marker-end='url(#arr)'/>
+<rect x='576.0' y='205.0' width='92' height='22' rx='4' fill='#ffffff' stroke='#eaeef2'/>
+<text x='622.0' y='221.0' font-size='13' font-weight='normal' fill='#57606a' text-anchor='middle'>score &gt;= 70</text>
+<line x1='805' y1='232.0' x2='835' y2='232.0' stroke='#6e7781' stroke-width='2' marker-end='url(#arr)'/>
+<rect x='792.0' y='205.0' width='56' height='22' rx='4' fill='#ffffff' stroke='#eaeef2'/>
+<text x='820.0' y='221.0' font-size='13' font-weight='normal' fill='#57606a' text-anchor='middle'>always</text>
+<line x1='1003' y1='232.0' x2='1033' y2='232.0' stroke='#6e7781' stroke-width='2' marker-end='url(#arr)'/>
+<rect x='972.0' y='205.0' width='92' height='22' rx='4' fill='#ffffff' stroke='#eaeef2'/>
+<text x='1018.0' y='221.0' font-size='13' font-weight='normal' fill='#57606a' text-anchor='middle'>score &gt;= 70</text>
+<line x1='1201' y1='232.0' x2='1231' y2='232.0' stroke='#6e7781' stroke-width='2' marker-end='url(#arr)'/>
+<rect x='1188.0' y='205.0' width='56' height='22' rx='4' fill='#ffffff' stroke='#eaeef2'/>
+<text x='1216.0' y='221.0' font-size='13' font-weight='normal' fill='#57606a' text-anchor='middle'>always</text>
+<line x1='1399' y1='232.0' x2='1429' y2='232.0' stroke='#6e7781' stroke-width='2' marker-end='url(#arr)'/>
+<rect x='1368.0' y='205.0' width='92' height='22' rx='4' fill='#ffffff' stroke='#eaeef2'/>
+<text x='1414.0' y='221.0' font-size='13' font-weight='normal' fill='#57606a' text-anchor='middle'>score &gt;= 70</text>
+<rect x='720' y='400' width='200' height='64' rx='10' fill='#ffebe9' stroke='#cf222e' stroke-width='1.6'/>
+<text x='820' y='427' font-size='15' font-weight='bold' fill='#cf222e' text-anchor='middle'>BLOCKED</text>
+<text x='820' y='448' font-size='12' font-weight='normal' fill='#57606a' text-anchor='middle'>stopped - user decides</text>
+<line x1='919.0' y1='264' x2='792' y2='398' stroke='#cf222e' stroke-width='2' marker-end='url(#arr)'/>
+<line x1='1315.0' y1='264' x2='848' y2='398' stroke='#cf222e' stroke-width='2' marker-end='url(#arr)'/>
+<rect x='880.0' y='317.0' width='198' height='22' rx='4' fill='#ffffff' stroke='#eaeef2'/>
+<text x='979.0' y='333.0' font-size='12.5' font-weight='normal' fill='#57606a' text-anchor='middle'>score &lt; 50 or retries &gt;= 3</text>
+<polyline points='760,464 325,540 325,268' fill='none' stroke='#0969DA' stroke-width='2' stroke-dasharray='6,5' marker-end='url(#arrB)'/>
+<text x='522.5' y='566' font-size='13.5' font-weight='normal' fill='#57606a' text-anchor='middle'>user intervention: retry with guidance (max 3 attempts)</text>
+<rect x='46' y='603' width='26' height='16' rx='4' fill='#d8f5e0' stroke='#1a7f37' stroke-width='1.6'/>
+<text x='80' y='616' font-size='13.5' font-weight='normal' fill='#1f2328' text-anchor='start'>PASS &gt;= 70</text>
+<rect x='230' y='603' width='26' height='16' rx='4' fill='#fff3c4' stroke='#9a6700' stroke-width='1.6'/>
+<text x='264' y='616' font-size='13.5' font-weight='normal' fill='#1f2328' text-anchor='start'>RETRY 50-69 (max 3 attempts)</text>
+<rect x='560' y='603' width='26' height='16' rx='4' fill='#ffebe9' stroke='#cf222e' stroke-width='1.6'/>
+<text x='594' y='616' font-size='13.5' font-weight='normal' fill='#1f2328' text-anchor='start'>BLOCKED &lt; 50 or retries exhausted</text>
+<text x='1594' y='634' font-size='13' font-weight='normal' fill='#57606a' text-anchor='end'>regenerate: python3 scripts/generate_diagrams.py</text>
+</svg>
