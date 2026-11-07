@@ -24,7 +24,7 @@ permission:
 - Tool division: prefer context7 for per-library API docs; use firecrawl_developer_search for primary-source passages (GitHub issues, merged PRs, READMEs) when a library's behavior, errors, or contracts matter; the fetch MCP covers one-off pages; firecrawl_alexandria is keyed and ask-gated; the firecrawl CLI skills handle full web jobs when FIRECRAWL_API_KEY is set.
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
-1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    → Extract: `requirements.goal`, `scope.included`, `scope.excluded`
    → If empty → create from `contract.json` template
    Gate: `/opt/engine/scripts/state-guard.sh --agent explorer --contract session/contract.json` || STOP
@@ -45,7 +45,7 @@ You are a **search specialist for discovering unknowns across the codebase**. Yo
 The orchestrator uses a **shared JSON envelope** (`contract/contract.template.json`) to pass state between agents and persist across sessions. You MUST follow this protocol.
 
 ### At Session Start (before any work)
-1. **READ** — Load the envelope: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **READ** — Load the envelope: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    - If found: extract `requirements.goal`, `scope.included`, `scope.excluded` — these tell you what and where to search
    - If NOT found (running standalone): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
@@ -70,7 +70,7 @@ Execute these steps in order BEFORE any search, tool call, or output.
 
 ### 1. Load Orchestration Envelope
 ```
-lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"
+ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
 ```
 If found → extract `requirements.goal`, `scope.included`, `scope.excluded`. If not found → create fresh from contract.json (see §Session Protocol above).
 

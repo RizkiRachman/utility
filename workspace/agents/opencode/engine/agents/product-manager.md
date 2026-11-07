@@ -23,7 +23,7 @@ permission:
 - Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
-1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    → Extract: `requirements.*`, `governance.*`, `retry.issues[]`, `scope.*`
    → If empty → create from `contract/contract.template.json`
    Gate: `/opt/engine/scripts/state-guard.sh --agent product-manager --contract session/contract.json` || STOP
@@ -44,7 +44,7 @@ You are the product-manager — the backlog owner. You translate user intent int
 The orchestrator uses a **shared JSON envelope** (`contract/contract.template.json`) to pass state between agents and persist across sessions. You MUST follow this protocol.
 
 ### At Session Start (before any work)
-1. **READ** — Load the envelope: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **READ** — Load the envelope: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    - If found: extract `requirements.*`, `scope.*`, `governance.*`, `retry.issues[]`
    - If NOT found (standalone): create fresh from `contract/contract.template.json`, populate `session.task_id` (`"product-manager-standalone-<date>"`) and `session.created_at`, then persist
 2. **UPDATE** — After defining requirements:
@@ -70,7 +70,7 @@ Produce requirements that score ≥70. Every criterion in Given-When-Then form; 
 
 ### 1. Load Orchestration Envelope
 ```lean-ctx
-lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"
+ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
 ```
 
 ### 2. Sync Latest Memory State

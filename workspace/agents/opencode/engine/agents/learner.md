@@ -23,7 +23,7 @@ permission:
 - Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
-1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    → Extract ALL fields: `session`, `requirements`, `decisions`, `outputs`, `score`, `metrics`, `retry`, `lessons_learned[]`
    → If empty → STOP. Cannot analyze without contract.
    Gate: `/opt/engine/scripts/state-guard.sh --agent learner --contract session/contract.json` || STOP
@@ -64,7 +64,7 @@ Every completed task is a data point. Your job is to turn that data into durable
 The orchestrator uses a **shared JSON envelope** (`contract/contract.template.json`) to pass state between agents and persist across sessions. You MUST follow this protocol.
 
 ### At Session Start (before any work)
-1. **READ** — Load the envelope: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **READ** — Load the envelope: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    - If found: extract `session`, `requirements`, `decisions`, `outputs`, `score`, `metrics`, `lessons_learned[]` — these are your learning context
    - If NOT found (running standalone): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
@@ -92,7 +92,7 @@ Execute these steps **in order** BEFORE any analysis, tool call, or output. Sinc
 
 ### 1. Load Orchestration Envelope
 ```lean-ctx
-lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"
+ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
 ```
 If found → extract ALL fields: `session`, `requirements`, `decisions`, `outputs`, `score`, `metrics`, `retry`, `lessons_learned[]`. If not found → create fresh from contract.json (see §Session Protocol above).  
 **⚠️ Do NOT proceed without the envelope — all subsequent analysis depends on it.**
@@ -169,7 +169,7 @@ The orchestrator provides you with:
 Run through these steps in order:
 
 ### Step 1: Review what happened
-- Read the envelope: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+- Read the envelope: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
 - Check: Did the plan match execution? Were there surprises?
 
 ### Step 2: Extract three categories of learning

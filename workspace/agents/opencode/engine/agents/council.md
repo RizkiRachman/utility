@@ -24,7 +24,7 @@ permission:
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
 
-1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    → Extract: `requirements.*`, `decisions.*`, `governance.*`
    → If empty → create from `contract.json` template
    Gate: `/opt/engine/scripts/state-guard.sh --agent council --contract session/contract.json` || STOP
@@ -45,7 +45,7 @@ You are the **council** — multi-LLM consensus engine. You run several councill
 The orchestrator uses a **shared JSON envelope** (`contract/contract.template.json`) to pass state between agents and persist across sessions. You MUST follow this protocol.
 
 ### At Session Start (before any work)
-1. **READ** — Load the envelope: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **READ** — Load the envelope: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    - If found: extract `requirements.*`, `decisions.*`, `governance.*` — these are your analysis inputs
    - If NOT found (run standalone): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
@@ -70,7 +70,7 @@ Execute these steps in order BEFORE any analysis, tool call, or output.
 
 ### 1. Load Orchestration Envelope
 
-`lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+`ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
 
 If found → extract `requirements.*`, `decisions.*`, `governance.*`. If not found → create fresh from contract.json (see §Session Protocol above).
 

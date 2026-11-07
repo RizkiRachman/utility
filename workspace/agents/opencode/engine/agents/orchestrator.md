@@ -26,7 +26,7 @@ permission:
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
 You MUST complete these steps BEFORE any tool call or work:
-1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    → If empty: create from `contract/contract.template.json`
    → FAILURE TO LOAD = GOVERNANCE VIOLATION
    Gate: `/opt/engine/scripts/state-guard.sh --agent orchestrator --contract session/contract.json` || STOP
@@ -54,7 +54,7 @@ The **shared JSON envelope** (`contract/contract.template.json`) is the single s
 
 ### Before Any Action
 
-1. **READ** — Load envelope: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **READ** — Load envelope: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    - If found: extract `state`, `session`, `requirements`, `decisions`, `governance`, `score`, `retry`, `outputs`, `metrics`, `lessons_learned[]` — full context for orchestration decisions
    - If NOT found: create fresh from `contract/contract.template.json`:
      - Write: `lean-ctx ctx_knowledge remember key orchestration-contract value <populated JSON>`
@@ -302,7 +302,7 @@ When state reaches COMPLETE, auto-populate `lessons_learned[]`:
 ### 5.7 Envelope Persist & Session Sync
 After each subagent delegation returns and scoring completes, persist state across all layers:
 
-1. Read current envelope from `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. Read current envelope from `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
 2. Update `state`, `outputs.<phase>`, `score.*`, `retry.*` with results
 3. **Persist envelope** — write via `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
 4. **Sync session/state.md** — update Current Focus and Known Blockers:
@@ -326,7 +326,7 @@ BLOCKED (any phase) → user intervention → retry with guidance
 - Any phase → `BLOCKED` — if `score.combined < escalation_threshold (50)` OR `retry.attempt ≥ max_attempts (3)`
 
 **Before each delegation:**
-1. Read envelope state via `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. Read envelope state via `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
 2. Run state-guard: `/opt/engine/scripts/state-guard.sh --agent orchestrator --contract session/contract.json || STOP` — run state-guard.sh before each delegation
 3. Validate the transition is legal (e.g., cannot EXECUTE without approved architecture)
 4. If illegal: set `state = BLOCKED`, write issue to `retry.issues[]`, persist envelope, stop
@@ -342,7 +342,7 @@ BLOCKED (any phase) → user intervention → retry with guidance
 
 **BLOCKED escalation:**
 If state = `BLOCKED`:
-1. Read envelope from `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. Read envelope from `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
 2. Update session/state.md Known Blockers: `"BLOCKED at ${phase}: ${issues}"`
 3. Persist envelope final state via `lean-ctx ctx_knowledge remember key orchestration-contract value <JSON>`
 4. Run **Save Session Protocol**: update state.md → archive snapshot → save conversation (ctx_session save) → re-index lean-ctx → re-index graphify
@@ -457,7 +457,7 @@ If the user says "huge", "massive", "complex", or "big feature" — automaticall
 Every agent MUST run these steps in order at session start:
 
 2. **Load complex-task contract**: `lean-ctx ctx_knowledge recall --query "orchestration-contract"` → see available plugins, skills, MCPs
-3. **Load orchestration envelope**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"` → read current state
+3. **Load orchestration envelope**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)` → read current state
 4. **Sync state**: Read `session/state.md` (Current Focus) + `PROJECT.md` (vision) + lean-ctx knowledge (past decisions)
 5. **Refresh intelligence**: `lean-ctx ctx_shell` `bash graphify --update` if index is stale (>1 hour old)
 6. **Session archive check**: `ls session/` — if exists, load `contract.json` from there for state continuity

@@ -23,7 +23,7 @@ permission:
 - Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
-1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    → Extract: `requirements.*`, `governance.*`, `outputs.code_changes[]`
    → If empty → create from `contract.json` template
    Gate: `/opt/engine/scripts/state-guard.sh --agent quality-analyst --contract session/contract.json` || STOP
@@ -44,7 +44,7 @@ You are a read-only code reviewer. You analyze code, configs, and dependencies �
 The orchestrator uses a **shared JSON envelope** (`contract/contract.template.json`) to pass state between agents and persist across sessions. You MUST follow this protocol.
 
 ### At Session Start (before any work)
-1. **READ** — Load the envelope: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **READ** — Load the envelope: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    - If found: extract `requirements.*`, `governance.*`, `retry.issues[]`, `outputs.code_changes[]` (these tell you what code was changed and what to review)
    - If NOT found (running standalone, not via orchestrator): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
@@ -87,7 +87,7 @@ Execute these steps in order BEFORE any review, tool call, or output.
 
 ### 1. Load Orchestration Envelope
 ```lean-ctx
-lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"
+ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
 ```
 If found → extract `requirements.*`, `governance.*`, `retry.issues[]`, `outputs.code_changes[]`. If not found → create fresh from contract.json (see §Session Protocol above).
 → Session archive: run `scripts/snapshot-contract.sh --snapshot-only` to establish review-phase baseline

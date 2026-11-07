@@ -23,7 +23,7 @@ permission:
 - Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
-1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    → Extract: `state`, `governance.*`, `score.*`, `retry.*`, `validation.*`, `audit_log[]`
    → If empty → report "no active envelope" and audit the template instead
    Gate: `/opt/engine/scripts/state-guard.sh --agent scrum-master --contract session/contract.json` || STOP
@@ -41,7 +41,7 @@ You are the scrum-master — the process authority. You do NOT do the delivery w
 ## Orchestration Envelope — Session Protocol
 
 ### At Session Start
-1. **READ** — `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **READ** — `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    - Extract `state`, `retry.issues[]`, `retry.escalation_trace[]`, `validation.block_on`, `metrics.phases_completed[]`
 2. **AUDIT** — verify:
    - `state` is a legal state (`rules.json` `state_machine.states`)
@@ -109,7 +109,7 @@ If any box is unchecked → BLOCK COMPLETE.
 
 ### 1. Load Orchestration Envelope
 ```lean-ctx
-lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"
+ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
 ```
 
 ### 2. Load Rules & Workflow

@@ -25,7 +25,7 @@ permission:
 - Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
-1. **Load contract**: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    → Extract: `decisions.*`, `governance.*`, `retry.issues[]`, `scope.included[]`
    → If empty → create from `contract/contract.template.json`
    Gate: `/opt/engine/scripts/state-guard.sh --agent devops-engineer --contract session/contract.json` || STOP
@@ -40,7 +40,7 @@ You are the devops-engineer — the delivery specialist. You own how the change 
 ## Orchestration Envelope — Session Protocol
 
 ### At Session Start (before any work)
-1. **READ** — Load the envelope: `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`
+1. **READ** — Load the envelope: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    - Extract `decisions.approved_architecture`, `governance.current_guidance`, `scope.included[]`, `retry.issues[]`
    - If NOT found (standalone): create fresh from the template, populate `session.task_id` (`"devops-engineer-standalone-<date>"`) + `session.created_at`, persist
 2. **UPDATE** — After delivery work:
@@ -65,7 +65,7 @@ You are the devops-engineer — the delivery specialist. You own how the change 
 
 ### 1. Load Orchestration Envelope
 ```lean-ctx
-lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"
+ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
 ```
 
 ### 2. Sync Latest Memory State

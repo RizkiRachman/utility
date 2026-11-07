@@ -294,7 +294,7 @@ Run this ladder in order before writing ANY code:
    - **Context gate**: @developer loads project standards via `/skill context-standards` before edits when the target project defines `context/` files; @quality-analyst verifies compliance during review.
 6. **Review phase** — Delegate to @quality-analyst (5-axis) AND @security-engineer (security) on the **reviewer model**, independent from the executor. Conflicting verdicts → BLOCKED, arbitrated by @council. UI diffs get the impeccable design-lens (slop detector) inside the readability axis.
 7. **Process gate** — @scrum-master audits transitions, enforces gates, and owns the Definition of Done before COMPLETE. Unblocks BLOCKED sessions.
-8. **Verify loop** — Run build commands, check conventions.
+8. **Verify loop** — Run build commands, check conventions. Executors and fixers run `scripts/loop-validate.sh` as the inline done-gate before REVIEW.
 9. **Ship** — Resolve issues, confirm deploy safety, run post-flight protocol; @learner captures lessons.
 10. **Humanizer gate** — run `/skill humanizer` over all user-facing outputs shipped this session (READMEs, docs, PR descriptions, changelogs, release notes) before declaring COMPLETE. Docs that still carry AI patterns (em dashes, rule-of-three, promotional tone) are not done. Mandatory for user-facing text outputs; internal state files (session/state.md, contract JSON, code comments) are exempt.
 
