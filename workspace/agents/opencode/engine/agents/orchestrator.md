@@ -209,6 +209,7 @@ Start at 100. Deduct for each violation:
 | Blast radius safe | `ctx_impact` on changed symbols | -40 if HIGH/CRITICAL |
 | Writing order correct | Verify port→service→mapper→adapter order in plan | -15 |
 | Required fields present | Check expected keys are non-null in output | -15 |
+| Loop gate passed | `scripts/loop-validate.sh` exit 0 before REVIEW (executor done-gate) | -15 |
 
 Tier 1 always proceeds to Tier 2 (combined formula applies regardless of subtotal).
 
