@@ -4,11 +4,11 @@ Personal agent workspace: a containerized OpenCode + Workflow State Engine stack
 
 [![validate](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg)](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml)
 ![OpenCode](https://img.shields.io/badge/OpenCode-2.2.5-111111)
-![Docker Compose](https://img.shields.io/badge/docker%20compose-3%20services-2496ED?logo=docker&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/docker%20compose-4%20services-2496ED?logo=docker&logoColor=white)
 
 ## About
 
-This repository runs my AI coding environment in Docker. The product is [workspace/agents/opencode/](workspace/agents/opencode/README.md): an OpenCode 2.2.5 container that ships the Workflow State Engine (16 agents, 66 skills, contract-driven scoring), lean-ctx code intelligence, and seven MCP servers, all version-pinned and pre-populated for offline builds. The `workspace/infrastructure/` tree holds empty scaffolding for services planned later. One compose file and one env file configure everything.
+This repository runs my AI coding environment in Docker. The product is [workspace/agents/opencode/](workspace/agents/opencode/README.md): an OpenCode 2.2.5 container that ships the Workflow State Engine (16 agents, 66 skills, contract-driven scoring), lean-ctx code intelligence, and eight MCP servers, all version-pinned and pre-populated for offline builds. A second container, [workspace/agents/openui/](workspace/agents/openui/README.md), serves generative UI over the same GLM model and is reachable from OpenCode through an MCP bridge. Scratch work lives in [workspace/sandbox/](workspace/sandbox/README.md), one folder per session, gitignored. The `workspace/infrastructure/` tree holds empty scaffolding for services planned later. One compose file and one env file configure everything.
 
 ## Table of Contents
 
@@ -31,7 +31,7 @@ docker compose -f docker-compose.example.yaml up -d --build
 open http://127.0.0.1:4096   # enter your key once
 ```
 
-OpenCode publishes directly on `127.0.0.1:4096` (loopback only). On first visit OpenCode shows its own pairing screen; enter `OPENCODE_SERVER_PASSWORD` from your `.env` there. The first build downloads packages from the network; the optional offline store below removes that need for later rebuilds. To attach a TUI instead, run `docker exec -it opencode opencode`.
+OpenCode publishes directly on `127.0.0.1:4096` (loopback only). On first visit OpenCode shows its own pairing screen; enter `OPENCODE_SERVER_PASSWORD` from your `.env` there. The first build downloads packages from the network; the optional offline store below removes that need for later rebuilds. The generative-UI sidecar comes up on `http://127.0.0.1:8102` (loopback only). To attach a TUI instead, run `docker exec -it opencode opencode`.
 
 Optional services:
 
@@ -48,6 +48,7 @@ docker compose -f docker-compose.example.yaml --profile scheduler up -d opencode
 | Service | Profile | Purpose |
 |---|---|---|
 | `opencode` | default | The agent stack. OpenCode serve published on `127.0.0.1:4096` (loopback only), 3 GB memory, 2 CPUs, restart unless-stopped |
+| `openui` | default | Generative-UI sidecar (Next.js + LangGraph) calling the same GLM model, published on `127.0.0.1:8102` (loopback only), 2 GB memory, healthchecked. OpenCode reaches it through the `openui` MCP bridge, which exposes `generate_ui` and `preview_url` |
 | `opencode-preinstall` | `tools` | One-shot container that fills `workspace/agents/opencode/pre-install/` with apt, pip, and npm packages for offline builds |
 | `opencode-scheduler` | `scheduler` | Runs `scripts/scheduled-runner.sh` with the `drift-detect` task daily against the mounted workspace |
 
@@ -59,36 +60,44 @@ Copy `workspace/agents/opencode/.env.template` to `.env` at the repository root.
 |---|---|---|
 | `OPENCODE_API_KEY` | (empty) | OpenCode auth; written to `auth.json` at boot, then unset from the environment |
 | `OPENCODE_SERVER_PASSWORD` | (empty) | Auth key for OpenCode's own HTTP basic auth / pairing screen |
-| `SUMOPOD_API_KEY` | (empty) | Model provider API key |
+| `SUMOPOD_API_KEY` | (empty) | Model provider API key, shared by the `opencode` and `openui` containers |
 | `SUMOPOD_BASE_URL` | `https://ai.sumopod.com/v1` | Model provider endpoint |
 | `SUMOPOD_BASE_MODEL` | `glm-5.3-flash` | Executor model id |
 | `SUMOPOD_BASE_MODEL_NAME` | `glm-5.3-flash` | Executor model display name |
 | `CONTEXT7_API_KEY` | (empty) | Context7 docs MCP |
 | `GITHUB_TOKEN` | (empty) | GitHub API token |
 | `FIRECRAWL_API_KEY` | (empty) | Optional. Developer search works keyless; scrape, crawl, and alexandria need it |
+| `RAG_EMBEDDINGS_URL` | (empty) | Optional. Upgrade rag from offline hashed vectors to an OpenAI-compatible embeddings endpoint |
+| `RAG_EMBEDDINGS_MODEL` | (empty) | Embeddings model id at that endpoint |
+| `RAG_EMBEDDINGS_KEY` | (empty) | Embeddings API key |
 
-Runtime knobs that are not env-driven (`OPENCODE_AUTH_REQUIRED=true`, `GRAPHIFY_ROOT`, `GRAPHIFY_BUILD=if-missing`, `GRAPHIFY_TIMEOUT=900`) are set directly in the compose file. Pinned build args (`OPENCODE_VERSION`, `GRAPHIFY_VERSION`, `LEAN_CTX_VERSION`, `CONTEXT7_VERSION`, `MCP_VERSION`, `MCP_SERVER_FETCH_VERSION`) live in the compose build section.
+Runtime knobs that are not env-driven (`OPENCODE_AUTH_REQUIRED=true`, `GRAPHIFY_ROOT`, `GRAPHIFY_BUILD=if-missing`, `GRAPHIFY_TIMEOUT=900`) are set directly in the compose file. Pinned build args (`OPENCODE_VERSION`, `GRAPHIFY_VERSION`, `LEAN_CTX_VERSION`, `CONTEXT7_VERSION`, `MCP_VERSION`, `MCP_SERVER_FETCH_VERSION`) live in the compose build section. The config directory also mounts `opencode-model-fallback.json` read-only: on 401/402/403/429/5xx replies or rate-limit patterns, OpenCode retries and falls back to `sumopod/deepseek-flash` (5 attempts, 60 s cooldown).
 
 ## Project Structure
 
 ```text
 utility/
-├── docker-compose.example.yaml       # 3 services: opencode, opencode-preinstall, opencode-scheduler
+├── docker-compose.example.yaml       # 4 services: opencode, openui, opencode-preinstall, opencode-scheduler
 ├── .github/
 │   └── workflows/validate.yml        # CI: JSON validity, bash -n, doc checks, contract score
 └── workspace/
     ├── agents/
-    │   └── opencode/                 # The product (see its README)
-    │       ├── Dockerfile            # OpenCode 2.2.5 on node:22-bookworm-slim
-    │       ├── docker-compose.example.yaml
-    │       ├── entrypoint.sh         # Boot chain: auth, graphify, MCP preflight, serve
-    │       ├── config/               # opencode.json: MCP servers, plugins, 20 agent entries
-    │       ├── engine/               # Workflow State Engine, copied to /opt/engine at build
-    │       ├── pre-install/          # Offline package store (gitignored)
-    │       ├── session/              # Live orchestration state (gitignored)
-    │       └── .env.template         # Copy to repository-root .env
+    │   ├── opencode/                 # The product (see its README)
+    │   │   ├── Dockerfile            # OpenCode 2.2.5 on node:22-bookworm-slim
+    │   │   ├── entrypoint.sh         # Boot chain: auth, graphify, MCP preflight, serve
+    │   │   ├── config/               # opencode.json: MCP servers, plugins, 20 agent entries; model fallback config
+    │   │   ├── rag/                  # RAG MCP server (SQLite FTS5 + vectors)
+    │   │   ├── engine/               # Workflow State Engine, copied to /opt/engine at build
+    │   │   ├── pre-install/          # Offline package store (gitignored)
+    │   │   ├── session/              # Live orchestration state (gitignored)
+    │   │   └── .env.template         # Copy to repository-root .env
+    │   └── openui/                   # Generative-UI service (see its README)
+    │       ├── app/                  # Next.js 16 + LangGraph scaffold, Dockerfile included
+    │       ├── mcp-bridge.mjs        # stdio MCP bridge: generate_ui, preview_url
+    │       └── compose-service.yml   # Fragment already pasted into the root compose
+    ├── sandbox/                      # Session playground: skeleton tracked, session folders gitignored
+    ├── documentation/wiki/           # Markdown-to-wiki publisher
     └── infrastructure/               # Scaffolding only, no services yet
-        ├── database/mssql/
         ├── database/postgres/
         ├── grafana/
         ├── k6/
@@ -125,7 +134,6 @@ Empty scaffolding for planned services. Each directory currently holds only plac
 
 | Directory | Intended for |
 |---|---|
-| `workspace/infrastructure/database/mssql` | SQL Server instance |
 | `workspace/infrastructure/database/postgres` | PostgreSQL instance |
 | `workspace/infrastructure/grafana` | Dashboards |
 | `workspace/infrastructure/k6` | Load tests |
@@ -143,6 +151,12 @@ The `opencode-scheduler` service runs `scripts/scheduled-runner.sh` with the `dr
 
 **Where does session state live?**
 In `workspace/agents/opencode/session/`: `contract.json` (the live orchestration envelope), `state.md` (append-only log), and `archive/` (snapshots). It is gitignored except for `state.example.md`, which documents the format.
+
+**Where does scratch work go?**
+In `workspace/sandbox/<session-slug>/`, one folder per live session. The `sandbox/` skeleton (README, .gitignore, .gitkeep) is tracked; everything inside a session folder is gitignored, so probes, clones, and rendered tests never reach the repository. Promote anything durable before a session ends; rules and prune commands are in `workspace/sandbox/README.md`.
+
+**What is openui?**
+A self-hosted generative-UI service built from the [thesysdev/openui](https://github.com/thesysdev/openui) scaffold, patched to call the GLM model directly (no Thesys gateway). The browser UI is on `127.0.0.1:8102`; OpenCode agents reach the same service through the `openui` MCP bridge (`generate_ui`, `preview_url`). See `workspace/agents/openui/README.md`.
 
 **Where do I sign in?**
 OpenCode's web UI is published directly on `127.0.0.1:4096` (loopback only). The first visit shows OpenCode's own pairing screen; enter `OPENCODE_SERVER_PASSWORD` there. OpenCode's own HTTP Basic auth checks the key directly; there is no proxy in between.
