@@ -183,6 +183,7 @@ opencode/
 ├── certs/                       # TLS certs placeholder (currently empty)
 ├── pre-install/                 # Offline package store (gitignored)
 ├── session/                     # Live orchestration contract + state log (gitignored)
+├── sandbox/                     # Session playground, one folder per session (contents gitignored)
 └── engine/                      # Workflow-state-engine → copied to /opt/engine
     ├── agent.md                 # Orchestrator instructions (instructions[0])
     ├── agents/                  # 16 agent instruction files
@@ -218,7 +219,7 @@ entrypoint.sh boot chain:
 opencode serve attaches to:
   - MCP servers: lean-ctx, context7, memory, fetch, everything, rag (graphify disabled by default)
   - Firecrawl plugin: keyless developer search, alexandria ask-gated
-  - workflow-state-engine: 16 agents, 66 skills, session/
+  - workflow-state-engine: 16 agents, 66 skills, session/, sandbox/
 ```
 
 ## Enforcement and Quality Gates
@@ -237,6 +238,7 @@ opencode serve attaches to:
 | context gate (`/skill context-standards`) | Loads target-project pattern standards (`context/*.md`) before edits and verifies them in review | `agent.md` Execute step, `developer.md`, `quality-analyst.md`, cross-reference check 7 |
 | `engine/scripts/loop-validate.sh` | In-loop executor done-gate: JSON parse, `bash -n` sweep, cross-references; mirrors CI locally | developer / fixer / system-analyst rule 7, orchestrator scoring table (Tier 1) |
 | Agent permission tiers (`config/opencode.json`) | Read-only agents deny edit, shell, webfetch, question; global edit-deny on `**/opencode.json` and `**/contract.json` | OpenCode permission checks on every tool call |
+| Sandbox policy (`rules.json → enforcement.sandbox`) | Scratch work confined to `sandbox/<session-slug>/`; own folder only, root never written, contents gitignored, promote before COMPLETE | `engine/agent.md` section 6, writer agents' Permissions blocks, `sandbox/README.md` |
 
 ## Troubleshooting
 
@@ -263,6 +265,7 @@ Never committed or pushed:
 
 - `pre-install/`: offline package store (gitignored except `.gitkeep` placeholders).
 - `session/`: **project-local runtime state**. Compose mounts the workspace at `/home/node/workspace`, so this `session/` *is* the container's global session directory: `contract.json` (seeded from `engine/contract/contract.template.json` via `snapshot-contract.sh`), `state.md`, `state.example.md` (tracked), `archive/`. Gitignore policy: `session/*` ignored, `state.example.md` negated.
+- `sandbox/`: **session playground**. One folder per live session (`sandbox/<session-slug>/`) for probes, clones, and rendered tests. Tracked: `README.md`, `.gitignore`, `.gitkeep`; everything else is gitignored on the `certs/` pattern. Rules: [sandbox/README.md](../../../sandbox/README.md).
 
 The engine reference ([engine/README.md](engine/README.md)) covers internals.
 

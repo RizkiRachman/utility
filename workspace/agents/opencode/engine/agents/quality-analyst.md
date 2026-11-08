@@ -170,6 +170,7 @@ Does the code fit the project's architecture?
 - **Cross-file consistency**: Symlink listings in agent.md match setup.sh actual creation
 - **No leaked template content**: No goods-price-comparison or other project-specific remnants
 - **Directory structure**: Files placed in correct directories per the project structure
+- **Sandbox discipline**: Scratch files belong in `sandbox/<session-slug>/`; a write at a repo path, at `sandbox/` root, or in another session's folder is a process finding
 - SOLID: god classes, feature envy, large interfaces, inheritance misuse
 - **Inherited method recommendation gotcha**: When recommending "use inherited `deleteById()` instead of direct `repository.deleteById()`", first verify the entity is NOT already loaded in the calling context. If already fetched (via `findByHash()`, prior `findById()`, etc.), the inherited method's internal `findById()` is a redundant DB round-trip — the direct repo call is correct. Also check for `@ActivityLog`, `@Transactional`, `@Cacheable` annotations on the subclass override that would be lost if removed.
 

@@ -55,6 +55,9 @@ session/                     ← Live state + historical archive
   contract.json              ← Current orchestration contract
   contract.schema.json       ← Contract schema
   state.md                   ← Append-only log of ALL state transitions (LOCAL-ONLY, gitignored)
+
+sandbox/                     ← Session playground (project root; contents gitignored)
+  <session-slug>/            ← Scratch work for one live session
 ```
 
 ### Lifecycle Protocol
@@ -62,9 +65,11 @@ session/                     ← Live state + historical archive
 | Event | Action |
 |---|---|
 | **State transition** | Update `session/contract.json` → snapshot via `scripts/snapshot-contract.sh` |
-| **Session end** (COMPLETE/BLOCKED) | Final snapshot → append summary to `session/state.md` |
+| **Session end** (COMPLETE/BLOCKED) | Final snapshot → append summary to `session/state.md` → promote durable sandbox work, then prune the session folder (7-day TTL policy) |
 | **Session resume** | Load `session/contract.json` + `session/state.md`; snapshot to record the resume |
 | **Post-transition** | Run `update all states`: lean-ctx re-index → Graphify re-index → snapshot → save session |
+
+Scratch work belongs in `sandbox/<session-slug>/`, one folder per live session. Writes stay inside your own folder, other sessions' folders are read-only, and nothing in the sandbox is committed. Promote anything durable before COMPLETE; full rules live in the project-root `sandbox/README.md`, the machine-readable form in `rules/rules.json` -> `enforcement.sandbox`.
 
 The `session/state.md` is an append-only chronological log — every state transition creates a new entry with timestamp, session id, state, score, and summary. This provides a durable audit trail for every session.
 

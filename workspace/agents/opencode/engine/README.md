@@ -354,6 +354,15 @@ Initialize or refresh session state with:
 bash /opt/engine/scripts/snapshot-contract.sh          # Seed/refresh session/contract.json + state.md
 ```
 
+### Sandbox (Playground)
+
+Scratch work from any session lives in the **project-root** `sandbox/` directory, one folder per live session (`sandbox/<session-slug>/`): probes, clones, throwaway builds, rendered tests. The recent trend is to dump this in `/tmp` or straight into repo paths, which loses track of what belongs to which session and leaves debris that looks like product code.
+
+- Only `README.md`, `.gitignore`, and `.gitkeep` are tracked; everything else is gitignored on the `certs/` pattern, so a session folder never reaches the repository.
+- Writes are limited to your own session folder, other folders are read-only, and nothing is written at `sandbox/` root.
+- Policy: [`sandbox/README.md`](../../../sandbox/README.md); machine-readable: `rules/rules.json → enforcement.sandbox` (200 MB and 7-day TTL, ports 4100-4999 on `127.0.0.1`).
+- Promote anything durable to its project folder before COMPLETE.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Roadmap
@@ -384,6 +393,7 @@ bash /opt/engine/scripts/snapshot-contract.sh          # Seed/refresh session/co
 - [x] SDD spec gate enforcement (scripts/sdd-gate.sh)
 - [x] Knowledge persistence verification (scripts/verify-knowledge.sh)
 - [x] Cross-session learning feedback loop (agents/orchestrator.md, agents/learner.md)
+- [x] Session-scoped sandbox (project-root `sandbox/`, one folder per session, gitignored contents, `enforcement.sandbox` policy)
 - [ ] Skill registry publishing
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -410,6 +420,9 @@ Different tools. `fetch` is a keyless, single-page HTTP GET with no index; Firec
 
 **Why does `session/` live inside the project?**
 Compose mounts the project at `/home/node/workspace`, making project-root `session/` the container's global session directory. `session/contract.json` is seeded from [`contract/contract.template.json`](contract/contract.template.json). See [Where State Lives](#where-state-lives).
+
+**Where do I put scratch files?**
+`sandbox/<session-slug>/` at the project root, never `/tmp` and never a repo path. The folder is tracked so the convention is visible, its contents are gitignored, and the rules live in [`sandbox/README.md`](../../../sandbox/README.md). See [Sandbox (Playground)](#sandbox-playground).
 
 **What breaks without `pre-install/`?**
 The Dockerfile installs apt/pip/npm/git packages from the store mounted as the `preinstall` build context. With an empty or missing store, installs fall back to the network, which fails in offline/air-gapped environments. Run the preinstall compose service first.

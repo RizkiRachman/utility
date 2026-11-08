@@ -311,6 +311,29 @@
         "mcp_health_timeout_ms": 10000
       },
       "enforcement": "block_on_violation"
+    },
+    "sandbox": {
+      "version": "1.0.0",
+      "desc": "Session-scoped scratch space at the project root; one folder per live session, contents gitignored.",
+      "root": "sandbox",
+      "naming": "<session-slug>",
+      "slug_rule": "lowercase ASCII, [a-z0-9-] only, no leading or trailing hyphen, max 40 chars",
+      "collision_suffix": "-<4 char session-id prefix>",
+      "write_scope": "own session folder only; other sessions read-only",
+      "delete_scope": "own session folder only; another session's folder requires user approval",
+      "tracked": ["README.md", ".gitignore", ".gitkeep"],
+      "committed": false,
+      "gitignore_pattern": "certs",
+      "quota_mb": 200,
+      "ttl_days": 7,
+      "ports": {
+        "bind": "127.0.0.1",
+        "min": 4100,
+        "max": 4999
+      },
+      "forbidden": ["secrets", "tokens", "credentials", "certificates", "customer data"],
+      "promote_before_complete": true,
+      "violation_action": "warn_then_BLOCKED_on_repeat"
     }
   },
   "resilience": {

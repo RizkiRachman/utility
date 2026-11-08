@@ -1,0 +1,5 @@
+# Playground: only the skeleton is tracked (same policy as certs/).
+*
+!.gitignore
+!.gitkeep
+!README.md

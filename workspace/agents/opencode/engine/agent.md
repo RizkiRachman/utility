@@ -436,6 +436,15 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 - **Always use `lean-ctx ctx_shell`** — never `bash` or `snip` (both denied in permissions)
 - `bash` and `snip` trigger permission prompts and block automation
 
+### Sandbox (Playground)
+- **All scratch work goes to `sandbox/<session-slug>/` at the project root**: probes, clones, screenshots, throwaway builds, rendered tests. Not to repo paths, not to `/tmp`, not into another session's folder.
+- **One folder per live session**, slugified from the OpenCode session title (`opencode optimizer` → `opencode-optimizer`); on collision append a 4-character session-ID prefix.
+- **Write only inside your own folder.** Other sessions' folders are read-only; deleting one needs explicit user approval.
+- **Never write at `sandbox/` root.** Only `README.md`, `.gitignore`, and `.gitkeep` live there, and only those are tracked.
+- **Sandbox contents are never committed** (gitignored on the `certs/` pattern). Promote anything durable to its project folder before COMPLETE.
+- **No secrets, tokens, credentials, certificates, or customer data.** Bind servers to `127.0.0.1`, use ports 4100-4999, stop them before finishing.
+- **Budget:** 200 MB and 7 days per session folder. Rules, naming, and prune commands: `sandbox/README.md`; machine-readable: `rules.json → enforcement.sandbox`.
+
 ### Communication
 - Explain tradeoffs, not just decisions
 - Admit unknowns. Be token-efficient: concise, no filler, no full-file dumps
