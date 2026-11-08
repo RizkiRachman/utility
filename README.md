@@ -78,7 +78,7 @@ Runtime knobs that are not env-driven (`OPENCODE_AUTH_REQUIRED=true`, `GRAPHIFY_
 ```text
 utility/
 ├── docker-compose.example.yaml       # 4 services: opencode, openui, opencode-preinstall, opencode-scheduler
-├── wrangler.toml                     # Local wrangler pages deploy config (project utility, output public/)
+├── wrangler.toml                     # Empty placeholder; Pages deploy is CI-only (deploy-digest.yml)
 ├── .github/
 │   ├── workflows/validate.yml        # CI: JSON validity, bash -n sweep, cross-reference integrity, doc style (humanizer), contract score, conventions (non-blocking)
 │   ├── workflows/deploy-digest.yml   # CI: packs the agent stack with repomix, deploys to Cloudflare Pages (project utility-digest)
@@ -161,7 +161,7 @@ The Dockerfile installs apt, pip, and npm packages from `workspace/agents/openco
 The `opencode-scheduler` service runs `scripts/scheduled-runner.sh` with the `drift-detect` task on a daily schedule. It compares persisted engine knowledge against the files in the workspace and reports drift.
 
 **How can AI agents consume this repository?**
-Every push to `main` triggers `.github/workflows/deploy-digest.yml`, which packs `workspace/agents/opencode/**` into a single plain-text file with [repomix](https://github.com/yamadashy/repomix) and deploys it to Cloudflare Pages (project `utility-digest`) alongside a small index page. Agents can read that deployed `repomix-output.txt` instead of cloning. `wrangler.toml` at the repository root carries the matching local `wrangler pages deploy` configuration.
+Every push to `main` triggers `.github/workflows/deploy-digest.yml`, which packs `workspace/agents/opencode/**` into a single plain-text file with [repomix](https://github.com/yamadashy/repomix) and deploys it to Cloudflare Pages (project `utility-digest`) alongside a small index page. Agents can read that deployed `repomix-output.txt` instead of cloning. The deploy is CI-only; `wrangler.toml` at the repository root is an empty placeholder kept for local experiments.
 
 **Where does session state live?**
 In `workspace/agents/opencode/session/`: `contract.json` (the live orchestration envelope), `state.md` (append-only log), and `archive/` (snapshots). It is gitignored except for `state.example.md`, which documents the format.
