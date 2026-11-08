@@ -78,6 +78,7 @@ Runtime knobs that are not env-driven (`OPENCODE_AUTH_REQUIRED=true`, `GRAPHIFY_
 ```text
 utility/
 ├── docker-compose.example.yaml       # 4 services: opencode, openui, opencode-preinstall, opencode-scheduler
+├── wrangler.toml                     # Cloudflare Pages: serves public/ as a static site
 ├── .github/
 │   ├── workflows/validate.yml        # CI: JSON validity, bash -n sweep, cross-reference integrity, doc style (humanizer), contract score, conventions (non-blocking)
 │   └── PULL_REQUEST_TEMPLATE.md      # PR description checklist
