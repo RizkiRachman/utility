@@ -1,0 +1,25 @@
+name: Deploy digest to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build digest
+        run: |
+          mkdir -p public
+          npx -y repomix@latest --include "workspace/agents/opencode/**" --ignore "**/node_modules/**,**/skills/**/data/**,**/*.csv,**/*.html" --style plain --output public/repomix-output.txt
+          printf '%s' '<!doctype html><meta charset="utf-8"><title>utility digest</title><p>Source digest for AI agents:</p><p><a href="repomix-output.txt">repomix-output.txt</a></p>' > public/index.html
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy public --project-name=utility-digest
