@@ -79,26 +79,34 @@ Runtime knobs that are not env-driven (`OPENCODE_AUTH_REQUIRED=true`, `GRAPHIFY_
 utility/
 ├── docker-compose.example.yaml       # 4 services: opencode, openui, opencode-preinstall, opencode-scheduler
 ├── .github/
-│   └── workflows/validate.yml        # CI: JSON validity, bash -n, doc checks, contract score
+│   ├── workflows/validate.yml        # CI: JSON validity, bash -n sweep, cross-reference integrity, doc style (humanizer), contract score, conventions (non-blocking)
+│   └── PULL_REQUEST_TEMPLATE.md      # PR description checklist
 └── workspace/
     ├── agents/
     │   ├── opencode/                 # The product (see its README)
     │   │   ├── Dockerfile            # OpenCode 2.2.5 on node:22-bookworm-slim
-    │   │   ├── entrypoint.sh         # Boot chain: auth, graphify, MCP preflight, serve
-    │   │   ├── config/               # opencode.json: MCP servers, plugins, 20 agent entries; model fallback config
+    │   │   ├── entrypoint.sh         # Boot chain: auth, graphify, MCP preflight, optional engine self-check, serve (serve/web probe fallback)
+    │   │   ├── config/               # opencode.json: 8 MCP servers, firecrawl plugin, 20 agents; model fallback config; rag-usage.md
     │   │   ├── rag/                  # RAG MCP server (SQLite FTS5 + vectors)
     │   │   ├── engine/               # Workflow State Engine, copied to /opt/engine at build
-    │   │   ├── pre-install/          # Offline package store (gitignored)
-    │   │   ├── session/              # Live orchestration state (gitignored)
+    │   │   ├── populate-preinstall.sh # Fills the offline store; runs inside the opencode-preinstall container
+    │   │   ├── pre-install/          # Offline package store (skeleton tracked, contents gitignored)
+    │   │   ├── session/              # Live orchestration state (skeleton tracked, contents gitignored)
+    │   │   ├── certs/                # TLS mount point (gitignored, skeleton tracked)
+    │   │   ├── docker-compose.example.yaml # Standalone single-service compose, alternative to the root file
     │   │   └── .env.template         # Copy to repository-root .env
     │   └── openui/                   # Generative-UI service (see its README)
     │       ├── app/                  # Next.js 16 + LangGraph scaffold, Dockerfile included
     │       ├── mcp-bridge.mjs        # stdio MCP bridge: generate_ui, preview_url
+    │       ├── docker-compose.example.yaml # Standalone single-service compose
+    │       ├── .env.example
     │       └── compose-service.yml   # Fragment already pasted into the root compose
     ├── sandbox/                      # Session playground: skeleton tracked, session folders gitignored
-    ├── documentation/wiki/           # Markdown-to-wiki publisher
+    ├── certs/                        # TLS mount point (gitignored, skeleton tracked)
+    ├── documentation/wiki/           # NPG Confluence wiki publisher (publish.sh, scope/style gates, tests)
     └── infrastructure/               # Scaffolding only, no services yet
         ├── database/postgres/
+        ├── database/mssql/
         ├── grafana/
         ├── k6/
         └── vault/
@@ -135,6 +143,7 @@ Empty scaffolding for planned services. Each directory currently holds only plac
 | Directory | Intended for |
 |---|---|
 | `workspace/infrastructure/database/postgres` | PostgreSQL instance |
+| `workspace/infrastructure/database/mssql` | Microsoft SQL Server instance |
 | `workspace/infrastructure/grafana` | Dashboards |
 | `workspace/infrastructure/k6` | Load tests |
 | `workspace/infrastructure/vault` | Secrets |
