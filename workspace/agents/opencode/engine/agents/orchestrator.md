@@ -18,8 +18,7 @@ permission:
 ---
 
 ## Permissions
-- Read: All project files
-- Write: All project files
+- Read/Write: per frontmatter permission block + config/opencode.json (lean-ctx ctx_read / native edit); body text does not grant access
 - Delegate: Can spawn subtask and task subagents
 - Sessions: Can save/load/resume ctx_sessions
 - Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.

@@ -67,7 +67,7 @@ INIT → PLAN → PLAN_SCORED → EXECUTE → EXECUTE_SCORED → REVIEW → REVI
 
 ```
 agents/     → 16 agent instruction files (orchestrator, product-manager, scrum-master, developer, devops-engineer, quality-analyst, security-engineer, …)
-skills/     → 66 skill directories (system-analyst, writing-plans, spec-driven-development, …)
+skills/     → 45 skill directories (system-analyst, writing-plans, spec-driven-development, …)
 commands/   → slash commands (impeccable)
 contract/   → contract.template.json, contract.schema.json, state.template.md
 rules/      → rules.json (state machine transitions, scoring thresholds, cross-model review)
@@ -89,7 +89,7 @@ The engine ships inside the container image (`COPY engine/ /opt/engine/`) and is
    ├── opencode.json → (bind-mounted) config/opencode.json
    ├── agent.md   → /opt/engine/agent.md      (instructions[0])
    ├── /opt/engine/agents/    → /opt/engine/agents/        16 agent instruction files
-   ├── /opt/engine/skills/    → /opt/engine/skills/        66 skill directories
+   ├── /opt/engine/skills/    → /opt/engine/skills/        45 skill directories
    ├── /opt/engine/commands/  → /opt/engine/commands/      slash commands
    ├── /opt/engine/rules/     → /opt/engine/rules/         rules.json (state machine)
    ├── /opt/engine/contract/  → /opt/engine/contract/      contract.template.json, contract.schema.json, state.template.md
@@ -109,7 +109,7 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 ├── /opt/engine/agents/            ← 16 agent instruction files
 ├── /opt/engine/doc/               ← Workflow guides, project.md, reports
 ├── /opt/engine/rules/             ← rules.json (state machine, scoring, cross-model review)
-├── /opt/engine/skills/            ← 66 skill directories
+├── /opt/engine/skills/            ← 45 skill directories
 ├── /opt/engine/commands/          ← slash commands
 ├── /opt/engine/contract/          ← contract.template.json, contract.schema.json, state.template.md
 ├── /opt/engine/usage/             ← 4 tool usage guides
@@ -130,8 +130,8 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **orchestrator** | Scrum lead / primary orchestrator — delegates, scores, drives the state machine | lean-ctx, context7 | Read/write | `*` (all) | default | (orchestrator — agent.md) | `/opt/engine/agents/orchestrator.md` |
-| **design-orchestrator** | UI/UX specialist orchestrator — enforces 4-layer design pipeline (Exemplar > Generator > Taste > Gate) | lean-ctx, context7 | Read/write | `*` (all) | default | design-exemplar, ui-ux-pro-max, design-taste-frontend, impeccable | `/opt/engine/agents/design-orchestrator.md` |
+| **orchestrator** | Scrum lead / primary orchestrator — delegates, scores, drives the state machine | lean-ctx, context7 | Read/write (lean-ctx only) | `*` (all) | default | (orchestrator — agent.md) | `/opt/engine/agents/orchestrator.md` |
+| **design-orchestrator** | UI/UX specialist orchestrator — enforces 4-layer design pipeline (Exemplar > Generator > Taste > Gate) | lean-ctx, context7 | Read/write (lean-ctx only) | `*` (all) | default | design-exemplar, ui-ux-pro-max, design-taste-frontend, impeccable, banner-design, brand, slides, ui-styling | `/opt/engine/agents/design-orchestrator.md` |
 
 ### Product & Planning Agents (read-only)
 
@@ -145,9 +145,9 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **developer** | Implements the plan, writes tests alongside code | lean-ctx | Read/write | `EXECUTE`, `EXECUTE_SCORED` | executor | test-driven-development, software-developer, design-taste-frontend, impeccable | `/opt/engine/agents/developer.md` |
-| **devops-engineer** | CI/CD, containerization, deploy, migrations, observability, rollback | lean-ctx | Read/write | `EXECUTE`, `EXECUTE_SCORED`, `REVIEW` | default | devops-expert, observability-and-instrumentation, diagram-design | `/opt/engine/agents/devops-engineer.md` |
-| **fixer** | Bounded, scoped fixes for well-defined tasks | lean-ctx | Read/write | `EXECUTE` | executor | systematic-debugging | `/opt/engine/agents/fixer.md` |
+| **developer** | Implements the plan, writes tests alongside code | lean-ctx | Read/write (lean-ctx only) | `EXECUTE`, `EXECUTE_SCORED` | executor | test-driven-development, software-developer, design-taste-frontend, impeccable, awesome-pr, tool-economy | `/opt/engine/agents/developer.md` |
+| **devops-engineer** | CI/CD, containerization, deploy, migrations, observability, rollback | lean-ctx | Read/write (lean-ctx only) | `EXECUTE`, `EXECUTE_SCORED`, `REVIEW` | default | devops-expert, observability-and-instrumentation, diagram-design | `/opt/engine/agents/devops-engineer.md` |
+| **fixer** | Bounded, scoped fixes for well-defined tasks | lean-ctx | Read/write (lean-ctx only) | `EXECUTE` | executor | systematic-debugging | `/opt/engine/agents/fixer.md` |
 
 ### Quality & Process Agents (read-only)
 
@@ -473,22 +473,6 @@ All skills at `/opt/engine/skills/` (symlinked into the OpenCode config dir). Us
 | Skill | When to Load |
 |-------|-------------|
 | `java-developer` | Java 21 idioms, anti-patterns, quality gates (meta-skill — see companion skills below) |
-| `spring-boot-enterprise` | Spring Boot 3.x REST, JPA, Security, OAuth2 (companion to java-developer) |
-| `spring-boot-4x` | Spring Boot 4.x, virtual threads, GraalVM (companion to java-developer) |
-| `java-streams` | Streams API, Collectors, Gatherers (companion to java-developer) |
-| `java-optional` | Optional patterns, antipatterns (companion to java-developer) |
-| `java-code-quality` | SOLID, clean code, anti-patterns (companion to java-developer) |
-| `java-design-patterns` | GoF patterns, Java idioms (companion to java-developer) |
-| `java-logging-patterns` | SLF4J, Logback, structured logging (companion to java-developer) |
-| `jspecify-nullability` | JSpecify annotations, null-safety (companion to java-developer) |
-| `jpa-hibernate-patterns` | N+1 prevention, @EntityGraph, batch fetching (companion to java-developer) |
-| `jooq-best-practices` | jOOQ type-safe queries, DSL (companion to java-developer) |
-| `postgres-table-design` | PostgreSQL schema, indexing, partitioning (companion to java-developer) |
-| `pgvector-search` | pgvector semantic search, embeddings (companion to java-developer) |
-| `postgres-text-search` | Full-text search, tsvector (companion to java-developer) |
-| `mutation-testing` | pitest, mutation testing (companion to java-developer) |
-| `coverage-kover-gradle` | Kover Gradle coverage reports (companion to java-developer) |
-| `jdb-debugger` | JDB agentic debugging (companion to java-developer) |
 | `software-developer` | Full-stack conventions, clean code, SOLID |
 | `system-analyst` | Architecture evaluation, dependency mapping |
 | `business-analyst` | Requirements gathering, acceptance criteria |
@@ -528,19 +512,13 @@ All skills at `/opt/engine/skills/` (symlinked into the OpenCode config dir). Us
 | `ui-styling` | shadcn/ui + Tailwind + canvas-based UI styling, accessible components, theming (companion of ui-ux-pro-max) |
 | `awesome-readme` | README/docs standard — badges, TOC, quick start, config tables, architecture notes (distilled from matiassingers/awesome-readme) |
 | `awesome-pr` | Pull request authoring — Conventional Commit titles, description template, review checklist, small-PR sizing |
-| `commit` | Conventional commits, atomic commits, commit message best practices |
-| `gradle-test-runner` | Gradle test execution, filtering, parallel runs, test configuration |
-| `ralph-coverage` | Ralph coverage analysis, test gap detection, coverage insights |
-| `rebase-commit` | Interactive rebase, squash, commit cleanup, history management |
-| `restart-spring-boot` | Spring Boot restart and hot-reload patterns for development |
 | `shipping-and-launch` | End-to-end release orchestration — pre-launch verification, canary rollout, rollback planning, post-deploy smoke tests |
-| `spec` | Specification writing, requirements documentation, acceptance criteria |
 | `lean-ctx` | LeanCTX Context Gateway — select task-relevant context, apply controls, reuse local knowledge, inspect recorded evidence |
 | `context-standards` | Discover and load project-specific pattern and standards files (context/*.md) before implementation, review, or design work |
 | `dispatching-parallel-agents` | Coordinating multiple sub-agents for parallel execution — file-disjoint sharding, conflict avoidance, reconciliation |
 | `tool-economy` | Tool-call discipline — batching, chaining, gate-first, spawn-tax, execution tiers, single-shot verdicts; retrieval routing table (§4.5) |
 
-*Last updated: 2026-11-07. If you modify conventions, workflows, or config, update this file.*
+*Last updated: 2026-11-09. If you modify conventions, workflows, or config, update this file.*
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
