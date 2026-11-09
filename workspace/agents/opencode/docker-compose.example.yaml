@@ -54,9 +54,11 @@ services:
       - ./config/opencode-model-fallback.json:/home/node/.config/opencode/opencode-model-fallback.json:ro
       - ./rag:/opt/rag:ro
       - opencode-data:/home/node/.local/share/opencode
-      - /var/run/docker.sock:/var/run/docker.sock
-    group_add:
-      - "${DOCKER_GID:-101}"
+      # N11: docker socket is OPT-IN ONLY (docker-outside-of-docker = host-level exposure).
+      # Uncomment the lines below only for an explicit DevOps profile:
+      # - /var/run/docker.sock:/var/run/docker.sock
+    # group_add:
+    #   - "${DOCKER_GID:-101}"
   opencode-preinstall:
     image: node:22-bookworm-slim
     profiles: ["tools"]

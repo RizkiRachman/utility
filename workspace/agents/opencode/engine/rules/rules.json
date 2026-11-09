@@ -741,6 +741,9 @@
       "software-architect",
       "system-analyst",
       "orchestrator"
+    ],
+    "build": [
+      "INIT"
     ]
   }
 }
