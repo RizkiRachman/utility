@@ -355,6 +355,33 @@
           "items": {
             "type": "string"
           }
+        },
+        "user_override": {
+          "type": "boolean",
+          "default": false,
+          "description": "Set true only when user explicitly approves a BLOCKED resume transition"
+        },
+        "permissions_violated": {
+          "type": "boolean",
+          "default": false,
+          "description": "Set true by any reviewer on permission violation; forces BLOCKED"
+        },
+        "blast_radius_acknowledged": {
+          "type": "boolean",
+          "default": false,
+          "description": "Set true only after ctx_impact HIGH/CRITICAL risk is reviewed and accepted"
+        },
+        "subagent_depth": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Current subagent nesting depth (N16)"
+        },
+        "delegations_used": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Delegations consumed this session (N16)"
         }
       }
     },

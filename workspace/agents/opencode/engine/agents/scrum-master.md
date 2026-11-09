@@ -3,6 +3,8 @@ description: Process owner. Guards the contract, state machine, and workflow on 
 mode: subagent
 temperature: 0.1
 permission:
+  lean-ctx_ctx_edit: "deny"
+  lean-ctx_ctx_shell: "deny"
   read: deny
   write: deny
   glob: deny
@@ -20,7 +22,7 @@ permission:
 ## Permissions
 - Read: All project files
 - Write: None (strictly read-only)
-- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
+- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell DENIED (read-only tier), ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
 1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`

@@ -172,6 +172,24 @@ elif [[ -n "$CONTRACT" ]]; then
   fi
 fi
 
+# --- Subagent Limits Check (N16) ---
+if [[ -n "$CONTRACT" && -f "$CONTRACT" ]]; then
+  DEPTH=$(jq -r ".governance.subagent_depth // 0" "$CONTRACT")
+  DELEG=$(jq -r ".governance.delegations_used // 0" "$CONTRACT")
+  MAXD=$(jq -r ".enforcement.subagent_limits.max_depth // 2" "$RULES_FILE")
+  MAXG=$(jq -r ".enforcement.subagent_limits.max_delegations_per_session // 20" "$RULES_FILE")
+  if (( DEPTH > MAXD )); then
+    echo -e "${RED}BLOCKED: subagent depth $DEPTH exceeds max_depth $MAXD${NC}" >&2
+    exit 1
+  fi
+  if (( DELEG >= MAXG )); then
+    echo -e "${RED}BLOCKED: delegations $DELEG reached per-session limit $MAXG${NC}" >&2
+    exit 1
+  fi
+  if $DRY_RUN; then
+    echo -e "${YELLOW}[DRY-RUN] Subagent limits: depth $DEPTH/$MAXD, delegations $DELEG/$MAXG${NC}"
+  fi
+fi
 # ─── Evaluate ──────────────────────────────────────────────────────────────
 if [[ "$ALLOWED" == '["*"]' ]]; then
   echo -e "${GREEN}PASS: Agent '$AGENT' allowed in state $CURRENT_STATE (wildcard)${NC}"

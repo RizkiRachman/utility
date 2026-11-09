@@ -562,7 +562,7 @@
     "quality-analyst": {
       "description": "Independent quality reviewer — code quality, edge cases, tests, performance, and DB/DevOps operability. Cross-model reviewer. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "sumopod/deepseek-flash",
       "steps": 80,
       "permissions": [
         {
@@ -620,7 +620,7 @@
     "security-engineer": {
       "description": "Independent security reviewer — threat modeling, vulnerability assessment, secrets/trust-boundary review. Cross-model reviewer. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "sumopod/deepseek-flash",
       "steps": 60,
       "permissions": [
         {

@@ -429,6 +429,11 @@
       ],
       "promote_before_complete": true,
       "violation_action": "warn_then_BLOCKED_on_repeat"
+    },
+    "subagent_limits": {
+      "max_depth": 2,
+      "max_delegations_per_session": 20,
+      "desc": "N16: depth-3 chains and runaway fan-out are rejected by state-guard"
     }
   },
   "resilience": {
