@@ -26,6 +26,7 @@ Options:
   --state STATE        State string override (mutually exclusive with --contract/--contract-dir)
   --contract-dir DIR   Session directory — auto-detects contract.json at DIR/contract.json
   --blast-radius LEVEL WARN if blast radius not acknowledged at given level (HIGH|CRITICAL)
+  --to STATE           Verify transition CURRENT -> STATE is legal per rules.json edges
   --dry-run            Show each step without exiting
   --help               Show this message
 
@@ -45,6 +46,7 @@ CONTRACT_DIR=""
 STATE=""
 BLAST_RADIUS=""
 DRY_RUN=false
+TARGET_TO=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -70,6 +72,10 @@ while [[ $# -gt 0 ]]; do
         echo -e "${RED}ERROR: --blast-radius must be HIGH or CRITICAL${NC}" >&2
         exit 1
       fi
+      shift 2
+      ;;
+    --to)
+      TARGET_TO="$2"
       shift 2
       ;;
     --dry-run)
@@ -169,14 +175,13 @@ fi
 # ─── Evaluate ──────────────────────────────────────────────────────────────
 if [[ "$ALLOWED" == '["*"]' ]]; then
   echo -e "${GREEN}PASS: Agent '$AGENT' allowed in state $CURRENT_STATE (wildcard)${NC}"
-  exit 0
-fi
+fi  # N3: no early exit - wildcard agents still obey transition gates
 
 ALLOWED_LIST=$(echo "$ALLOWED" | jq -r '.[]')
 IS_ALLOWED=false
 
 while IFS= read -r allowed_state; do
-  if [[ "$allowed_state" == "$CURRENT_STATE" ]]; then
+  if [[ "$allowed_state" == "*" || "$allowed_state" == "$CURRENT_STATE" ]]; then
     IS_ALLOWED=true
     break
   fi
@@ -190,18 +195,61 @@ else
   exit 1
 fi
 
-# ─── Blast Radius Check ─────────────────────────────────────────────────────
-if [[ -n "$BLAST_RADIUS" ]]; then
-  if [[ -z "$CONTRACT" || ! -f "$CONTRACT" ]]; then
-    echo -e "${YELLOW}WARN: Cannot check blast radius: no contract file available${NC}"
-  else
-    acknowledged=$(jq -r '.score.governance.blast_radius_acknowledged // false' "$CONTRACT" 2>/dev/null || echo "false")
 
-    if [[ "$acknowledged" != "true" ]]; then
-      echo -e "${YELLOW}WARN: Blast radius $BLAST_RADIUS not acknowledged in contract.score.governance.blast_radius_acknowledged${NC}"
-      echo -e "${YELLOW}  Run ctx_impact to assess blast radius, then set blast_radius_acknowledged=true in contract${NC}"
-    else
-      echo -e "${GREEN}PASS: Blast radius $BLAST_RADIUS acknowledged in contract${NC}"
+# --- Transition Legality Check (N3) ---
+if [[ -n "$TARGET_TO" ]]; then
+  EDGE=$(jq -r --arg from "$CURRENT_STATE" --arg to "$TARGET_TO" '
+    .state_machine.transitions[]
+    | select((.from == $from or .from == "*") and .to == $to)
+    | @json' "$RULES_FILE" 2>/dev/null | head -n 1)
+  if [[ -z "$EDGE" ]]; then
+    echo -e "${RED}BLOCKED: transition $CURRENT_STATE -> $TARGET_TO is not declared in rules.json${NC}" >&2
+    exit 1
+  fi
+  if $DRY_RUN; then
+    echo -e "${YELLOW}[DRY-RUN] Edge: $EDGE${NC}"
+  fi
+  EDGE_SCORE_LT=$(echo "$EDGE" | jq -r ".score_lt // empty")
+  EDGE_REQ=$(echo "$EDGE" | jq -r ".requires // empty")
+  if [[ -n "$EDGE_SCORE_LT" || -n "$EDGE_REQ" ]] && [[ -z "$CONTRACT" || ! -f "$CONTRACT" ]]; then
+    echo -e "${RED}BLOCKED: edge $CURRENT_STATE -> $TARGET_TO carries gates but no contract file was provided${NC}" >&2
+    exit 1
+  fi
+  if [[ -n "$EDGE_SCORE_LT" && -f "$CONTRACT" ]]; then
+    ESC_SCORE=$(jq -r ".score.combined // 0" "$CONTRACT")
+    if (( ${ESC_SCORE%%.*} >= ${EDGE_SCORE_LT%%.*} )); then
+      echo -e "${RED}BLOCKED: escalation edge requires score < $EDGE_SCORE_LT (got $ESC_SCORE); use the RETRY path${NC}" >&2
+      exit 1
     fi
   fi
+  if [[ "$EDGE_REQ" == "user_override" && -f "$CONTRACT" ]]; then
+    if [[ "$(jq -r ".governance.user_override // false" "$CONTRACT")" != "true" ]]; then
+      echo -e "${RED}BLOCKED: transition requires governance.user_override=true${NC}" >&2
+      exit 1
+    fi
+  fi
+  if [[ "$EDGE_REQ" == "retry_allowed" && -f "$CONTRACT" ]]; then
+    R_ATT=$(jq -r ".retry.attempt // 0" "$CONTRACT")
+    R_MAX=$(jq -r ".retry.max_attempts // 3" "$CONTRACT")
+    if (( R_ATT >= R_MAX )); then
+      echo -e "${RED}BLOCKED: retry exhausted ($R_ATT/$R_MAX); BLOCKED is the only legal path${NC}" >&2
+      exit 1
+    fi
+  fi
+  echo -e "${GREEN}PASS: transition $CURRENT_STATE -> $TARGET_TO is legal${NC}"
+fi
+# ─── Blast Radius Check ─────────────────────────────────────────────────────
+# --- Blast Radius Check (N3: HIGH/CRITICAL unacknowledged = BLOCKED) ---
+if [[ -n "$BLAST_RADIUS" ]]; then
+  if [[ -z "$CONTRACT" || ! -f "$CONTRACT" ]]; then
+    echo -e "${RED}BLOCKED: blast radius $BLAST_RADIUS declared but no contract file to verify acknowledgment${NC}" >&2
+    exit 1
+  fi
+  acknowledged=$(jq -r ".governance.blast_radius_acknowledged // false" "$CONTRACT" 2>/dev/null || echo "false")
+  if [[ "$acknowledged" != "true" ]]; then
+    echo -e "${RED}BLOCKED: blast radius $BLAST_RADIUS not acknowledged in contract.governance.blast_radius_acknowledged${NC}" >&2
+    echo -e "${RED}  Run ctx_impact, record the risk, then set governance.blast_radius_acknowledged=true${NC}" >&2
+    exit 1
+  fi
+  echo -e "${GREEN}PASS: blast radius $BLAST_RADIUS acknowledged${NC}"
 fi

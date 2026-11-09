@@ -52,7 +52,8 @@
     },
     "previous_blockers": [],
     "user_override": false,
-    "permissions_violated": false
+    "permissions_violated": false,
+    "blast_radius_acknowledged": false
   },
   "score": {
     "rules": {
