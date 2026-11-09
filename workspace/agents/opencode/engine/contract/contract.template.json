@@ -51,7 +51,8 @@
       ]
     },
     "previous_blockers": [],
-    "user_override": false
+    "user_override": false,
+    "permissions_violated": false
   },
   "score": {
     "rules": {

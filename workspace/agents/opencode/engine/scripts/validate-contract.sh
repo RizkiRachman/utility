@@ -1081,6 +1081,12 @@ main() {
 
     # F-13: block_on threshold exceeded forces a failing exit (exit 1) even
     # when the computed score would otherwise pass.
+    # N2: permissions violation hard halt (never judge-passable)
+    if [[ "$(jq -r '.governance.permissions_violated // false' "$CONTRACT_FILE" 2>/dev/null)" == "true" ]]; then
+        echo -e "${RED}VERDICT: BLOCKED - permissions violation hard halt${NC}"
+        exit 1
+    fi
+
     if [[ "$BLOCK_ON_VIOLATION" == true && $score -ge 70 ]]; then
         if [[ "$SCORE_MODE" == false ]]; then
             echo -e "${YELLOW}VERDICT: FAIL — validation.block_on threshold exceeded${NC}"

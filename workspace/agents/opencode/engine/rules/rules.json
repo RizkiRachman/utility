@@ -187,6 +187,11 @@
       },
       "schema_failure": {
         "action": "BLOCKED"
+      },
+      "permissions_violation": {
+        "value": true,
+        "action": "BLOCKED",
+        "desc": "governance.permissions_violated=true forces BLOCKED regardless of score (N2)"
       }
     },
     "timeout_ms": 30000,

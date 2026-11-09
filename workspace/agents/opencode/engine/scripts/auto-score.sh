@@ -676,6 +676,21 @@ main() {
 
     local verdict
     verdict=$(compute_verdict "$combined_score")
+    # N2: judge unavailable -> tier1 baseline, verdict capped at RETRY
+    local judge_unavailable=false
+    if [[ "$judge_rationale" == *"unavailable"* ]]; then  # N2: run_tier2 falls back to tier1 score, so key on rationale
+        judge_unavailable=true
+        if [[ "$TIER_FILTER" != "1" && "$TIER_FILTER" != "2" ]]; then
+            combined_score=$tier1_subtotal
+        fi
+    fi
+    if [[ "$(jq -r '.governance.permissions_violated // false' "$CONTRACT_FILE" 2>/dev/null)" == "true" ]]; then
+        combined_score=0
+        verdict="BLOCKED"
+        echo "N2 hard halt: permissions violation forces BLOCKED" >&2
+    elif [[ "$judge_unavailable" == true && "$verdict" == "PASS" ]]; then
+        verdict="RETRY"  # N2: no independent judge evidence, never PASS
+    fi
 
     # ── Output ──
     if [[ "$DRY_RUN" == true ]]; then
