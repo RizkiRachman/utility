@@ -23,11 +23,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-# Dynamic session-based default: live state is at session/contract.json
-br=$(echo session 2>/dev/null || echo "main")
-if [[ "$br" == "HEAD" ]]; then br="main"; fi
-CONTRACT_FILE="$PROJECT_DIR/session/contract.json"
+# N1: session state lives with the PROJECT, not the engine copy
+source "${SCRIPT_DIR}/lib/paths.sh"
+PROJECT_DIR="$(resolve_project_root "${SCRIPT_DIR}/..")"
+CONTRACT_FILE="${PROJECT_DIR}/session/contract.json"
+exec 9>"${CONTRACT_FILE}.lock" 2>/dev/null || true
+flock 9 2>/dev/null || true
 SCORE=""
 RUN_VALIDATE=false
 VERBOSE=false
@@ -100,7 +101,7 @@ data['score'] = data.get('score', {})
 data['score']['combined'] = $SCORE
 verdict = 'PASS' if $SCORE >= 70 else ('RETRY' if $SCORE >= 50 else 'BLOCKED')
 data['score']['verdict'] = verdict
-with open('$CONTRACT_FILE', 'w') as f:
+with open('$CONTRACT_FILE.new', 'w') as f:
     json.dump(data, f, indent=2)
 " 2>&1 || {
     echo "ERROR: Score injection failed" >&2
@@ -109,6 +110,7 @@ with open('$CONTRACT_FILE', 'w') as f:
 fi
 
 # --- Step 1: Write to temp file --------------------------------------------
+[[ -f "$CONTRACT_FILE.new" ]] && mv "$CONTRACT_FILE.new" "$CONTRACT_FILE"
 TEMP_FILE=$(mktemp /tmp/contract-persist-XXXXXX.json)
 if [[ -z "$TEMP_FILE" ]]; then
     echo "ERROR: Failed to create temp file" >&2

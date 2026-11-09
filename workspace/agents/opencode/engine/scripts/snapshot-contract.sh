@@ -27,7 +27,8 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/paths.sh"  # N1
+PROJECT_ROOT="$(resolve_project_root "$(dirname "${BASH_SOURCE[0]}")/..")"
 SESSION_DIR="$PROJECT_ROOT/session"
 CONTRACT_FILE="$SESSION_DIR/contract.json"
 

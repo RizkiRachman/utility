@@ -24,11 +24,12 @@ set -euo pipefail
 
 # --- Config ----------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "${SCRIPT_DIR}/lib/paths.sh"  # N1: session state lives with the project
+PROJECT_DIR="$(resolve_project_root "${SCRIPT_DIR}/..")"
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 CONTRACT_FILE=""
-RULES_FILE="$PROJECT_DIR/rules/rules.json"
+RULES_FILE="$SCRIPT_DIR/../rules/rules.json"  # engine asset: ships with engine copy (N1/N12)
 PREV_STATE=""
 VERBOSE=false
 SCORE_MODE=false
@@ -665,12 +666,12 @@ with open('$contract_file') as f:
     local threshold
     threshold=$(jq -r --arg from "$PREV_STATE" --arg to "$current_state" '
         [.state_machine.transitions[]
-        | select(.from == $from and .to == $to)
+        | select((.from == $from or .from == "*") and .to == $to)
         | .require_score // null][0]
     ' "$rules_file" 2>/dev/null || echo "null")
 
     if [[ "$threshold" != "null" && -n "$threshold" ]]; then
-        if [[ "$BC_UNAVAILABLE" == true ]]; then
+        if false; then # N12: bc not required, integer comparison used
             log_fail "Score gate cannot be checked — bc not available"
             return 1
         fi
@@ -680,7 +681,7 @@ import json
 with open('$contract_file') as f:
     print(json.load(f).get('score', {}).get('combined', 0))
 ")
-        if (( $(echo "$actual_score < $threshold" | bc -l) )); then
+        if (( ${actual_score%%.*} < ${threshold%%.*} )); then
             log_fail "Score gate — $PREV_STATE → $current_state requires score ≥ $threshold, got $actual_score"
             return 1
         fi
@@ -708,7 +709,7 @@ check_score_gate() {
     local transition_data
     transition_data=$(jq -c --arg from "$current_state" --arg to "$new_state" '
         .state_machine.transitions[]
-        | select(.from == $from and .to == $to)
+        | select((.from == $from or .from == "*") and .to == $to)
     ' "$RULES_FILE" 2>/dev/null || echo "null")
 
     if [[ "$transition_data" == "null" ]]; then
@@ -720,17 +721,45 @@ check_score_gate() {
     require_score=$(echo "$transition_data" | jq -r '.require_score // null')
 
     if [[ "$require_score" != "null" ]]; then
-        if [[ "$BC_UNAVAILABLE" == true ]]; then
+        if false; then # N12: bc not required, integer comparison used
             log_fail "Score gate cannot be checked — bc not available"
             return 1
         fi
         local actual_score
         actual_score=$(jq -r '.score.combined // 0' "$contract_file")
-        if (( $(echo "$actual_score < $require_score" | bc -l) )); then
+        if (( ${actual_score%%.*} < ${require_score%%.*} )); then
             log_fail "Score gate — $current_state → $new_state requires score ≥ $require_score, got $actual_score"
             return 1
         fi
         log_pass "Score gate — $current_state → $new_state (score $actual_score ≥ $require_score)"
+    fi
+    # N12: escalation precondition (score_lt) + conditional edges
+    local edge_score_lt edge_req
+    edge_score_lt=$(echo "$transition_data" | jq -r ".score_lt // empty")
+    if [[ -n "$edge_score_lt" ]]; then
+        local esc_score
+        esc_score=$(jq -r ".score.combined // 0" "$contract_file")
+        if (( ${esc_score%%.*} >= ${edge_score_lt%%.*} )); then
+            log_fail "Escalation gate - $current_state to $new_state requires score < $edge_score_lt (got $esc_score); use RETRY path"
+            return 1
+        fi
+        log_pass "Escalation gate - score $esc_score < $edge_score_lt"
+    fi
+    edge_req=$(echo "$transition_data" | jq -r ".requires // empty")
+    if [[ "$edge_req" == "user_override" ]]; then
+        if [[ "$(jq -r ".governance.user_override // false" "$contract_file")" != "true" ]]; then
+            log_fail "Transition requires governance.user_override=true"
+            return 1
+        fi
+    elif [[ "$edge_req" == "retry_allowed" ]]; then
+        local r_att r_max
+        r_att=$(jq -r ".retry.attempt // 0" "$contract_file")
+        r_max=$(jq -r ".retry.max_attempts // 3" "$contract_file")
+        if (( r_att >= r_max )); then
+            log_fail "Retry exhausted (attempt $r_att >= $r_max); BLOCKED is the only legal path"
+            return 1
+        fi
+        log_pass "Retry allowed (attempt $r_att < $r_max)"
     fi
     return 0
 }

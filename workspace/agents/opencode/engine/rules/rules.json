@@ -42,13 +42,50 @@
       {
         "from": "*",
         "to": "BLOCKED",
-        "require_score": 50
+        "score_lt": 50,
+        "or_retry_exhausted": true
       },
       {
         "from": "BLOCKED",
         "to": "INIT",
         "require_score": null,
         "requires": "user_override"
+      },
+      {
+        "from": "PLAN_SCORED",
+        "to": "PLAN",
+        "requires": "retry_allowed",
+        "description": "RETRY: re-plan with feedback"
+      },
+      {
+        "from": "EXECUTE_SCORED",
+        "to": "EXECUTE",
+        "requires": "retry_allowed",
+        "description": "RETRY: re-execute with feedback"
+      },
+      {
+        "from": "REVIEW_SCORED",
+        "to": "REVIEW",
+        "requires": "retry_allowed",
+        "description": "RETRY: re-review with feedback"
+      },
+      {
+        "from": "BLOCKED",
+        "to": "PLAN",
+        "requires": "user_override",
+        "description": "Resume at PLAN after unblock"
+      },
+      {
+        "from": "BLOCKED",
+        "to": "EXECUTE",
+        "requires": "user_override",
+        "description": "Resume at EXECUTE after unblock"
+      },
+      {
+        "from": "BLOCKED",
+        "to": "REVIEW",
+        "requires": "user_override",
+        "description": "Resume at REVIEW after unblock"
       }
     ],
     "states": [
@@ -61,7 +98,8 @@
       "REVIEW_SCORED",
       "COMPLETE",
       "BLOCKED"
-    ]
+    ],
+    "blocked_ttl_hours": 24
   },
   "scoring": {
     "version": "0.8.0",
@@ -255,21 +293,63 @@
       "enabled": true,
       "desc": "Per-phase model separation and independent (cross-model) review enforcement.",
       "model_tiers": {
-        "executor": ["opencode/big-pickle"],
-        "default": ["sumopod/glm-5.3-flash"],
-        "fallback": ["sumopod/deepseek-flash"],
+        "executor": [
+          "opencode/big-pickle"
+        ],
+        "default": [
+          "sumopod/glm-5.3-flash"
+        ],
+        "fallback": [
+          "sumopod/deepseek-flash"
+        ],
         "separation_rule": "reviewer primary/default must differ from executor primary and executor fallback"
       },
       "phase_assignment": {
-        "INIT": { "owner": "product-manager", "tier": "reviewer" },
-        "PLAN": { "owner": "system-analyst", "tier": "executor" },
-        "PLAN_SCORED": { "owner": "orchestrator", "tier": "executor", "reviewers": ["software-architect"] },
-        "EXECUTE": { "owner": "developer", "tier": "executor" },
-        "EXECUTE_SCORED": { "owner": "orchestrator", "tier": "executor", "reviewers": ["software-architect"] },
-        "REVIEW": { "owner": "quality-analyst", "tier": "reviewer", "reviewers": ["security-engineer"] },
-        "REVIEW_SCORED": { "owner": "orchestrator", "tier": "executor" },
-        "COMPLETE": { "owner": "learner", "tier": "executor" },
-        "BLOCKED": { "owner": "scrum-master", "tier": "reviewer" }
+        "INIT": {
+          "owner": "product-manager",
+          "tier": "reviewer"
+        },
+        "PLAN": {
+          "owner": "system-analyst",
+          "tier": "executor"
+        },
+        "PLAN_SCORED": {
+          "owner": "orchestrator",
+          "tier": "executor",
+          "reviewers": [
+            "software-architect"
+          ]
+        },
+        "EXECUTE": {
+          "owner": "developer",
+          "tier": "executor"
+        },
+        "EXECUTE_SCORED": {
+          "owner": "orchestrator",
+          "tier": "executor",
+          "reviewers": [
+            "software-architect"
+          ]
+        },
+        "REVIEW": {
+          "owner": "quality-analyst",
+          "tier": "reviewer",
+          "reviewers": [
+            "security-engineer"
+          ]
+        },
+        "REVIEW_SCORED": {
+          "owner": "orchestrator",
+          "tier": "executor"
+        },
+        "COMPLETE": {
+          "owner": "learner",
+          "tier": "executor"
+        },
+        "BLOCKED": {
+          "owner": "scrum-master",
+          "tier": "reviewer"
+        }
       },
       "rule": "A reviewer MUST run on a different model tier than the agent that produced the artifact under review.",
       "disagreement_policy": {
@@ -321,7 +401,11 @@
       "collision_suffix": "-<4 char session-id prefix>",
       "write_scope": "own session folder only; other sessions read-only",
       "delete_scope": "own session folder only; another session's folder requires user approval",
-      "tracked": ["README.md", ".gitignore", ".gitkeep"],
+      "tracked": [
+        "README.md",
+        ".gitignore",
+        ".gitkeep"
+      ],
       "committed": false,
       "gitignore_pattern": "certs",
       "quota_mb": 200,
@@ -331,7 +415,13 @@
         "min": 4100,
         "max": 4999
       },
-      "forbidden": ["secrets", "tokens", "credentials", "certificates", "customer data"],
+      "forbidden": [
+        "secrets",
+        "tokens",
+        "credentials",
+        "certificates",
+        "customer data"
+      ],
       "promote_before_complete": true,
       "violation_action": "warn_then_BLOCKED_on_repeat"
     }

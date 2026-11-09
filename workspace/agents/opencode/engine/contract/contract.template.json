@@ -50,7 +50,8 @@
         "retry"
       ]
     },
-    "previous_blockers": []
+    "previous_blockers": [],
+    "user_override": false
   },
   "score": {
     "rules": {

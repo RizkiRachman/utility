@@ -48,6 +48,7 @@ log_verbose() { [[ "$VERBOSE" == true ]] && echo -e "${YELLOW}[VERBOSE]${NC} $*"
 SESSION_ID=""
 CONTRACT_FILE=""
 SKIP_KNOWLEDGE=false
+KNOWLEDGE_FAILED=false
 SKIP_FILE=false
 DRY_RUN=false
 VERBOSE=false
@@ -281,10 +282,12 @@ if [[ "$SKIP_KNOWLEDGE" == false ]]; then
             "${LEARN_CTX_EXTRA[@]}" 2>/dev/null && {
             echo -e "${GREEN}[PASS]${NC} Knowledge persisted successfully."
         } || {
-            echo -e "${YELLOW}[WARN]${NC} lean-ctx returned non-zero, but continuing..."
+            echo -e "${RED}[ERROR]${NC} lean-ctx knowledge persistence FAILED"
+            KNOWLEDGE_FAILED=true
         }
     else
-        echo -e "${YELLOW}[WARN]${NC} lean-ctx not available, skipping knowledge persistence" >&2
+        echo -e "${RED}[ERROR]${NC} lean-ctx not available; knowledge persistence skipped" >&2
+        KNOWLEDGE_FAILED=true
     fi
 fi
 
@@ -333,5 +336,9 @@ fi
 # ---------------------------------------------------------------------------
 # Done
 # ---------------------------------------------------------------------------
+if [[ "$KNOWLEDGE_FAILED" == true && "$SKIP_KNOWLEDGE" == false ]]; then
+    echo -e "${RED}[ERROR]${NC} Persist completed WITH KNOWLEDGE-WRITE FAILURE; knowledge store is stale" >&2
+    exit 1
+fi
 echo -e "${GREEN}[PASS]${NC} Persist completed successfully."
 exit 0

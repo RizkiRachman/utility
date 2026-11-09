@@ -23,7 +23,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "${SCRIPT_DIR}/lib/paths.sh"  # N1: session state lives with the project
+PROJECT_ROOT="$(resolve_project_root "${SCRIPT_DIR}/..")"
 
 # ── Config ──────────────────────────────────────────────────────────────────
 CONTRACT_FILE=""
