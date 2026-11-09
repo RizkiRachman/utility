@@ -127,7 +127,6 @@ For huge/massive tasks, enhance visual analysis with complex-task patterns:
 
 ### Enhanced Visual Analysis
 2. Use `ctx_compose({query: "concept"})` to cross-reference visual findings with code structure
-3. Use `graphify query "<question>"` to explore knowledge graph for context on diagrams
 4. Load `/skill system-analyst` for architecture diagram interpretation
 
 ## 🚀 Post-Flight Protocol (MANDATORY)
@@ -140,7 +139,6 @@ After completing your work, run these steps **in order** before declaring done:
 | 2. Change detection | `ctx_delta()` (or `{scope: "all"}` for staged+unstaged) | Verify only expected files changed — no unintended side effects |
 | 3. Knowledge persistence | `lean-ctx ctx_knowledge remember` | Persist any gotchas, patterns, or decisions discovered during the task (categories: `architecture`, `gotchas`, `conventions`) |
 | 4. session/state.md update | `lean-ctx ctx_edit` on `session/state.md` | Append completed work, update Current Focus, update Known Blockers |
-| 5. Session save (complete) | Run **Save Session Protocol** — persist envelope → update state.md → archive snapshot → save conversation → re-index lean-ctx → re-index graphify |
 
 **Exceptions**: Documentation-only changes may skip steps 1, 2, and 4.
 

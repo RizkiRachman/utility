@@ -311,7 +311,6 @@ After each subagent delegation returns and scoring completes, persist state acro
    - Current Focus: `"Agent orchestration — ${state} (phase: ${retry.current_phase}). ${score.combined >= 70 ? '' : 'Score: ' + score.combined}"`
    - If BLOCKED: add to Known Blockers with issues from `retry.issues[]`
    - If PASS: clear Known Blockers
-5. **Run Save Session Protocol**: Persist envelope → update state.md → archive snapshot → save conversation → re-index lean-ctx → re-index graphify (see §6 Ship for the full 6-step protocol)
 
 ### 5.8 State Machine
 
@@ -347,7 +346,6 @@ If state = `BLOCKED`:
 1. Read envelope from `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
 2. Update session/state.md Known Blockers: `"BLOCKED at ${phase}: ${issues}"`
 3. Persist envelope final state via `lean-ctx ctx_knowledge remember key orchestration-contract value <JSON>`
-4. Run **Save Session Protocol**: update state.md → archive snapshot → save conversation (ctx_session save) → re-index lean-ctx → re-index graphify
 5. **Snapshot blocked state**: `scripts/snapshot-contract.sh --summary "State: BLOCKED at ${phase} — ${issues}"`
 6. Summarize blockers to user: `"I hit BLOCKED at ${phase}. Issues: ${issues}. Please review and decide: adjust threshold, fix guidance, or discard."`
 7. Stop — do not continue execution until user responds
@@ -367,7 +365,6 @@ If state = `COMPLETE` and scoring passed:
 - Summarize what was done
 - Confirm ready for deployment
 - **Final snapshot**: `scripts/snapshot-contract.sh --summary "State: COMPLETE — task complete"`
-- **Run full Save Session Protocol**: persist envelope → update state.md → archive snapshot → save conversation → re-index lean-ctx → re-index graphify
 
 ### 7. Learn & Persist (Cross-Session Learning)
 
@@ -388,9 +385,7 @@ Before any commit, run the Post-Flight Protocol from agent.md §5:
 | 1 | Impact verify | `ctx_impact` |
 | 2 | Change detect | `ctx_delta` |
 | 3 | Knowledge persist | `lean-ctx ctx_knowledge remember` |
-| 4 | Graphify sync | `lean-ctx ctx_shell bash graphify --update` |
 | 5 | STATE.md | `ctx_edit` |
-| 6 | Session save (complete) | Run **Save Session Protocol**: persist envelope → update state.md → archive snapshot → save conversation → re-index lean-ctx → re-index graphify |
 
 Exceptions: docs-only changes skip 1, 2, 4. Config-only skip 1, 2.
 
@@ -461,7 +456,6 @@ Every agent MUST run these steps in order at session start:
 2. **Load complex-task contract**: `lean-ctx ctx_knowledge recall --query "orchestration-contract"` → see available plugins, skills, MCPs
 3. **Load orchestration envelope**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)` → read current state
 4. **Sync state**: Read `session/state.md` (Current Focus) + `PROJECT.md` (vision) + lean-ctx knowledge (past decisions)
-5. **Refresh intelligence**: `lean-ctx ctx_shell` `bash graphify --update` if index is stale (>1 hour old)
 6. **Session archive check**: `ls session/` — if exists, load `contract.json` from there for state continuity
 7. **Validate contract integrity**: `bash scripts/validate-contract.sh --file session/contract.json --rules rules/rules.json --score`
    → If contract.json missing: validate template instead: `bash scripts/validate-contract.sh --file contract/contract.template.json --score`

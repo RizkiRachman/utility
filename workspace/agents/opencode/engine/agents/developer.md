@@ -97,9 +97,7 @@ If found → extract `decisions.*`, `governance.*`, `retry.issues[]`, `scope.inc
 | `session/state.md` | Read via `ctx_read` — current focus, blockers, decisions |
 | `PROJECT.md` | Read via `ctx_read` — project vision, scope, constraints |
 | `lean-ctx knowledge` | Recall recent patterns: `ctx_knowledge recall --query "architecture"` |
-| `lean-ctx` | Re-index if stale: `lean-ctx ctx_shell` `bash graphify --update` |
 
-Freshness rule: If lean-ctx/graphify index was built >1 hour ago or after any code change, re-index before proceeding.
 
 ### 3. Load Relevant Skills
 Scan available skills. Load matching ones via `/skill`:
@@ -309,9 +307,7 @@ After completing work, run these steps **in order** before notifying the orchest
 | 1 | Impact verify | `ctx_impact({target: "symbol", direction: "upstream"})` — confirm blast radius |
 | 2 | Change detect | `ctx_delta()` — verify changes only affect expected symbols |
 | 3 | Knowledge persist | `lean-ctx ctx_knowledge remember` with key findings |
-| 4 | Graphify sync | `lean-ctx ctx_shell bash graphify --update` |
 | 5 | STATE.md | Update session/state.md Current Focus and Completed |
-| 6 | Session save | Run **Save Session Protocol**: persist envelope → update state.md → archive snapshot → save conversation → re-index lean-ctx → re-index graphify |
 
 **Exceptions:** Documentation-only changes may skip steps 0, 2, 4. Config-only changes skip 1, 2.
 
@@ -332,10 +328,7 @@ bash scripts/snapshot-contract.sh --snapshot-only
 lean-ctx ctx_session save
 
 # 5. Re-index lean-ctx code intelligence
-bash graphify --update
 
-# 6. Re-index Graphify knowledge graph (if graphify-out/ exists)
-graphify --update 2>/dev/null || true
 ```
 
 **One-shot alias**: `save session` = all 6 steps above.

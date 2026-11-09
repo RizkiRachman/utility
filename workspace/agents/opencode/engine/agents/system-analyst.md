@@ -101,9 +101,7 @@ If found → extract `requirements.*`, `governance.*`, `retry.issues[]`, `scope.
 | `session/state.md` | Read via `ctx_read` — current focus, blockers, decisions |
 | `PROJECT.md` | Read via `ctx_read` — project vision, scope, constraints |
 | `lean-ctx knowledge` | Recall recent patterns: `ctx_knowledge recall --query "architecture"` |
-| `lean-ctx` | Re-index if stale: `lean-ctx ctx_shell` `bash graphify --update` (skip if within 5 min of last index) |
 
-Freshness rule: If lean-ctx/graphify index was built >1 hour ago or after any code change, re-index before proceeding.
 
 ### 3. Load Relevant Skills
 Scan the available skills list at session start. Load matching skills via `/skill`:
@@ -144,7 +142,6 @@ After completing your work, run these steps **in order** before declaring done:
 | 2. Change detection | `ctx_delta()` (or `{scope: "all"}` for staged+unstaged) | Verify only expected files changed — no unintended side effects |
 | 3. Knowledge persistence | `lean-ctx ctx_knowledge remember` | Persist any gotchas, patterns, or decisions discovered during the task (categories: `architecture`, `gotchas`, `conventions`) |
 | 4. session/state.md update | `lean-ctx ctx_edit` on `session/state.md` | Append completed work, update Current Focus, update Known Blockers |
-| 5. Session save (complete) | Run **Save Session Protocol** — persist envelope → update state.md → archive snapshot → save conversation → re-index lean-ctx → re-index graphify |
 
 **Exceptions**: Documentation-only changes may skip steps 1, 2, and 4.
 
@@ -169,7 +166,6 @@ Read AGENTS.md and trace end-to-end:
 Use MCP tools for deeper analysis:
 - `ctx_compose({query: "concept"})` — find execution flows related to the change
 - `ctx_compose({name: "symbol"})` — understand how existing symbols are used
-- `graphify query "<question>"` — explore knowledge graph for unfamiliar code
 - `/skill business-analyst` — for requirements and acceptance criteria depth
 - `/skill system-analyst` — for architecture and dependency mapping depth
 - `ctx_impact({target, direction: "upstream"})` — verify blast radius for any referenced symbols

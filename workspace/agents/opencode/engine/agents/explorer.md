@@ -81,7 +81,6 @@ If found → extract `requirements.goal`, `scope.included`, `scope.excluded`. If
 | `session/state.md` | Read via `ctx_read` — current focus, blockers, decisions |
 | `PROJECT.md` | Read via `ctx_read` — project vision, scope, constraints |
 | `lean-ctx knowledge` | Recall search-relevant patterns: `ctx_knowledge recall --query "architecture"` |
-| `lean-ctx` | Re-index if stale: `lean-ctx ctx_shell` `bash graphify --update` |
 
 Freshness rule: If lean-ctx index was built >1 hour ago or after any code change, re-index before proceeding.
 
@@ -95,7 +94,6 @@ For huge/massive tasks, enhance search with complex-task patterns:
 
 ### Enhanced Search
 1. Use `ctx_compose({query: "concept"})` to find execution flows before reading files
-2. Use `graphify query "<question>"` to explore knowledge graph for unfamiliar code
 4. Return concise summaries with file paths, patterns, and symbol names
 
 ## 🚀 Post-Flight Protocol (MANDATORY)
@@ -108,7 +106,6 @@ After completing your work, run these steps **in order** before declaring done:
 | 2. Change detection | `ctx_delta()` (or `{scope: "all"}` for staged+unstaged) | Verify only expected files changed — no unintended side effects |
 | 3. Knowledge persistence | `lean-ctx ctx_knowledge remember` | Persist any gotchas, patterns, or decisions discovered during the task (categories: `architecture`, `gotchas`, `conventions`) |
 | 4. session/state.md update | `lean-ctx ctx_edit` on `session/state.md` | Append completed work, update Current Focus, update Known Blockers |
-| 5. Session save (complete) | Run **Save Session Protocol** — persist envelope → update state.md → archive snapshot → save conversation → re-index lean-ctx → re-index graphify |
 
 **Exceptions**: Documentation-only changes may skip steps 1, 2, and 4.
 

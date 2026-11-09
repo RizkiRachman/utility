@@ -107,7 +107,6 @@ If found → extract ALL fields: `session`, `requirements`, `decisions`, `output
 | `PROJECT.md` | Read via `ctx_read` — project vision, scope, constraints |
 | `AGENTS.md` | Read via `ctx_read` — project conventions |
 | `lean-ctx knowledge` | Recall ALL categories: `ctx_knowledge recall --query "architecture"`, `ctx_knowledge recall --query "conventions"`, `ctx_knowledge recall --query "testing"` |
-| `lean-ctx` | Re-index: `lean-ctx ctx_shell` `bash graphify --update`. Then run `ctx_delta()` to verify expected scope |
 | `lean-ctx ctx_knowledge` | `recall` | Retrieve system primer and recent context about the completed task |
 
 Freshness rule: Run ALL sync operations regardless of staleness — you are the final checkpoint.
@@ -139,8 +138,6 @@ Every system listed below **MUST** be updated before the learner completes. **No
 | **PROJECT.md** | `ctx_edit` | Update if task changed project scope, vision, or added significant new capabilities |
 | **AGENTS.md** | `ctx_edit` | Update if task introduced new conventions, rules, or agent behaviors that should be documented for future sessions |
 | **Orchestration envelope** | `ctx_knowledge remember --key orchestration-contract` | Set `state = COMPLETE`, update `outputs.*`, `score.*`, `metrics.*`, append to `lessons_learned[]` |
-| **lean-ctx** | `lean-ctx ctx_shell` `bash graphify --update` | Re-index so code intelligence reflects the latest code changes |
-| **graphify** | If graph changed: `lean-ctx ctx_shell` `bash graphify --update` (graphify auto-consumes lean-ctx index) | Ensure knowledge graph stays in sync — run lean-ctx first, graphify follows automatically |
 | **lean-ctx ctx_knowledge** | `remember` | Persist full task summary as key task-summary |
 | **Session resume** | `ctx_session save` | Save session with descriptive task label for next-session continuity |
 | **ctx_session** | `ctx_session save` | Persist conversation for resumption |
@@ -151,7 +148,6 @@ Every system listed below **MUST** be updated before the learner completes. **No
 3. Update PROJECT.md / AGENTS.md if scope or conventions changed
 4. Finalize orchestration envelope (set COMPLETE state, persist lessons)
 5. Re-index lean-ctx (keeps code intelligence current)
-6. Rebuild graphify index (auto-consumes lean-ctx state)
 7. Update documentation (ARCHITECTURE_HYBRID.md, DEVELOPER_GUIDE.md, ERD.md — only if affected by the change)
 8. Persist to lean-ctx ctx_knowledge (cross-session semantic memory)
 9. Create handoff pack (next session resume point)

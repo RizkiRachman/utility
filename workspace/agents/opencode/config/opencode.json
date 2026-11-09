@@ -1035,7 +1035,7 @@
   },
   "instructions": [
     "/opt/engine/agent.md",
-    "opencode/config/rag-usage.md"
+    "/opt/engine/config/rag-usage.md"
   ],
   "compaction": {
     "auto": true,

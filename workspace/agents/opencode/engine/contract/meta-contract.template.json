@@ -5,73 +5,73 @@
   "services": [
     {
       "name": "service",
-      "repo": "goods-price-comparison-service",
-      "state": "COMPLETE",
+      "repo": "your-project-service",
+      "state": "NOT_STARTED",
       "phase": "A",
-      "validated": true,
+      "validated": false,
       "session_id": "session",
       "version": "0f20b5b"
     },
     {
       "name": "api",
-      "repo": "goods-price-comparison-api",
-      "state": "COMPLETE",
+      "repo": "your-project-api",
+      "state": "NOT_STARTED",
       "phase": "B",
-      "validated": true,
+      "validated": false,
       "session_id": "session",
       "version": "0f20b5b"
     },
     {
       "name": "automation",
-      "repo": "goods-price-comparison-automation",
-      "state": "COMPLETE",
+      "repo": "your-project-automation",
+      "state": "NOT_STARTED",
       "phase": "B",
-      "validated": true,
+      "validated": false,
       "session_id": "session",
       "version": "0f20b5b"
     },
     {
       "name": "agent-helper",
-      "repo": "goods-price-comparison-agent-helper",
-      "state": "COMPLETE",
+      "repo": "your-project-agent-helper",
+      "state": "NOT_STARTED",
       "phase": "B",
-      "validated": true,
+      "validated": false,
       "session_id": "session",
       "version": "0f20b5b"
     },
     {
       "name": "dashboard",
-      "repo": "goods-price-comparison-dashboard",
-      "state": "COMPLETE",
+      "repo": "your-project-dashboard",
+      "state": "NOT_STARTED",
       "phase": "B",
-      "validated": true,
+      "validated": false,
       "session_id": "session",
       "version": "0f20b5b"
     },
     {
       "name": "deployer",
-      "repo": "goods-price-comparison-deployer",
-      "state": "COMPLETE",
+      "repo": "your-project-deployer",
+      "state": "NOT_STARTED",
       "phase": "B",
-      "validated": true,
+      "validated": false,
       "session_id": "session",
       "version": "0f20b5b"
     },
     {
       "name": "claude-service",
-      "repo": "goods-price-comparison-claude-service",
-      "state": "COMPLETE",
+      "repo": "your-project-claude-service",
+      "state": "NOT_STARTED",
       "phase": "B",
-      "validated": true,
+      "validated": false,
       "session_id": "session",
       "version": "0f20b5b"
     },
     {
       "name": "properties",
-      "repo": "goods-price-comparison-properties",
-      "state": "COMPLETE",
+      "repo": "your-project-properties",
+      "state": "NOT_STARTED",
       "phase": "B",
-      "validated": true,
+      "validated": false,
       "session_id": "session",
       "version": "0f20b5b"
     }

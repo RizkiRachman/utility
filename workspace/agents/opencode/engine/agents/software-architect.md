@@ -105,9 +105,7 @@ ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_know
 | `AGENTS.md` | Read via `ctx_read` — project conventions |
 | `docs/ARCHITECTURE_HYBRID.md` | Read via `ctx_read` — architecture reference |
 | `lean-ctx knowledge` | Recall recent patterns: `ctx_knowledge recall --query "architecture"` |
-| `lean-ctx` | Re-index if stale: `lean-ctx ctx_shell` `bash graphify --update` |
 
-Freshness rule: If gitnensus/graphify index was built >1 hour ago or after any code change, re-index.
 
 ### 3. Load Relevant Skills
 Scan available skills. Load matching ones via `/skill`:
@@ -193,7 +191,6 @@ After completing your work, run these steps **in order** before declaring done:
 | 2. Change detection | `ctx_delta()` (or `{scope: "all"}` for staged+unstaged) | Verify only expected files changed — no unintended side effects |
 | 3. Knowledge persistence | `lean-ctx ctx_knowledge remember` | Persist any gotchas, patterns, or decisions discovered during the task (categories: `architecture`, `gotchas`, `conventions`) |
 | 4. session/state.md update | `lean-ctx ctx_edit` on `session/state.md` | Append completed work, update Current Focus, update Known Blockers |
-| 5. Session save (complete) | Run **Save Session Protocol** — persist envelope → update state.md → archive snapshot → save conversation → re-index lean-ctx → re-index graphify |
 
 **Exceptions**: Documentation-only changes may skip steps 1, 2, and 4.
 

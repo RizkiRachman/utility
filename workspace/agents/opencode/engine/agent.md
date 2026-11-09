@@ -72,7 +72,6 @@ commands/   → slash commands (impeccable)
 contract/   → contract.template.json, contract.schema.json, state.template.md
 rules/      → rules.json (state machine transitions, scoring thresholds, cross-model review)
 doc/        → workflow guides, project.md, gap analysis, reports
-usage/      → 4 tool usage guides (lean-ctx, graphify, context7, opencode)
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -197,7 +196,6 @@ See [`/opt/engine/doc/workflow.md`](/opt/engine/doc/workflow.md) for the canonic
 | Tool | What It Does | Guide |
 |------|-------------|-------|
 | **lean-ctx** | File reads, shell, search, edit, impact analysis, knowledge persistence, sessions | `/opt/engine/usage/lean-ctx.md` |
-| **Graphify** | Knowledge graph, community discovery, PR impact | `/opt/engine/usage/graphify.md` |
 | **Context7** | Library/framework docs lookup | `/opt/engine/usage/context7.md` |
 | **rag MCP** (`rag_search` / `rag_index` / `rag_status` / `rag_get`) | Semantic search over workspace code, docs, and engine skills before unfamiliar work | `/home/node/workspace/opencode/rag/README.md` |
 | **Firecrawl plugin** | First-party V2 plugin: keyless developer search, keyed alexandria gated to ask, CLI skills registered at runtime | `/opt/engine/plugins/opencode-firecrawl/VENDORED.md` |
@@ -317,7 +315,6 @@ Use **Doubt-Driven Development (DDD)** when uncertain: spawn a fresh-context adv
 
 ### Before Commit (Post-Flight Protocol)
 
-The canonical post-flight protocol is the **E1 table in [`doc/workflow/05-operations.md`](/opt/engine/doc/workflow/05-operations.md)** (8 steps: validate contract → impact verify → change detect → knowledge persist → session archive → save conversation → re-index graphify → metrics aggregation). Run it before every commit — do not maintain a second step list here.
 
 **Pre-flight**: `bash /opt/engine/scripts/validate-contract.sh --file session/contract.json --score` (score < 70 = BLOCKED)
 **Parallel conflict check**: `bash /opt/engine/scripts/detect-parallel-conflicts.sh --file1 /tmp/a.txt --file2 /tmp/b.txt`
@@ -343,8 +340,6 @@ bash /opt/engine/scripts/snapshot-contract.sh --snapshot-only
 # 4. Save conversation context (survives OpenCode restart)
 lean-ctx ctx_session save
 
-# 5. Re-index Graphify knowledge graph (if graphify-out/ exists)
-graphify --update 2>/dev/null || true
 ```
 
 **One-shot alias**: `save session` = all 5 steps above. Always run the full protocol — partial saves lose audit trail, break resumption, or leave stale indexes.
@@ -354,8 +349,6 @@ graphify --update 2>/dev/null || true
 After major changes (merged work or resumed sessions), synchronize all state systems:
 
 ```bash
-# 1. Re-index Graphify knowledge graph
-graphify --update 2>/dev/null || true
 
 # 3. Snapshot contract state (session/ → archive)
 bash /opt/engine/scripts/snapshot-contract.sh
@@ -556,7 +549,6 @@ All skills at `/opt/engine/skills/` (symlinked into the OpenCode config dir). Us
 
 This project is indexed by lean-ctx as **workflow-state-engine** (1675 symbols, 1666 relationships, 0 execution flows). Use the lean-ctx MCP tools to understand code, assess impact, and navigate safely.
 
-> Index stale? Run `bash graphify --update` from the project root.
 
 ## Always Do
 
