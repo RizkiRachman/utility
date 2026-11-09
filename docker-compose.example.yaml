@@ -82,6 +82,18 @@ services:
       sh -c "scripts/scheduled-runner.sh --task drift-detect --schedule daily
       --pid-file /tmp/scheduled-runner.pid && exec tail -F scheduled-runner.log"
 
+  opencode-maintenance:
+    image: opencode:local
+    profiles: [ "scheduler" ]
+    depends_on: [ opencode ]
+    restart: unless-stopped
+    init: true
+    working_dir: /home/node/workspace/engine   # run_task invokes scripts/... relative to CWD
+    volumes:
+      - ./workspace/agents/opencode:/home/node/workspace
+    command: >-
+      sh -c "scripts/scheduled-runner.sh --task archive --schedule daily --pid-file /tmp/scheduled-archive.pid;
+      scripts/scheduled-runner.sh --task heal --schedule daily --pid-file /tmp/scheduled-heal.pid"
   openui:
     container_name: openui
     image: openui-genui:local   # tag applied to the build below

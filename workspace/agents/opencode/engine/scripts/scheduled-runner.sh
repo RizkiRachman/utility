@@ -130,6 +130,14 @@ run_task() {
         metrics)
             bash scripts/metrics-aggregator.sh --mode summary || exit_code=1
             ;;
+        archive)
+            bash scripts/archive-sessions.sh --days 30 || exit_code=1
+            ;;
+        heal)
+            bash scripts/self-healing-retry.sh --command "bash scripts/validate-contract.sh --file ${CONTRACT_FILE:-session/contract.json}" --label contract-validate --max-retries 3 || exit_code=1
+            ;;
+
+
         *)
             log_fail "Unknown task: $TASK"
             exit_code=1

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # mcp-health.sh — Health check endpoint for MCP servers
-# Usage: scripts/mcp-health.sh [--check TYPE] [--timeout S] [--json] [--continuous] [--interval S]
+# Usage: scripts/mcp-health.sh [--check TYPE] [--timeout S] [--json] [--continuous] [--interval S] [--max-iterations N]
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
@@ -37,6 +37,8 @@ CHECK="all"
 TIMEOUT=10
 JSON="false"
 CONTINUOUS="false"
+MAX_ITERATIONS=120  # N5: bound continuous mode (2h at 60s interval)
+ITER=0
 INTERVAL=60
 ALERT_THRESHOLD=20
 VERBOSE="false"
@@ -47,6 +49,7 @@ while [[ $# -gt 0 ]]; do
         --timeout) TIMEOUT="$2"; shift ;;
         --json) JSON="true" ;;
         --continuous) CONTINUOUS="true" ;;
+        --max-iterations) MAX_ITERATIONS="$2"; shift 2 ;;
         --interval) INTERVAL="$2"; shift ;;
         --alert) ALERT_THRESHOLD="$2"; shift ;;
         --verbose) VERBOSE="true" ;;
@@ -171,6 +174,8 @@ run_checks() {
 if [[ "$CONTINUOUS" == "true" ]]; then
     log_info "Starting continuous health monitoring (interval: $INTERVALs)"
     while true; do
+        ITER=$((ITER + 1))
+        if (( ITER > MAX_ITERATIONS )); then log_info "Reached max iterations ($MAX_ITERATIONS), stopping"; break; fi
         echo "=== $(date) ==="
         run_checks
         sleep $INTERVAL

@@ -287,13 +287,13 @@ Run this ladder in order before writing ANY code:
 2. **Discuss phase** — 5-lens check: Business, System, Dev, QA, DevOps. Clarify requirements.
    - **Domain context (advisory)**: `rag_search` supplies domain context when the request touches unfamiliar code or docs.
 3. **Plan phase** — Delegate to @system-analyst: impact analysis, edge cases, implementation plan. @software-architect reviews the plan (independent model). Plans spanning >3 files or crossing services include an architecture/impact diagram (diagram-design).
-4. **Spec gate** (if >3 files, cross-service, or >30 min) — Write GWT-format specs. Cross-examine via DDD.
+4. **Spec gate** (if >3 files, cross-service, or >30 min) — Gate check: `bash /opt/engine/scripts/sdd-gate.sh --file session/contract.json || STOP` — Write GWT-format specs. Cross-examine via DDD.
 5. **Execute phase** — Delegate to @developer: implement plan step by step, write tests alongside code. @devops-engineer owns pipeline/deploy/migration. @fixer for scoped fixes. UI tasks load design-taste-frontend; developer passes the impeccable detector before marking UI work done (EXECUTE exit gate). Advisory retrieval: the developer consults `rag_search` for project conventions before writing non-trivial code, then verifies hits against the file before editing.
    - **Context gate**: @developer loads project standards via `/skill context-standards` before edits when the target project defines `context/` files; @quality-analyst verifies compliance during review.
 6. **Review phase** — Delegate to @quality-analyst (5-axis) AND @security-engineer (security) on the **reviewer model**, independent from the executor. Conflicting verdicts → BLOCKED, arbitrated by @council. UI diffs get the impeccable design-lens (slop detector) inside the readability axis.
 7. **Process gate** — @scrum-master audits transitions, enforces gates, and owns the Definition of Done before COMPLETE. Unblocks BLOCKED sessions.
 8. **Verify loop** — Run build commands, check conventions. Executors and fixers run `scripts/loop-validate.sh` as the inline done-gate before REVIEW.
-9. **Ship** — Resolve issues, confirm deploy safety, run post-flight protocol; @learner captures lessons.
+9. **Ship** — COMPLETE gate: `bash /opt/engine/scripts/verify-knowledge.sh --all || STOP` — Resolve issues, confirm deploy safety, run post-flight protocol; @learner captures lessons.
 10. **Humanizer gate** — run `/skill humanizer` over all user-facing outputs shipped this session (READMEs, docs, PR descriptions, changelogs, release notes) before declaring COMPLETE. Docs that still carry AI patterns (em dashes, rule-of-three, promotional tone) are not done. Mandatory for user-facing text outputs; internal state files (session/state.md, contract JSON, code comments) are exempt.
 
 ### UI/UX Pipeline (Mandatory)

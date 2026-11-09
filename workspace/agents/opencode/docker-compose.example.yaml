@@ -45,8 +45,6 @@ services:
       RAG_EMBEDDINGS_MODEL: ${RAG_EMBEDDINGS_MODEL:-}
       RAG_EMBEDDINGS_KEY: ${RAG_EMBEDDINGS_KEY:-}
       # Graphify disabled but config preserved
-      GRAPHIFY_ROOT: /home/node/workspace
-      GRAPHIFY_BUILD: if-missing
       GRAPHIFY_TIMEOUT: "900"
     volumes:
       - .:/home/node/workspace
@@ -59,18 +57,6 @@ services:
       # - /var/run/docker.sock:/var/run/docker.sock
     # group_add:
     #   - "${DOCKER_GID:-101}"
-  opencode-preinstall:
-    image: node:22-bookworm-slim
-    profiles: ["tools"]
-    user: root
-    volumes:
-      - .:/repo
-      - ./pre-install:/repo/pre-install   # explicit store mount (project level)
-    working_dir: /repo
-    command: >-
-      sh -c "apt-get update -qq && apt-get install -y -qq --no-install-recommends
-      curl ca-certificates python3 python3-pip git && sh /repo/populate-preinstall.sh"
-
   opencode-scheduler:
     container_name: opencode-scheduler
     image: opencode:local
@@ -82,11 +68,21 @@ services:
     volumes:
       - .:/home/node/workspace
     environment:
-      GRAPHIFY_ROOT: /home/node/workspace
-      GRAPHIFY_BUILD: if-missing
     command: >-
       sh -c "scripts/scheduled-runner.sh --task drift-detect --schedule daily
       --pid-file /tmp/scheduled-runner.pid && exec tail -F scheduled-runner.log"
 
+  opencode-maintenance:
+    image: opencode:local
+    profiles: ["scheduler"]
+    depends_on: [opencode]
+    restart: unless-stopped
+    init: true
+    working_dir: /home/node/workspace/engine   # run_task invokes scripts/... relative to CWD
+    volumes:
+      - .:/home/node/workspace
+    environment:
+
+    command: sh -c "scripts/scheduled-runner.sh --task archive --schedule daily --pid-file /tmp/scheduled-archive.pid; scripts/scheduled-runner.sh --task heal --schedule daily --pid-file /tmp/scheduled-heal.pid"
 volumes:
   opencode-data:

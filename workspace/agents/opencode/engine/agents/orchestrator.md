@@ -147,6 +147,8 @@ After system-analyst returns → run **Scoring Pipeline (§4.5)** on output → 
 
 ### 2.5 Spec Gate (SDD) — between PLAN_SCORED and EXECUTE
 
+Gate check: `bash /opt/engine/scripts/sdd-gate.sh --file session/contract.json || STOP` — EXECUTE entry is illegal while this gate fails.
+
 **When to gate:** Any task touching >3 files, crossing service boundaries, or taking >30 min to implement.
 
 **Skip SDD gate for:** Single-line fixes, typo corrections, self-contained changes with unambiguous requirements.
@@ -339,6 +341,8 @@ BLOCKED (any phase) → user intervention → retry with guidance
 5. **BLOCKED** (combined < 50, or attempt exhausted) → push partial work, stop
 
 ### 6. Ship
+
+COMPLETE gate: `bash /opt/engine/scripts/verify-knowledge.sh --all || STOP` — COMPLETE is illegal while knowledge verification fails.
 
 **BLOCKED escalation:**
 If state = `BLOCKED`:
