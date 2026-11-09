@@ -102,11 +102,11 @@ parse_schedule() {
             interval_seconds=$((mins * 60))
             ;;
         cron)
-            log_info "Cron schedule: $SCHEDULE (parsed by external cron)"
-            interval_seconds=0
+            log_fail "cron schedules unsupported; use hourly, daily, or every-N"
+            return 1
             ;;
     esac
-    return $interval_seconds
+    printf '%s\n' "$interval_seconds"
 }
 
 run_task() {
@@ -139,14 +139,15 @@ run_task() {
 }
 
 run_scheduler() {
-    parse_schedule
-    local interval=$?
+    local interval
+    interval=$(parse_schedule) || exit 1
     local run_count=0
     log_info "Starting scheduler (task: $TASK, interval: ${interval}s)"
     while true; do
         if [[ -n "$HEALTH_CHECK" ]]; then
             eval "$HEALTH_CHECK" || {
-                log_fail "Health check failed, skipping run"
+                log_fail "Health check failed, backing off 60s"
+                sleep 60
                 continue
             }
         fi
@@ -154,8 +155,8 @@ run_scheduler() {
             log_info "Dry run: would execute $TASK"
             break
         fi
-        run_task
-        local result=$?
+        local result=0
+        run_task || result=$?
         run_count=$((run_count + 1))
         if [[ "$result" -ne 0 ]]; then
             case "$FAIL_MODE" in
