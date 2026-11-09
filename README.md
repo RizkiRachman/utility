@@ -4,11 +4,11 @@ Personal agent workspace: a containerized OpenCode + Workflow State Engine stack
 
 [![validate](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg)](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml)
 ![OpenCode](https://img.shields.io/badge/OpenCode-2.2.5-111111)
-![Docker Compose](https://img.shields.io/badge/docker%20compose-4%20services-2496ED?logo=docker&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/docker%20compose-5%20services-2496ED?logo=docker&logoColor=white)
 
 ## About
 
-This repository runs my AI coding environment in Docker. The product is [workspace/agents/opencode/](workspace/agents/opencode/README.md): an OpenCode 2.2.5 container that ships the Workflow State Engine (16 agents, 66 skills, contract-driven scoring), lean-ctx code intelligence, and eight MCP servers, all version-pinned and pre-populated for offline builds. A second container, [workspace/agents/openui/](workspace/agents/openui/README.md), serves generative UI over the same GLM model and is reachable from OpenCode through an MCP bridge. Scratch work lives in [workspace/sandbox/](workspace/sandbox/README.md), one folder per session, gitignored. The `workspace/infrastructure/` tree holds empty scaffolding for services planned later. One compose file and one env file configure everything.
+This repository runs my AI coding environment in Docker. The product is [workspace/agents/opencode/](workspace/agents/opencode/README.md): an OpenCode 2.2.5 container that ships the Workflow State Engine (17 agents, 45 skills, contract-driven scoring), lean-ctx code intelligence, and four MCP servers (Context7, fetch, lean-ctx, rag), all version-pinned and pre-populated for offline builds. A second container, [workspace/agents/openui/](workspace/agents/openui/README.md), serves generative UI over the same GLM model and is reachable from OpenCode through an MCP bridge. Scratch work lives in [workspace/sandbox/](workspace/sandbox/README.md), one folder per session, gitignored. The `workspace/infrastructure/` tree holds empty scaffolding for services planned later. One compose file and one env file configure everything.
 
 ## Table of Contents
 
@@ -40,7 +40,7 @@ Optional services:
 docker compose -f docker-compose.example.yaml --profile tools run --rm opencode-preinstall
 
 # daily drift detection between engine knowledge and files
-docker compose -f docker-compose.example.yaml --profile scheduler up -d opencode-scheduler
+docker compose -f docker-compose.example.yaml --profile scheduler up -d opencode-scheduler opencode-maintenance
 ```
 
 ## Services
@@ -51,6 +51,7 @@ docker compose -f docker-compose.example.yaml --profile scheduler up -d opencode
 | `openui` | default | Generative-UI sidecar (Next.js + LangGraph) calling the same GLM model, published on `127.0.0.1:8102` (loopback only), 2 GB memory, healthchecked. OpenCode reaches it through the `openui` MCP bridge, which exposes `generate_ui` and `preview_url` |
 | `opencode-preinstall` | `tools` | One-shot container that fills `workspace/agents/opencode/pre-install/` with apt, pip, and npm packages for offline builds |
 | `opencode-scheduler` | `scheduler` | Runs `scripts/scheduled-runner.sh` with the `drift-detect` task daily against the mounted workspace |
+| `opencode-maintenance` | `scheduler` | Runs the scheduled-runner `archive` and `heal` tasks daily: archives old session snapshots, retries a failing contract validation |
 
 ## Configuration
 
@@ -77,7 +78,7 @@ Runtime knobs that are not env-driven (`OPENCODE_AUTH_REQUIRED=true`, `GRAPHIFY_
 
 ```text
 utility/
-├── docker-compose.example.yaml       # 4 services: opencode, openui, opencode-preinstall, opencode-scheduler
+├── docker-compose.example.yaml       # 5 services: opencode, openui, opencode-preinstall, opencode-scheduler, opencode-maintenance
 ├── wrangler.toml                     # Empty placeholder; Pages deploy is CI-only (deploy-digest.yml)
 ├── .github/
 │   ├── workflows/validate.yml        # CI: JSON validity, bash -n sweep, cross-reference integrity, doc style (humanizer), contract score, conventions (non-blocking)
@@ -88,7 +89,7 @@ utility/
     │   ├── opencode/                 # The product (see its README)
     │   │   ├── Dockerfile            # OpenCode 2.2.5 on node:22-bookworm-slim
     │   │   ├── entrypoint.sh         # Boot chain: auth, graphify, MCP preflight, optional engine self-check, serve (serve/web probe fallback)
-    │   │   ├── config/               # opencode.json: 8 MCP servers, firecrawl plugin, 20 agents; model fallback config; rag-usage.md
+    │   │   ├── config/               # opencode.json: 4 MCP servers, firecrawl plugin, 20 agents; model fallback config; rag-usage.md
     │   │   ├── rag/                  # RAG MCP server (SQLite FTS5 + vectors)
     │   │   ├── engine/               # Workflow State Engine, copied to /opt/engine at build
     │   │   ├── populate-preinstall.sh # Fills the offline store; runs inside the opencode-preinstall container
@@ -154,32 +155,16 @@ No compose service references these yet.
 
 ## FAQ
 
-**Why the offline package store?**
-The Dockerfile installs apt, pip, and npm packages from `workspace/agents/opencode/pre-install/`, which is mounted as a build context. With the store empty, installs fall back to the network and fail in offline environments. The `opencode-preinstall` service fills it once; repeat runs skip what is already present.
+- **Why the offline package store?** The Dockerfile installs apt, pip, and npm packages from `workspace/agents/opencode/pre-install/`, mounted as a build context. With the store empty, installs fall back to the network. The `opencode-preinstall` service fills it once; repeat runs skip what is already present.
+- **What do the scheduler services do?** `opencode-scheduler` runs `scripts/scheduled-runner.sh` with the `drift-detect` task daily, comparing persisted engine knowledge against workspace files. `opencode-maintenance` runs the `archive` and `heal` tasks daily: archiving old session snapshots and retrying a failing contract validation.
+- **How can AI agents consume this repository?** Every push to `main` triggers `.github/workflows/deploy-digest.yml`, which packs `workspace/agents/opencode/**` into a plain-text digest with [repomix](https://github.com/yamadashy/repomix) and deploys it to Cloudflare Pages (project `utility-digest`). Agents read the deployed `repomix-output.txt` instead of cloning. The deploy is CI-only; `wrangler.toml` is an empty placeholder kept for local experiments.
+- **Where does session state live?** In `workspace/agents/opencode/session/`: `contract.json` (the live orchestration envelope), `state.md` (append-only log), and `archive/` (snapshots). Gitignored except for `state.example.md`, which documents the format.
+- **Where does scratch work go?** In `workspace/sandbox/<session-slug>/`, one folder per live session. The skeleton is tracked; session folders are gitignored, so probes, clones, and rendered tests never reach the repository. Promote anything durable before a session ends; rules are in `workspace/sandbox/README.md`.
+- **What is openui?** A self-hosted generative-UI service from the [thesysdev/openui](https://github.com/thesysdev/openui) scaffold, patched to call the GLM model directly. Browser UI on `127.0.0.1:8102`; OpenCode agents reach it through the `openui` MCP bridge (`generate_ui`, `preview_url`). See `workspace/agents/openui/README.md`.
+- **Where do I sign in?** OpenCode's web UI is published directly on `127.0.0.1:4096` (loopback only). The first visit shows OpenCode's pairing screen; enter `OPENCODE_SERVER_PASSWORD` there. HTTP Basic auth checks the key directly; no proxy in between.
+- **How do I update pinned versions?** Bump the build args in `docker-compose.example.yaml` and the matching `ARG` defaults in `workspace/agents/opencode/Dockerfile`, re-run the `opencode-preinstall` profile so the offline store picks up the new versions, then rebuild.
+- **What does the rag server index?** The `rag` MCP server indexes `/home/node/workspace` by default: markdown per heading, Java per method, other text per paragraph. It skips binaries, files above 512 KB, build output, lockfiles, and vendored or transient directories (`.git`, `node_modules`, `dist`, `pre-install`, `session`). Indexing is incremental and hash based. Usage rules load automatically from `opencode/config/rag-usage.md`.
 
-**What does the scheduler do?**
-The `opencode-scheduler` service runs `scripts/scheduled-runner.sh` with the `drift-detect` task on a daily schedule. It compares persisted engine knowledge against the files in the workspace and reports drift.
-
-**How can AI agents consume this repository?**
-Every push to `main` triggers `.github/workflows/deploy-digest.yml`, which packs `workspace/agents/opencode/**` into a single plain-text file with [repomix](https://github.com/yamadashy/repomix) and deploys it to Cloudflare Pages (project `utility-digest`) alongside a small index page. Agents can read that deployed `repomix-output.txt` instead of cloning. The deploy is CI-only; `wrangler.toml` at the repository root is an empty placeholder kept for local experiments.
-
-**Where does session state live?**
-In `workspace/agents/opencode/session/`: `contract.json` (the live orchestration envelope), `state.md` (append-only log), and `archive/` (snapshots). It is gitignored except for `state.example.md`, which documents the format.
-
-**Where does scratch work go?**
-In `workspace/sandbox/<session-slug>/`, one folder per live session. The `sandbox/` skeleton (README, .gitignore, .gitkeep) is tracked; everything inside a session folder is gitignored, so probes, clones, and rendered tests never reach the repository. Promote anything durable before a session ends; rules and prune commands are in `workspace/sandbox/README.md`.
-
-**What is openui?**
-A self-hosted generative-UI service built from the [thesysdev/openui](https://github.com/thesysdev/openui) scaffold, patched to call the GLM model directly (no Thesys gateway). The browser UI is on `127.0.0.1:8102`; OpenCode agents reach the same service through the `openui` MCP bridge (`generate_ui`, `preview_url`). See `workspace/agents/openui/README.md`.
-
-**Where do I sign in?**
-OpenCode's web UI is published directly on `127.0.0.1:4096` (loopback only). The first visit shows OpenCode's own pairing screen; enter `OPENCODE_SERVER_PASSWORD` there. OpenCode's own HTTP Basic auth checks the key directly; there is no proxy in between.
-
-**How do I update pinned versions?**
-Bump the build args in `docker-compose.example.yaml` (repository root) and the matching `ARG` defaults in `workspace/agents/opencode/Dockerfile`, then re-run the `opencode-preinstall` profile so the offline store picks up the new versions, and rebuild.
-
-**What does the rag server index?**
-The `rag` MCP server indexes a directory tree, by default `/home/node/workspace`: markdown is chunked per heading, Java sources are chunked per method (the chunk heading carries `package > class > method` context), and other text and code per paragraph. It skips binary files, files above 512 KB, build output directories (`target/`, `build/`, `.gradle/`, and similar), lockfiles, and vendored or transient directories (`.git`, `node_modules`, `dist`, `pre-install`, `session`, and similar). Indexing is incremental and hash based, so unchanged files are not re-chunked and deleted files are purged. Agents pick up usage rules automatically: the config `instructions` array loads `opencode/config/rag-usage.md`, which directs them to search the index with `rag_search` before writing code and to cite `path:startline` references. Embeddings default to deterministic local hashed n-gram vectors, which works fully offline; set the three `RAG_EMBEDDINGS_*` variables to upgrade to a real OpenAI-compatible embeddings endpoint (see `workspace/agents/opencode/rag/README.md`).
 
 ## Contributing and License
 

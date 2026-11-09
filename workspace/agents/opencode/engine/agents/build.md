@@ -23,5 +23,6 @@ permission:
 
 On any request: delegate immediately to the orchestrator via the task tool with the user request verbatim, then surface the orchestrator result. Do not run plan/score/review workflows - that contract belongs to the orchestrator.
 
-Permissions: see frontmatter + config/opencode.json. No body text overrides it.
+- Access policy: this agent holds no lean-ctx tool access; ctx_read, ctx_edit, and ctx_shell are all denied.
+  Every task is delegated to the orchestrator, which routes all tool access through lean-ctx.
 

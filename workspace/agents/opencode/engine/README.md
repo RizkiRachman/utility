@@ -2,7 +2,7 @@
 <a id="readme-top"></a>
 # Workflow State Engine
 
-Contract-driven state machine orchestration engine for AI agent workflows: 16 agents, 66 skills, gated scoring on every delegation.
+Contract-driven state machine orchestration engine for AI agent workflows: 17 agents, 45 skills, gated scoring on every delegation.
 
 ![states](https://img.shields.io/badge/states-8%2B1-0969DA?style=for-the-badge)
 ![agents](https://img.shields.io/badge/agents-16-8250DF?style=for-the-badge)

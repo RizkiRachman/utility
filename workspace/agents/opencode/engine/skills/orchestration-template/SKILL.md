@@ -142,7 +142,7 @@ BLOCKED (any phase) → user intervention → retry with guidance → back to fa
 
   # Save Session Protocol (all 6 steps):
   lean-ctx ctx_knowledge remember key orchestration-contract value "<updated JSON>"
-  # Update contract/state.md
+  # Update contract/state.template.md
   bash scripts/snapshot-contract.sh --snapshot-only   # archive snapshot
   lean-ctx ctx_session save                            # save conversation
   graphify --update 2>/dev/null || true                # re-index graphify
