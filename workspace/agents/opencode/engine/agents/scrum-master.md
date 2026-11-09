@@ -53,7 +53,7 @@ You are the scrum-master — the process authority. You do NOT do the delivery w
 3. **UPDATE** — Persist findings:
    - Append process findings to `audit_log[]` and `governance.previous_blockers[]`
    - On BLOCKED: populate `retry.issues[]`, `retry.escalation_trace[]`, increment `retry.attempt`
-   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
    - Snapshot: `scripts/snapshot-contract.sh --snapshot-only`
 
 ### Inputs from Envelope

@@ -57,14 +57,14 @@ The **shared JSON envelope** (`contract/contract.template.json`) is the single s
 1. **READ** — Load envelope: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    - If found: extract `state`, `session`, `requirements`, `decisions`, `governance`, `score`, `retry`, `outputs`, `metrics`, `lessons_learned[]` — full context for orchestration decisions
    - If NOT found: create fresh from `contract/contract.template.json`:
-     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract value <populated JSON>`
+     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <populated JSON>`
    - **Session resume detected** (envelope exists with COMPLETE state): Read `state`, `retry.current_phase`, `retry.issues`. Update session/state.md Current Focus with `"Resuming at ${state} (phase: ${retry.current_phase}). Issues: ${retry.issues}"`. Summarize to user.
 
 2. **CREATE** (new session) — Populate `session` fields as above. Set `state = "INIT"`. Persist immediately.
 
 3. **UPDATE** (on every transition) — After each delegation, scoring, phase completion, or state change:
    - Update relevant fields: `state`, `outputs.<phase>`, `score.*`, `retry.*`, `metrics.*`
-   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
    - Sync session/state.md: update Current Focus and Known Blockers
    - Save conversation: `ctx_session save`
    - **Checkpoint before every delegation** — persist first, then delegate
@@ -88,7 +88,7 @@ For every task, follow this sequence:
 - Read `AGENTS.md` for project conventions (architecture, rules, writing order)
 - **Load complex-task & MCP Contract**: `lean-ctx ctx_knowledge recall --query "orchestration-contract"` — identifies available plugins, skills, and MCPs for this session
 - **Load shared envelope** (per protocol above)
-- **Checkpoint: persist envelope before any work** — `lean-ctx ctx_knowledge remember key orchestration-contract value <current envelope JSON>`
+- **Checkpoint: persist envelope before any work** — `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <current envelope JSON>`
 - Load relevant skills via `/skill` as needed
 - **For huge/massive tasks:** Load complex-task skills: `/skill brainstorming`, `/skill writing-plans`, `/skill executing-plans`, `/skill subagent-driven-development`, `/skill adaptive-solver`
 - `/skill humanizer` — remove AI writing patterns from all output text
@@ -100,7 +100,7 @@ For every task, follow this sequence:
 - If context grows large: run **Save Session Protocol** (ctx_session save + archive + re-index) to persist state, then `ctx_compress --signatures` to compact the window
 
 ### 0.5 Memory Bootstrap
-- Call `initialize_context` tool — returns the System Primer (compressed summary of all prior knowledge)
+- Run `lean-ctx ctx_knowledge recall --query lessons --mode semantic` — returns prior lessons and primer notes (no dedicated primer tool exists)
 - If primer is empty (first session), proceed normally — no prior knowledge to load
 - If primer has content, incorporate it:
   - Check taxonomy tree for relevant categories
@@ -125,7 +125,7 @@ Run a quick 5-lens check before planning:
 - **Doubt** — For any non-trivial decision (architectural, cross-service, irreversible), spawn a fresh-context adversarial reviewer via `/skill doubt-driven-development` to cross-examine the decision before it stands
 
 ### 2. Plan
-**Checkpoint:** Persist envelope before delegation via `lean-ctx ctx_knowledge remember key orchestration-contract value <JSON>` — ensures last known state survives if opencode closes mid-task.
+**Checkpoint:** Persist envelope before delegation via `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <JSON>` — ensures last known state survives if opencode closes mid-task.
 → Then snapshot to session archive: `scripts/snapshot-contract.sh --snapshot-only` — preserves pre-plan state for rollback
 
 **Scope check:** Before delegating, check `scope.included` and `scope.excluded` to ensure the plan respects boundaries. If `scope.parallel_eligible` is true, delegate to @system-analyst with `parallel: true` flag.
@@ -158,7 +158,7 @@ After system-analyst returns → run **Scoring Pipeline (§4.5)** on output → 
 4. **Only then** delegate to @developer for implementation
 
 ### 3. Build
-**Checkpoint:** Persist envelope before delegation via `lean-ctx ctx_knowledge remember key orchestration-contract value <JSON>`.
+**Checkpoint:** Persist envelope before delegation via `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <JSON>`.
 → Then snapshot: `scripts/snapshot-contract.sh --snapshot-only`
 
 Delegate to @developer (`agents/developer.md`). The developer reads the envelope directly for decisions, governance, and retry context. Optionally inject a brief context summary:
@@ -177,7 +177,7 @@ Task-manager will:
 After developer returns → run **Scoring Pipeline (§4.5)** on output → update envelope.
 
 ### 4. Review
-**Checkpoint:** Persist envelope before delegation via `lean-ctx ctx_knowledge remember key orchestration-contract value <JSON>`.
+**Checkpoint:** Persist envelope before delegation via `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <JSON>`.
 → Then snapshot: `scripts/snapshot-contract.sh --snapshot-only`
 
 Delegate to @quality-analyst (`agents/quality-analyst.md`). The quality-analyst reads the envelope directly for requirements, governance, and files to review. Optionally inject a brief context summary:
@@ -305,7 +305,7 @@ After each subagent delegation returns and scoring completes, persist state acro
 
 1. Read current envelope from `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
 2. Update `state`, `outputs.<phase>`, `score.*`, `retry.*` with results
-3. **Persist envelope** — write via `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+3. **Persist envelope** — write via `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
 4. **Sync session/state.md** — update Current Focus and Known Blockers:
    - Current Focus: `"Agent orchestration — ${state} (phase: ${retry.current_phase}). ${score.combined >= 70 ? '' : 'Score: ' + score.combined}"`
    - If BLOCKED: add to Known Blockers with issues from `retry.issues[]`
@@ -344,7 +344,7 @@ BLOCKED (any phase) → user intervention → retry with guidance
 If state = `BLOCKED`:
 1. Read envelope from `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
 2. Update session/state.md Known Blockers: `"BLOCKED at ${phase}: ${issues}"`
-3. Persist envelope final state via `lean-ctx ctx_knowledge remember key orchestration-contract value <JSON>`
+3. Persist envelope final state via `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <JSON>`
 5. **Snapshot blocked state**: `scripts/snapshot-contract.sh --summary "State: BLOCKED at ${phase} — ${issues}"`
 6. Summarize blockers to user: `"I hit BLOCKED at ${phase}. Issues: ${issues}. Please review and decide: adjust threshold, fix guidance, or discard."`
 7. Stop — do not continue execution until user responds
@@ -408,7 +408,7 @@ When changes span multiple independent services:
 When working through multi-step tasks, consider enabling auto-continue to avoid stopping between batches:
 - **Enable when:** User requests autonomous/batch work, or you create 4+ todos in a session, or dispatching parallel agents
 - **Don't enable when:** User is in an interactive/conversational flow, or each step needs explicit review
-- Use the `auto_continue` tool with `enabled: true` to activate
+- No auto-continue tool exists; apply batching + chaining discipline (tool-economy) and keep working until the batch is done
 
 ## complex-task Integration (Huge/Massive Tasks)
 

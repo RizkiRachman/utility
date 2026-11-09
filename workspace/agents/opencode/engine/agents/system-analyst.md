@@ -52,7 +52,7 @@ The orchestrator uses a **shared JSON envelope** (`contract/contract.template.js
    - If NOT found (running standalone, not via orchestrator): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
      - Populate `session.task_id` (a short slug like `"system-analyst-standalone-<date>"`), `session.created_at` (ISO timestamp)
-     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract value <base JSON with populated fields>`
+     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <base JSON with populated fields>`
 ```bash
 scripts/snapshot-contract.sh --snapshot-only  # archive state after update
 ```
@@ -63,7 +63,7 @@ scripts/snapshot-contract.sh --snapshot-only  # archive state after update
 
 3. **UPDATE** — During and after work, persist state:
    - After producing plan output: update `outputs.plan`, `outputs.files_affected[]`, `outputs.risks[]`
-   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
 → Snapshot: `scripts/snapshot-contract.sh --snapshot-only` — archive plan before orchestrator scoring
    - This ensures crash recovery and traceability
 

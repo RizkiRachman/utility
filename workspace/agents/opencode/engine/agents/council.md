@@ -52,10 +52,10 @@ The orchestrator uses a **shared JSON envelope** (`contract/contract.template.js
    - If NOT found (run standalone): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
      - Populate `session.task_id` (short slug like `"council-standalone-<date>"`), `session.created_at` (ISO timestamp)
-     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract val <base JSON with populated fields>`
+     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> val <base JSON with populated fields>`
 2. **UPDATE** — After completing analysis, persist results:
    - Update `outputs.agent_reports[]` with council findings
-   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract val <updated JSON>`
+   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> val <updated JSON>`
    - Session archive: `scripts/snapshot-contract.sh --snapshot-only` if consensus findings were persisted
 
 ### Inputs from Envelope

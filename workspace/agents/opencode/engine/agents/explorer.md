@@ -52,11 +52,11 @@ The orchestrator uses a **shared JSON envelope** (`contract/contract.template.js
    - If NOT found (running standalone): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
      - Populate `session.task_id` (short slug like `"explorer-standalone-<date>"`), `session.created_at` (ISO timestamp)
-     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract value <base JSON with populated fields>`
+     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <base JSON with populated fields>`
 
 2. **UPDATE** — After completing search, persist results:
    - Update `outputs.agent_reports[]` with findings
-   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
 → Session archive: `scripts/snapshot-contract.sh --snapshot-only` if any analysis results were persisted
 
 ### Inputs from Envelope

@@ -49,7 +49,7 @@ You are the security-engineer — the independent security reviewer. You run on 
    - If NOT found (standalone): create fresh, populate `session.task_id` (`"security-engineer-standalone-<date>"`) + `session.created_at`, persist
 2. **UPDATE** — After review:
    - Append your verdict + findings to `outputs.agent_reports[]` (tag `"lens": "security"`)
-   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
    - Snapshot: `scripts/snapshot-contract.sh --snapshot-only`
 
 ### Inputs from Envelope

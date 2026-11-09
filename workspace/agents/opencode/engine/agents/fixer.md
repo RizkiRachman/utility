@@ -52,11 +52,11 @@ The orchestrator uses a **shared JSON envelope** (`contract/contract.template.js
    - If NOT found (running standalone): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
      - Populate `session.task_id` (short slug like `"fixer-standalone-<date>"`), `session.created_at` (ISO timestamp)
-     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract value <base JSON with populated fields>`
+     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <base JSON with populated fields>`
 
 2. **UPDATE** — After completing implementation, persist results:
    - Update `outputs.code_changes[]` with files_created and files_modified
-   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
  - Run: `bash scripts/snapshot-contract.sh --snapshot-only`  # archive state for crash recovery
 
 ### Inputs from Envelope

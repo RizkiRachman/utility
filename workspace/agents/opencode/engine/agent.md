@@ -213,7 +213,7 @@ See [`/opt/engine/doc/workflow.md`](/opt/engine/doc/workflow.md) for the canonic
 | **External library research** | `context7_query_docs` | Official docs lookups with code examples |
 | **Primary-source passages (issues, PRs, READMEs)** | `firecrawl_developer_search` | Keyless plugin search over raw sources; best for error hunting and API contract questions |
 | **Single arbitrary page** | fetch MCP (`fetch`) | Keyless one-off HTTP GET; zero-dependency fallback |
-| **Multi-model consensus** | `council_session` | Fresh-context adversarial review for high-stakes decisions |
+| **Multi-model consensus** | `@council` subagent | Fresh-context adversarial review for high-stakes decisions |
 
 ### 4.4 Retrieval Balance (rag MCP)
 
@@ -330,7 +330,7 @@ When the user says "save session" or a phase completes, save to **ALL** systems:
 
 ```bash
 # 1. Persist orchestration envelope to lean-ctx knowledge
-lean-ctx ctx_knowledge remember key orchestration-contract value "<JSON>"
+lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value "<JSON>"
 
 # 2. Update session/state.md — append completed work items
 

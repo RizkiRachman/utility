@@ -896,7 +896,13 @@ async function search(db, query, opts) {
   }
 
   scored.sort((a, b) => b.score - a.score || a.id - b.id);
-  return scored.slice(0, k).map(({ _text, ...hit }) => ({ ...hit, text: _text }));
+  // N6: score floor + hard cap (env RAG_MIN_SCORE / RAG_MAX_HITS, per-call min_score)
+  const minScore = Math.max(0, Number(opts && opts.min_score) || Number(process.env.RAG_MIN_SCORE) || 0);
+  const hardCap = Math.min(Math.max(1, Number(process.env.RAG_MAX_HITS) || 50), 200);
+  return scored
+    .filter((h) => Number(h.score) >= minScore)
+    .slice(0, Math.min(k, hardCap))
+    .map(({ _text, ...hit }) => ({ ...hit, text: _text }));
 }
 
 // ---------------------------------------------------------------------------
@@ -1072,6 +1078,7 @@ function toolDefs() {
         properties: {
           query: { type: 'string', description: 'Search text (natural language or keywords)' },
           k: { type: 'number', description: 'Maximum hits to return (default 8)' },
+          min_score: { type: 'number', description: 'Minimum hit score to return (default 0, env RAG_MIN_SCORE)' },
           glob: { type: 'string', description: 'Glob filter on the relative path, e.g. "docs/**/*.md" or "api/*"' },
         },
         required: ['query'],

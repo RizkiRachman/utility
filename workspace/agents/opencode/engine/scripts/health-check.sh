@@ -345,6 +345,8 @@ do_fix() {
 # ── Persist to session/health.json ────────────────────────────────
 persist_results() {
     local session="$1" report="$2"
+    # N6: compute exit code BEFORE writing health.json (was written as stale 0)
+    if [[ "$HAS_CRITICAL" == true ]]; then EXIT_CODE=2; elif [[ "$HAS_WARNINGS" == true ]]; then EXIT_CODE=1; else EXIT_CODE=0; fi
     local sd="$SESSION_DIR"; mkdir -p "$sd"
     local ts; ts="$(get_timestamp)"
     echo "{\"timestamp\":\"$ts\",\"session\":\"$session\",\"check_mode\":\"$CHECK_MODE\",\"results\":$report,\"exit_code\":$EXIT_CODE,\"has_warnings\":$HAS_WARNINGS,\"has_critical\":$HAS_CRITICAL}" > "$sd/health.json"

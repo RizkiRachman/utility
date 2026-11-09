@@ -47,7 +47,7 @@ You are the devops-engineer — the delivery specialist. You own how the change 
 2. **UPDATE** — After delivery work:
    - Update `outputs.code_changes[]` (pipeline/config/deploy files) and `outputs.test_results` for any smoke checks
    - Record rollback + migration notes in `outputs.agent_reports[]`
-   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
    - Snapshot: `scripts/snapshot-contract.sh --snapshot-only`
 
 ### Inputs from Envelope

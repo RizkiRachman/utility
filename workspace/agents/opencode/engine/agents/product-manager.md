@@ -51,7 +51,7 @@ The orchestrator uses a **shared JSON envelope** (`contract/contract.template.js
    - If NOT found (standalone): create fresh from `contract/contract.template.json`, populate `session.task_id` (`"product-manager-standalone-<date>"`) and `session.created_at`, then persist
 2. **UPDATE** — After defining requirements:
    - Populate `requirements.goal`, `requirements.acceptance_criteria[]` (GWT), `requirements.constraints[]`, `scope.included[]`, `scope.excluded[]`
-   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
    - Snapshot: `scripts/snapshot-contract.sh --snapshot-only`
 
 ### Inputs from Envelope

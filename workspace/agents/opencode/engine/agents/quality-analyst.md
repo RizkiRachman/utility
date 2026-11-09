@@ -51,7 +51,7 @@ The orchestrator uses a **shared JSON envelope** (`contract/contract.template.js
    - If NOT found (running standalone, not via orchestrator): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
      - Populate `session.task_id` (short slug like `"quality-analyst-standalone-<date>"`), `session.created_at` (ISO timestamp)
-     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract value <base JSON with populated fields>`
+     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <base JSON with populated fields>`
      - Log the standalone session for traceability
 
 2. **CREATE** — If this is a new review task, initialize `requirements` based on the review instructions received
@@ -59,7 +59,7 @@ The orchestrator uses a **shared JSON envelope** (`contract/contract.template.js
 3. **UPDATE** — After completing review, persist results:
    - Update `outputs.agent_reports[]` with your verdict, findings, and lens_coverage
    - Update `score.*` fields if applicable
-   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
    ```bash
    scripts/snapshot-contract.sh --snapshot-only  # archive review state
    ```

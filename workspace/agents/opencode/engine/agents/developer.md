@@ -49,14 +49,14 @@ The orchestrator uses a **shared JSON envelope** (`contract/contract.template.js
    - If NOT found (running standalone, not via orchestrator): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
      - Populate `session.task_id` (short slug like `"developer-standalone-<date>"`), `session.created_at` (ISO timestamp)
-     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract value <base JSON with populated fields>`
+     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <base JSON with populated fields>`
      - Log the standalone session for traceability
 
 2. **CREATE** — If this is a new task, initialize `decisions.approved_architecture` and `decisions.coding_standard` based on the plan received
 
 3. **UPDATE** — During and after work, persist state:
    - After implementation completes: update `outputs.code_changes[]` (files_created, files_modified), `outputs.test_results` (test_count, pass, fail)
-   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
    - Snapshot to session archive: `scripts/snapshot-contract.sh --snapshot-only`
    - Save conversation: `ctx_session save`
    - This ensures crash recovery, audit trail, and cross-session resumption
@@ -317,7 +317,7 @@ When the orchestrator says "save session" or a phase completes, run all 6 steps:
 
 ```bash
 # 1. Persist orchestration envelope to lean-ctx knowledge
-lean-ctx ctx_knowledge remember key orchestration-contract value "<JSON>"
+lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value "<JSON>"
 
 # 2. Update session/state.md — append completed work items
 

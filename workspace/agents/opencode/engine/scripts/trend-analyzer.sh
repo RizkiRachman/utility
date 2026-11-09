@@ -76,7 +76,13 @@ collect_scores() {
         # Collect phase scores
         for phase in PLAN EXECUTE REVIEW; do
             [[ "$phase_filter" != "ALL" && "$phase_filter" != "$phase" ]] && continue
-            local score=$(jq -r ".phases.$phase.score // .score_$phase // empty" "$contract" 2>/dev/null || echo "")
+            local scored_state="${phase}_SCORED"
+            # N6: real paths - audit_log scored transitions, fallback phases_completed
+            local score=$(jq -r --arg ss "$scored_state" '.audit_log[]? | select(.new_state == $ss) | (.score // .score_combined // .combined // empty)' "$contract" 2>/dev/null | tail -1)
+            if [[ -z "$score" || "$score" == "null" ]]; then
+                local inph=$(jq -r --arg ph "$phase" '.metrics.phases_completed // [] | index($ph) != null | tostring' "$contract" 2>/dev/null)
+                if [[ "$inph" == "true" ]]; then score=$(jq -r ".score.combined // empty" "$contract" 2>/dev/null); fi
+            fi
             [[ -z "$score" || "$score" == "null" ]] && continue
             echo "$timestamp|$session|$phase|$score"
         done

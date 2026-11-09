@@ -71,17 +71,17 @@ The orchestrator uses a **shared JSON envelope** (`contract/contract.template.js
    - If NOT found (running standalone): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
      - Populate `session.task_id` (short slug like `"learner-standalone-<date>"`), `session.created_at` (ISO timestamp)
-     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract value <base JSON with populated fields>`
+     - Write: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <base JSON with populated fields>`
      - Log the standalone session for traceability
 
 2. **CREATE** — Initialize analysis context from the envelope data (or from orchestrator-provided inputs)
 
 3. **UPDATE** — After analysis, persist learning results:
-   - Set `state = COMPLETE` in the envelope
+   - Do NOT modify `state` — the orchestrator owns the COMPLETE transition; run `scripts/finalize-learning.sh` to persist lessons
    - Update `outputs.*`, `score.*`, `metrics.*` with final results
    - Append `lessons_learned[]` to envelope's `lessons_learned[]`
    - Apply `knowledge_updates[]` via `lean-ctx knowledge remember` for each entry
-   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+   - Persist: `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
    - `scripts/snapshot-contract.sh --snapshot-only`  # archive learning state
    - This ensures cross-session learning persists
 
@@ -123,7 +123,7 @@ Load skills that help you extract better lessons:
 
 ## 🔴 MANDATORY: Update ALL Memory Systems (Post-Flight)
 
-> **FAILURE TO UPDATE ANY MEMORY SYSTEM IS A GOVERNANCE VIOLATION — SCORE DEDUCTION OF -30.**  
+> **FAILURE TO UPDATE ANY MEMORY SYSTEM IS A GOVERNANCE VIOLATION — SCORE DEDUCTION OF -15 (LEARN_001).**  
 > The orchestrator's scoring pipeline enforces complete memory persistence.  
 > Skipping a system = data loss for the next session = rework.
 
@@ -139,7 +139,7 @@ Every system listed below **MUST** be updated before the learner completes. **No
 | **session/state.md** | `ctx_edit` | Append completed work to Completed Work section, update Current Focus, add Known Blockers if any |
 | **PROJECT.md** | `ctx_edit` | Update if task changed project scope, vision, or added significant new capabilities |
 | **AGENTS.md** | `ctx_edit` | Update if task introduced new conventions, rules, or agent behaviors that should be documented for future sessions |
-| **Orchestration envelope** | `ctx_knowledge remember --key orchestration-contract` | Set `state = COMPLETE`, update `outputs.*`, `score.*`, `metrics.*`, append to `lessons_learned[]` |
+| **Orchestration envelope** | `scripts/finalize-learning.sh` | Append `lessons_learned[]`, update `metrics.*`; state stays owned by the orchestrator |
 | **lean-ctx ctx_knowledge** | `remember` | Persist full task summary as key task-summary |
 | **Session resume** | `ctx_session save` | Save session with descriptive task label for next-session continuity |
 | **ctx_session** | `ctx_session save` | Persist conversation for resumption |
@@ -148,7 +148,7 @@ Every system listed below **MUST** be updated before the learner completes. **No
 1. Write to lean-ctx (fastest, most durable)
 2. Update session/state.md (human-readable single source of truth)
 3. Update PROJECT.md / AGENTS.md if scope or conventions changed
-4. Finalize orchestration envelope (set COMPLETE state, persist lessons)
+4. Run scripts/finalize-learning.sh (persist lessons under the task-namespaced key; no state flip)
 5. Re-index lean-ctx (keeps code intelligence current)
 7. Update documentation (ARCHITECTURE_HYBRID.md, DEVELOPER_GUIDE.md, ERD.md — only if affected by the change)
 8. Persist to lean-ctx ctx_knowledge (cross-session semantic memory)
