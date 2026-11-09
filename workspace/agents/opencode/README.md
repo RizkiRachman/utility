@@ -118,13 +118,34 @@ Defined in `config/opencode.json`:
 | Server | Command | Purpose |
 |---|---|---|
 | `lean-ctx` | `lean-ctx` | Compressed reads/search/shell, code intelligence, knowledge and session persistence |
-| `graphify` | `sh -c "… graphify-mcp …"` | Knowledge graph MCP; configured but `disabled: true` by default, flip the flag and restart to enable |
 | `context7` | `context7-mcp` | Up-to-date library docs lookups; needs `CONTEXT7_API_KEY` |
-| `memory` | `mcp-server-memory` | Persistent memory graph, writes to `MEMORY_FILE_PATH` in the `opencode-data` volume |
 | `fetch` | `mcp-server-fetch` | Keyless single-page HTTP GET with readability extraction (deps baked at build) |
-| `everything` | `mcp-server-everything` | MCP diagnostics and test fixtures |
 | `rag` | `node /opt/rag/server.js` | Workspace retrieval over SQLite FTS5 + vectors: `rag_search`, `rag_index`, `rag_status`, `rag_get`; java-aware method-boundary chunking with `package > class > method` headings; offline hashed-vector embeddings, optional remote endpoint via `RAG_EMBEDDINGS_*`; agents get usage rules from the `opencode/config/rag-usage.md` instructions entry |
 | `@firecrawl/opencode` (plugin) | vendored at `engine/plugins/opencode-firecrawl` | Keyless `firecrawl_developer_search`; `firecrawl_alexandria` is ask-gated; keyed scrape/crawl via `firecrawl-cli` |
+| `openui` | `node /home/node/workspace/agents/openui/mcp-bridge.mjs` | Stdio bridge to the openui container (OPENUI_URL=http://openui:3000): `generate_ui`, `preview_url` |
+
+The stock demo servers (`memory`, `everything`) and the knowledge-graph MCP (`graphify`) are installed in the image but not registered in `config/opencode.json`; re-add them there and restart to enable.
+
+MCP wiring:
+
+```mermaid
+flowchart LR
+    OC["opencode serve :4096"]
+    LC["lean-ctx<br/>reads, search, shell,<br/>knowledge, sessions"]
+    C7["context7<br/>library docs API"]
+    FE["fetch<br/>keyless HTTP GET"]
+    RG["rag<br/>FTS5 + vectors<br/>workspace index"]
+    BR["openui bridge<br/>stdio proxy"]
+    UI["openui container :3000"]
+    FC["firecrawl plugin<br/>developer search"]
+    OC --> LC
+    OC --> C7
+    OC --> FE
+    OC --> RG
+    OC <--> BR --> UI
+    OC --- FC
+```
+
 
 ## Health Checks
 
@@ -217,7 +238,7 @@ entrypoint.sh boot chain:
   5. launch probe: serve, then web, then bare serve
 
 opencode serve attaches to:
-  - MCP servers: lean-ctx, context7, memory, fetch, everything, rag (graphify disabled by default)
+  - MCP servers: lean-ctx, context7, fetch, rag, openui bridge; demo servers and graphify installed but unregistered
   - Firecrawl plugin: keyless developer search, alexandria ask-gated
   - workflow-state-engine: 17 agents, 45 skills, session/, sandbox/
 ```

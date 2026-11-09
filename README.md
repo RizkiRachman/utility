@@ -139,6 +139,44 @@ stateDiagram-v2
 
 Any state can escalate to `BLOCKED` when a score lands below 50 or a task exhausts its 3 retries. Scores gate transitions: 70 or above passes, 50-69 retries. The live envelope is `workspace/agents/opencode/session/contract.json`.
 
+### Architecture Flow
+
+```mermaid
+flowchart LR
+    U["Browser"]
+    CI["GitHub Actions"]
+    subgraph compose["docker compose stack"]
+        direction TB
+        OC["opencode :4096<br/>OpenCode + engine + MCP"]
+        UI["openui :8102<br/>generative UI"]
+        SCH["opencode-scheduler<br/>drift-detect daily"]
+        MN["opencode-maintenance<br/>archive + heal daily"]
+        PRE["opencode-preinstall<br/>offline package store"]
+        G["scheduled-runner.sh<br/>engine scripts"]
+    end
+    PAGES["utility-digest.pages.dev<br/>repomix digest"]
+    U -->|"pairing key"| OC
+    U -->|"preview"| UI
+    OC <-->|"MCP bridge: generate_ui"| UI
+    SCH -->|"drift-detect"| G
+    MN -->|"archive, heal"| G
+    PRE -->|"fills pre-install,<br/>build context"| OC
+    CI -->|"deploy-digest.yml"| PAGES
+```
+
+Every container has one job:
+
+- **opencode**: the product. OpenCode serve plus the workflow-state-engine (17 agents, gated state machine), lean-ctx, and five MCP servers.
+- **openui**: generative UI sidecar. Agents call it through the MCP bridge; humans preview on :8102.
+- **opencode-scheduler**: runs `drift-detect` daily, comparing persisted engine knowledge against workspace files.
+- **opencode-maintenance**: runs `archive` (session snapshot cleanup) and `heal` (retry a failing contract validation) daily.
+- **opencode-preinstall**: one-shot filler for the offline package store used as a Docker build context.
+
+On every push, GitHub Actions validates the tree (JSON, shell syntax, cross-references, doc style, contract score) and repacks `workspace/agents/opencode/**` for agent consumption on Cloudflare Pages.
+
+
+
+
 ## Infrastructure
 
 Empty scaffolding for planned services. Each directory currently holds only placeholder files:

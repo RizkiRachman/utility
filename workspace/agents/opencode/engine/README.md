@@ -187,28 +187,28 @@ Three-tier scoring runs after every delegation:
 
 ## Agents
 
-16 instruction files under [`agents/`](agents/orchestrator.md). Executors and reviewers run on different models, so no agent audits its own output.
+17 instruction files under [`agents/`](agents/orchestrator.md). The build tier plans and writes code on `big-pickle`; quality and security reviews run on an independent model (`deepseek-flash`); everything else runs the default (`glm`). No agent audits its own output.
 
-| Agent | Role | Model tier | Access |
+| Agent | Role | Model | Access |
 |---|---|---|---|
-| [`orchestrator`](agents/orchestrator.md) | Scrum lead: delegates, scores, drives the state machine | executor | read/write |
-| [`design-orchestrator`](agents/design-orchestrator.md) | UI/UX specialist orchestrator, 4-layer design pipeline | executor | read/write |
-| [`product-manager`](agents/product-manager.md) | Requirements + GWT acceptance criteria | reviewer | read-only |
-| [`system-analyst`](agents/system-analyst.md) | Impact analysis, specs, implementation plans | executor | read-only |
-| [`software-architect`](agents/software-architect.md) | Architecture trade-offs, tech-debt assessment | reviewer | read-only |
-| [`developer`](agents/developer.md) | Implements the plan, writes tests alongside code | executor | read/write |
-| [`devops-engineer`](agents/devops-engineer.md) | CI/CD, containerization, deploy, migrations, observability | executor | read/write |
-| [`fixer`](agents/fixer.md) | Bounded, scoped fixes for well-defined tasks | executor | read/write |
-| [`quality-analyst`](agents/quality-analyst.md) | Independent 5-axis quality review | reviewer | read-only |
-| [`security-engineer`](agents/security-engineer.md) | Security review: threat model, vulns, secrets | reviewer | read-only |
-| [`scrum-master`](agents/scrum-master.md) | Process owner: guards contract and state machine, unblocks BLOCKED | reviewer | read-only |
-| [`learner`](agents/learner.md) | Post-execution retro: extract and persist lessons | executor | read-only |
-| [`explorer`](agents/explorer.md) | Fast codebase search and unknown discovery | executor | read-only |
-| [`librarian`](agents/librarian.md) | External docs and library research | executor | read-only |
+| [`orchestrator`](agents/orchestrator.md) | Scrum lead: delegates, scores, drives the state machine | glm | read/write |
+| [`build`](agents/build.md) | Restricted bootstrap entrypoint: no tools, hands every request to the orchestrator | big-pickle | none (delegates) |
+| [`design-orchestrator`](agents/design-orchestrator.md) | UI/UX specialist orchestrator, 4-layer design pipeline | glm | read/write |
+| [`product-manager`](agents/product-manager.md) | Requirements + GWT acceptance criteria | glm | read-only |
+| [`system-analyst`](agents/system-analyst.md) | Impact analysis, specs, implementation plans | big-pickle | read-only |
+| [`software-architect`](agents/software-architect.md) | Architecture trade-offs, tech-debt assessment | glm | read-only |
+| [`developer`](agents/developer.md) | Implements the plan, writes tests alongside code | big-pickle | read/write |
+| [`devops-engineer`](agents/devops-engineer.md) | CI/CD, containerization, deploy, migrations, observability | glm | read/write |
+| [`fixer`](agents/fixer.md) | Bounded, scoped fixes for well-defined tasks | big-pickle | read/write |
+| [`quality-analyst`](agents/quality-analyst.md) | Independent 5-axis quality review | deepseek-flash | read-only |
+| [`security-engineer`](agents/security-engineer.md) | Security review: threat model, vulns, secrets | deepseek-flash | read-only |
+| [`scrum-master`](agents/scrum-master.md) | Process owner: guards contract and state machine, unblocks BLOCKED | glm | read-only |
+| [`learner`](agents/learner.md) | Post-execution retro: extract and persist lessons | glm | read-only |
+| [`explorer`](agents/explorer.md) | Fast codebase search and unknown discovery | glm | read-only |
+| [`librarian`](agents/librarian.md) | External docs and library research | glm | read-only |
 | [`council`](agents/council.md) | Multi-model consensus and cross-model arbitration | multi | read-only |
-| [`observer`](agents/observer.md) | Visual analysis: images, PDFs, diagrams | executor | read-only |
-
-**Cross-model review**: executors run on the executor model; reviewers (@product-manager, @software-architect, @quality-analyst, @security-engineer, @scrum-master) run on an independent reviewer model. Conflicting verdicts → `BLOCKED`, arbitrated by @council.
+| [`observer`](agents/observer.md) | Visual analysis: images, PDFs, diagrams | glm | read-only |
+**Cross-model review**: the build tier (`build`, @system-analyst, @developer, @fixer on `big-pickle`) never shares a model with its reviewers (@quality-analyst, @security-engineer on `deepseek-flash`). Conflicting verdicts escalate to `BLOCKED`, arbitrated by @council.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -272,8 +272,8 @@ The engine source lives under `engine/` and is copied to `/opt/engine/` at conta
 ```text
 engine/
 ├── agent.md               ← Orchestrator instructions (instructions[0])
-├── agents/                ← 16 agent instruction files
-├── skills/                ← 66 engine-owned skill directories (SKILL.md + optional package.json); plugin-bundled CLI skills register at runtime and are not counted
+├── agents/                ← 17 agent instruction files
+├── skills/                ← 45 engine-owned skill directories (SKILL.md + optional package.json); plugin-bundled CLI skills register at runtime and are not counted
 ├── commands/              ← Slash commands (impeccable)
 ├── contract/              ← Contract templates & schema (contract.template.json, contract.schema.json, meta-contract.template.json, state.template.md)
 ├── rules/                 ← rules.json + rules.schema.json (state machine, scoring, cross-model review)
@@ -309,6 +309,22 @@ Every task follows this sequence:
 | **Ship** | Orchestrator (+ @learner) | Post-flight protocol, lessons captured |
 
 The definition of done for each phase is enforced by the gates in the table above and by the scoring thresholds in `rules/rules.json`; the full rules are documented in [`doc/workflow.md`](doc/workflow.md). Retrieval is advisory across these phases: agents may consult `rag_search` for domain context, project conventions, and pre-implementation discovery, verifying hits against the source before relying on them; it is deliberately not a scoring gate.
+
+```mermaid
+flowchart TD
+    O["orchestrator<br/>delegates, scores, owns state"]
+    PL["plan: @product-manager, @system-analyst<br/>GWT criteria, impact, spec gate"]
+    DEV["execute: @developer, @fixer, @devops-engineer<br/>tests + loop-validate done-gate"]
+    RV{"review: @quality-analyst + @security-engineer<br/>independent model, score >= 70?"}
+    CO["@council<br/>verdict arbitration"]
+    LR["ship: @learner lessons<br/>verify-knowledge gate"]
+    BL["BLOCKED<br/>user intervention"]
+    O --> PL --> DEV --> RV
+    RV -->|"pass"| LR
+    RV -->|"conflict"| CO
+    CO -->|"arbitrated"| RV
+    RV -->|"score < 50<br/>or retries exhausted"| BL
+```
 
 ### Frugality Ladder
 
