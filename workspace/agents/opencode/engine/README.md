@@ -59,7 +59,7 @@ Reference docs beyond this README:
 | [`doc/service-rules-thresholds.md`](doc/service-rules-thresholds.md) | Service rules and thresholds |
 | [`doc/skill-conventions.md`](doc/skill-conventions.md) | Skill packaging conventions |
 | [`contract/README.md`](contract/README.md) | Envelope schema reference |
-| [`usage/lean-ctx.md`](usage/lean-ctx.md), [`usage/graphify.md`](usage/graphify.md), [`usage/context7.md`](usage/context7.md), [`usage/opencode.md`](usage/opencode.md) | Tool usage guides |
+| [`usage/lean-ctx.md`](usage/lean-ctx.md), [`usage/context7.md`](usage/context7.md), [`usage/opencode.md`](usage/opencode.md) | Tool usage guides |
 | [`rules/rules.json`](rules/rules.json) | State machine transitions, scoring thresholds, cross-model review |
 
 ### Built With
@@ -68,7 +68,6 @@ This project is a documentation and configuration toolkit for AI agents. It uses
 
 - [OpenCode](https://www.npmjs.com/package/@opencode/cli): AI agent platform (`@opencode/cli`, npm `anomalyco/opencode`)
 - [lean-ctx](https://github.com/yvgude/lean-ctx): compressed context management + code intelligence
-- [Graphify](https://pypi.org/project/graphifyy/): knowledge graph builder (`graphifyy[mcp]`, PyPI)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -87,7 +86,7 @@ bash engine/scripts/validate-contract.sh --file engine/contract/contract.templat
 Inside a running container the same scripts live at `/opt/engine/scripts/`. Session state is seeded with:
 
 ```bash
-bash /opt/engine/scripts/snapshot-contract.sh   # seed/refresh session/contract.json + state.md
+lean-ctx ctx_shell /opt/engine/scripts/snapshot-contract.sh   # seed/refresh session/contract.json + state.md
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -142,10 +141,10 @@ Under compose, the host binding is `127.0.0.1:4096 → container 4096` (loopback
 
 ```bash
 # Toolkit integrity (symlinks, contract integrity, agent consistency, cross-references)
-bash /opt/engine/scripts/validate-toolkit.sh
+lean-ctx ctx_shell /opt/engine/scripts/validate-toolkit.sh
 
 # Verify MCP servers
-bash /opt/engine/scripts/check-mcp.sh
+lean-ctx ctx_shell /opt/engine/scripts/check-mcp.sh
 
 # Load orchestration envelope
 lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode exact
@@ -277,7 +276,7 @@ engine/
 ├── commands/              ← Slash commands (impeccable)
 ├── contract/              ← Contract templates & schema (contract.template.json, contract.schema.json, meta-contract.template.json, state.template.md)
 ├── rules/                 ← rules.json + rules.schema.json (state machine, scoring, cross-model review)
-├── usage/                 ← Tool usage guides (lean-ctx, graphify, context7, opencode)
+├── usage/                 ← Tool usage guides (lean-ctx, context7, opencode)
 ├── doc/                   ← Workflow, project, and health-check docs
 ├── plugins/               ← vendored first-party plugin (@firecrawl/opencode, offline)
 ├── scripts/               ← automation & validation scripts (see table above)
@@ -367,7 +366,7 @@ The engine itself is stateless. Live runtime state lives in the **project-root**
 Initialize or refresh session state with:
 
 ```bash
-bash /opt/engine/scripts/snapshot-contract.sh          # Seed/refresh session/contract.json + state.md
+lean-ctx ctx_shell /opt/engine/scripts/snapshot-contract.sh          # Seed/refresh session/contract.json + state.md
 ```
 
 ### Sandbox (Playground)
@@ -429,7 +428,7 @@ Create a directory under `engine/skills/` containing a `SKILL.md` with frontmatt
 In the target project, not here. A `context/` directory at the project root with `*.md` files is discovered and loaded via `/skill context-standards` before edits, and review verifies the files were applied. The engine itself ships no style defaults.
 
 **Where does RAG fit in the engine?**
-As an advisory discovery layer over workspace code, docs, and engine skills, wired via the rag MCP server and the agent-facing config instructions (`config/rag-usage.md`). Agents consult it for conventions and unfamiliar-area discovery, then verify hits against the source. It is deliberately not a scoring gate: forced retrieval on every step would anchor agents on possibly stale snippets.
+As an advisory discovery layer over workspace code, docs, and engine skills, wired via the rag MCP server and the agent-facing config instructions (`engine/config/rag-usage.md`). Agents consult it for conventions and unfamiliar-area discovery, then verify hits against the source. It is deliberately not a scoring gate: forced retrieval on every step would anchor agents on possibly stale snippets.
 
 **Why keep the fetch MCP when Firecrawl exists?**
 Different tools. `fetch` is a keyless, single-page HTTP GET with no index; Firecrawl adds an indexed primary-source search (`firecrawl_developer_search`, also keyless) plus keyed scrape/crawl/map/alexandria through the vendored plugin and `firecrawl-cli`. `fetch` stays as the zero-dependency fallback for one-off pages.

@@ -17,12 +17,8 @@ permission:
     "*": allow
 ---
 
-## Permissions
-- Read: All project files
-- Write: All project files (via the host's native edit tool — lean-ctx handles reads only)
-- Delegate: Can spawn subtask and task subagents (@developer, @quality-analyst, @observer, @fixer)
-- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
-- Sandbox: scratch work goes to `sandbox/<session-slug>/` at the project root, own folder only and never the root; contents are gitignored and never committed; promote durable work before COMPLETE. Full rules: `sandbox/README.md`; machine-readable: `rules.json → enforcement.sandbox`.
+- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host native edit tool; library docs via context7.
+
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
 1. **Load envelope**: Read `session/contract.json` at the project root (seeded from `contract/contract.template.json`; in-container this is `/home/node/workspace/session/contract.json`) or `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)` — extract `decisions.*`, `governance.*`, `scope.included`

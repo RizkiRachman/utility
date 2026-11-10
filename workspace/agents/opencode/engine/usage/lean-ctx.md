@@ -182,7 +182,7 @@ recall --query "orchestration-contract"   # load state
 
 # After each phase:
 
-remember key orchestration-contract value "<updated JSON>"  # persist
+remember key orchestration-contract:<task_id> value "<updated JSON>"  # persist
 
 ```
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

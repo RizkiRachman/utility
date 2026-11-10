@@ -16,14 +16,6 @@ else
   FAILED_MCP=1
 fi
 
-# graphify — OPTIONAL (CLI only; the graphify MCP server is disabled in opencode.json,
-# but the `graphify --update` CLI used in save-session protocols stays installed)
-if command -v graphify &>/dev/null; then
-  echo "    ✅ graphify (CLI) — found"
-else
-  echo "    ℹ️  graphify CLI — not found (OPTIONAL — re-index CLI only; MCP server is disabled)"
-  echo "       Install: pipx install graphifyy"
-fi
 
 # context7 — OPTIONAL
 if command -v context7-mcp &>/dev/null || command -v context7 &>/dev/null || npm list -g @upstash/context7-mcp &>/dev/null 2>&1; then

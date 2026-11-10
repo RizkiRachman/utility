@@ -25,7 +25,7 @@ Options:
   --verbose         Verbose output
 
 Checks:
-  mcp   — graphify-mcp process + graph.json, lean-ctx MCP
+  mcp   — lean-ctx MCP
   api   — sumopod API connectivity
   all   — all checks
 
@@ -59,34 +59,6 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-check_graphify() {
-    local status="PASS"
-    local latency=0
-    local start=$(date +%s%N)
-    
-    # Check graphify-mcp binary exists
-    if ! command -v graphify-mcp &>/dev/null; then
-        status="FAIL"
-        log_fail "graphify-mcp binary not found"
-    fi
-    
-    # Check graph.json exists
-    if [[ ! -f "graphify-out/graph.json" ]]; then
-        status="FAIL"
-        log_fail "graphify-out/graph.json missing"
-    fi
-    
-    # Quick test call
-    if timeout $TIMEOUT graphify graph_stats &>/dev/null; then
-        log_pass "graphify-mcp responsive"
-    else
-        status="FAIL"
-        log_fail "graphify-mcp timed out"
-    fi
-    
-    latency=$(( ($(date +%s%N) - start) / 1000000 ))
-    echo "graphify|$status|$latency"
-}
 
 check_lean-ctx() {
     local status="PASS"
@@ -137,14 +109,12 @@ run_checks() {
     
     case "$CHECK" in
         mcp)
-            results+="$(check_graphify)\n"
             results+="$(check_lean-ctx)\n"
             ;;
         api)
             results+="$(check_sumopod)\n"
             ;;
         all)
-            results+="$(check_graphify)\n"
             results+="$(check_lean-ctx)\n"
             results+="$(check_sumopod)\n"
             ;;

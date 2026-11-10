@@ -275,7 +275,7 @@ system-analyst (planning)
     ├── 2. Run ctx_impact on all affected symbols
     ├── 3. Produce plan (this skill)
     ├── 4. Populate contract.outputs.plan
-    └── 5. Persist: lean-ctx ctx_knowledge remember key orchestration-contract ...
+    └── 5. Persist: lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> ...
 
 orchestrator (scoring)
     │

@@ -18,7 +18,6 @@ This 8-step protocol runs before every commit. It verifies impact, persists know
 | 3 | Knowledge persist | `lean-ctx ctx_knowledge remember` | — |
 | 4 | Session archive | `bash scripts/snapshot-contract.sh --snapshot-only` | — |
 | 5 | Save conversation | `lean-ctx ctx_session save` | — |
-| 6 | Re-index graphify | `bash graphify --update 2>/dev/null \|\| true` | Docs-only skip |
 | 7 | Run metrics aggregation | `bash scripts/metrics-aggregator.sh` | Docs-only skip |
 
 ### Pre-Flight Protocol (Session Start)
@@ -31,8 +30,6 @@ Every agent runs this protocol at session start, before any work:
 | 2 | Read session state | lean-ctx ctx_read session/state.md |
 | 3 | Read project vision | lean-ctx ctx_read PROJECT.md |
 | 4 | Recall recent patterns | lean-ctx ctx_knowledge recall --query "architecture" |
-| 5 | Re-index if stale (>1 hour) | bash graphify --update |
-| 6 | Check graph stats | graphify_graph_stats |
 | 7 | Load relevant skills | /skill matching domain |
 
 **One-shot alias**: `save session` = all 8 post-flight steps. Always run the full protocol — partial saves lose audit trail, break resumption, or leave stale indexes.
@@ -241,12 +238,12 @@ bash scripts/metrics-aggregator.sh --mode quality               # Quality metric
 **`scripts/mcp-retry.sh`** — Auto-retry with configurable backoff strategies for MCP failures. Supports exponential, linear, and fibonacci backoff modes with configurable base delay (default 1s), max delay (default 30s), and max retries (default 3). Includes jitter for thundering herd prevention and circuit breaker state tracking.
 
 ```bash
-bash scripts/mcp-retry.sh --cmd "graphify query 'test'"         # Retry a command
+bash scripts/mcp-retry.sh --cmd "rag_status"         # Retry a command
 bash scripts/mcp-retry.sh --cmd "curl $URL" --backoff linear    # Linear backoff
 bash scripts/mcp-retry.sh --cmd "mcp-health.sh" --max-retries 5 # Increase retry limit
 ```
 
-**`scripts/mcp-health.sh`** — MCP server health checks. Tests connectivity to graphify-mcp, lean-ctx, sumopod API, and other MCP endpoints. Supports single-check and continuous monitoring modes. Returns pass/fail with response time and error details. Results are persisted to `session/health-record.md` for historical trend analysis.
+**`scripts/mcp-health.sh`** — MCP server health checks. Tests connectivity to lean-ctx, rag, sumopod API, and other MCP endpoints. Supports single-check and continuous monitoring modes. Returns pass/fail with response time and error details. Results are persisted to `session/health-record.md` for historical trend analysis.
 
 ```bash
 bash scripts/mcp-health.sh                                      # Single check all endpoints
@@ -321,7 +318,7 @@ All agents should validate their envelope mutations against the schema before pe
 Run the native health-check script to get a scored baseline of the workflow architecture:
 
 ```bash
-bash /opt/engine/scripts/health-check.sh
+lean-ctx ctx_shell /opt/engine/scripts/health-check.sh
 ```
 
 The protocol (dimensions, weights, and scoring) is documented in `doc/health-check.md`. For a deeper guided review, paste this block into any AI chat:

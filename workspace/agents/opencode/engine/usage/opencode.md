@@ -77,7 +77,7 @@ Key sections in our `opencode.json`:
 
 | Section | What It Controls |
 |---------|-----------------|
-| `agent` | 16 agent definitions (permissions, model, temperature, steps) |
+| `agent` | 17 agent definitions (permissions, model, temperature, steps) |
 | `permission` | Global tool permissions (all `deny` except `lean-ctx_*` and `skill`) |
 | `provider` | Sumopod AI provider config with model options |
 | `compaction` | Auto context compaction with token budget |
@@ -137,7 +137,7 @@ Defined in `opencode.json` agent definitions + `.opencode/agents/*.md`:
 | **security-engineer** | subagent | reviewer | 80 | 0 | skill=allow, read-only |
 | **explorer** | subagent | executor | 30 | 0 | grep+lean-ctx restricted |
 | **librarian** | subagent | executor | 30 | 0 | lean-ctx restricted |
-| **observer** | subagent | executor | 30 | 0 | lean-ctx+graphify restricted |
+| **observer** | subagent | executor | 30 | 0 | lean-ctx restricted |
 | **council** | subagent | multi | 30 | 0.2 | MCP-restricted |
 | **learner** | subagent | executor | 40 | 0 | MCP-restricted |
 
@@ -228,7 +228,7 @@ This means:
 - All native tools (`read`, `edit`, `bash`, `grep`) are `deny` globally
 - MCP tools (`lean-ctx_*`) are `allow`
 - Each agent can override via its `permission` block
-- Agents work through MCP tools (lean-ctx, graphify, context7) and the `skill` tool
+- Agents work through MCP tools (lean-ctx, context7) and the `skill` tool
 
 ### 4.3 Permission Keys
 
@@ -330,7 +330,6 @@ Define in `opencode.json`:
 |--------|-------------|---------|
 | **lean-ctx** | `lean-ctx_*` | File ops, shell, search, knowledge, sessions |
 | **lean-ctx** | `ctx_*` | Impact analysis, code query, safe rename |
-| **graphify** | `graphify_*` | Knowledge graph traversal |
 | **context7** | `context7_*` | Library docs lookup |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -500,7 +499,6 @@ This project has 3 MCP servers configured in `opencode.json`:
 | Server | Type | Command | Notes |
 |--------|------|---------|-------|
 | **lean-ctx** | local | `lean-ctx` | `LEAN_CTX_DATA_DIR` set |
-| **graphify** | local | `graphify-mcp` | Loads `graphify-out/graph.json` |
 | **context7** | local | `npx @upstash/context7-mcp` | — |
 
 ### 9.2 Compaction

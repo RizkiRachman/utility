@@ -52,7 +52,7 @@ If YES:
 
   2. Populate: session.task_id, session.session_id, session.created_at
 
-  3. Persist via: lean-ctx ctx_knowledge remember key orchestration-contract value <JSON>
+  3. Persist via: lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <JSON>
 
   3b. Establish session baseline: `scripts/snapshot-contract.sh --summary "Session init: {task_id}"`
 
@@ -74,7 +74,7 @@ If NO:
 After ANY delegation or phase change, run the **Save Session Protocol** — saves to ALL systems:
 
 ```bash
-1. Persist envelope: Update state, outputs, score, retry, metrics → `lean-ctx ctx_knowledge remember key orchestration-contract value <updated JSON>`
+1. Persist envelope: Update state, outputs, score, retry, metrics → `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
 
 2. Update state.md: Append completed work to `session/state.md`
 
@@ -83,10 +83,9 @@ After ANY delegation or phase change, run the **Save Session Protocol** — save
 4. Save conversation: `ctx_session save`
 
 
-5. Re-index graphify: `graphify --update 2>/dev/null || true` (if graphify-out/ exists)
 ```
 
-These 6 steps are the canonical **Save Session Protocol**. Run ALL of them — partial saves lose audit trail and break resumption.
+These 4 steps are the canonical **Save Session Protocol**. Run ALL of them — partial saves lose audit trail and break resumption.
 ### Step 4: Session Resume Detection
 
 When resuming (envelope found with COMPLETE state):
@@ -141,9 +140,8 @@ BLOCKED (any phase) → user intervention → retry with guidance → back to fa
   lean-ctx ctx_knowledge recall --query "orchestration-contract"
 
   # Save Session Protocol (all 6 steps):
-  lean-ctx ctx_knowledge remember key orchestration-contract value "<updated JSON>"
+  lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value "<updated JSON>"
   # Update contract/state.template.md
   bash scripts/snapshot-contract.sh --snapshot-only   # archive snapshot
   lean-ctx ctx_session save                            # save conversation
-  graphify --update 2>/dev/null || true                # re-index graphify
 ```

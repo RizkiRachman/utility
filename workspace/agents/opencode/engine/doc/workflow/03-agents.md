@@ -4,13 +4,14 @@
 
 > See [doc/workflow/README.md](../workflow/README.md) for index.
 
-This part maps all 16 agents (scrum team) to their contract states, MCPs, and skills. It also documents the toolkit data flow, agent pipeline, and cross-reference table for every concept in the orchestration system.
+This part maps all 17 agents (scrum team) to their contract states, MCPs, and skills. It also documents the toolkit data flow, agent pipeline, and cross-reference table for every concept in the orchestration system.
 
-## C1. Full 16-Agent × 3-Dimension Table
+## C1. Full 17-Agent × 3-Dimension Table
 
 | Agent | Contract States | Key MCPs | Skills to Load | Usage Pattern |
 |---|---|---|---|---|
 | **orchestrator** | all states | lean-ctx, context7 | (orchestrator — agent.md) | delegate → score → persist |
+| **build** | primary (bootstrap) | none | (none) | restricted entrypoint → delegates to orchestrator |
 | **design-orchestrator** | all states | lean-ctx, context7 | design-exemplar, ui-ux-pro-max, design-taste-frontend, impeccable | plan UI → enforce 4-layer pipeline → gate |
 | **product-manager** | INIT, PLAN | lean-ctx, context7 | business-analyst, brainstorming, writing-plans | intent → GWT criteria → scope |
 | **scrum-master** | all, BLOCKED | lean-ctx | orchestration-template, audit-observability, adaptive-solver | audit → enforce → unblock |
@@ -40,7 +41,7 @@ This part maps all 16 agents (scrum team) to their contract states, MCPs, and sk
 - **fixer**: Bounded fixer — fast, scoped edits for well-defined bugs. Minimal context, fast turnaround.
 - **quality-analyst**: Reviewer — code quality, performance, DB, DevOps operability across 5 axes. Read-only, reviewer model.
 - **security-engineer**: Security reviewer — threat model, vulns, secrets, trust boundaries. Cross-model reviewer, read-only.
-- **explorer**: Codebase explorer — queries lean-ctx/graphify to understand unfamiliar code. Read-only.
+- **explorer**: Codebase explorer — queries lean-ctx to understand unfamiliar code. Read-only.
 - **librarian**: External researcher — context7 docs lookup, library research. Read-only.
 - **council**: Consensus engine — multi-LLM deliberation and cross-model arbitration for high-stakes decisions. Read-only.
 - **observer**: Visual analyst — images, PDFs, diagrams. Read-only.
@@ -118,7 +119,7 @@ The pipeline shows the hierarchy: `agent.md` is loaded by every agent at session
 
 | Phase | Agent | Primary Tools | Skills Loaded |
 |---|---|---|---|
-| INIT → PLAN | product-manager → system-analyst | ctx_impact, ctx_compose, context7, graphify | business-analyst, brainstorming, writing-plans, doubt-driven-development |
+| INIT → PLAN | product-manager → system-analyst | ctx_impact, ctx_compose, context7 | business-analyst, brainstorming, writing-plans, doubt-driven-development |
 | PLAN_SCORED | orchestrator (+ software-architect review) | lean-ctx (scoring), lean-ctx (persist) | spec-driven-development (SDD gate) |
 | EXECUTE | developer (+ devops-engineer, fixer) | ctx_impact, lean-ctx (write) | test-driven-development, devops-expert, observability-and-instrumentation |
 | EXECUTE_SCORED | orchestrator | lean-ctx (scoring) | doubt-driven-development (DDD gate), over-engineering check |

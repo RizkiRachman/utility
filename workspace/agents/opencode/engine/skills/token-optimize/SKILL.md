@@ -39,14 +39,14 @@ triggers:
 
 ## File Reading
 
-**❌ BAD:** `read filePath="/src/Service.java"` (entire 500-line file)
+**❌ BAD:** `ctx_read path="/src/Service.java"` (entire 500-line file)
 
 **✅ GOOD:**
 
 ```bash
-grep pattern="calculatePrice" path="/src"           # Find the line
+ctx_search pattern="calculatePrice"                     # Find the line
 
-read filePath="/src/Service.java" offset=120 limit=15  # Read only that section
+ctx_read path="/src/Service.java" mode="lines:120-135"  # Read only that section
 
 ```
 **Rule:** If you only need a method signature, read 50 lines max. If you need implementation, read 30-50 lines around the target.
@@ -60,11 +60,11 @@ read filePath="/src/Service.java" offset=120 limit=15  # Read only that section
 **✅ GOOD:** Parallel reads for independent files:
 
 ```bash
-read filePath="/Product.java"
+ctx_read path="/Product.java"
 
-read filePath="/Order.java"
+ctx_read path="/Order.java"
 
-read filePath="/Customer.java"
+ctx_read path="/Customer.java"
 
 # All three execute simultaneously
 
@@ -72,14 +72,14 @@ read filePath="/Customer.java"
 **Combine searches:**
 
 ```bash
-grep pattern="class (Product|Order|Customer)"  # One search, not three
+ctx_search pattern="class (Product|Order|Customer)"  # One search, not three
 
 ```
 ---
 
 ## Context Management
 
-- **Narrow scope:** `glob pattern="src/main/java/com/example/service/**/*.java"` not `**/*`
+- **Narrow scope:** `ctx_glob pattern="src/main/java/com/example/service/**/*.java"` not `**/*`
 
 - **Summarize findings:** "ProductService has 6 CRUD methods. Key: createProduct() uses ProductRepository.save()"
 

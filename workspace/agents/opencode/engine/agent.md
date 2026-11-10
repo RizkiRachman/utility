@@ -15,7 +15,7 @@ Single source of truth for all AI agents. Reference skills and usage guides for 
 ## Table of Contents
 1. [1. Project Overview](#1-project-overview)
 2. [2. Framework Architecture](#2-framework-architecture)
-3. [3. Agent Reference — 16 Agents (Scrum Team)](#3-agent-reference--16-agents-scrum-team)
+3. [3. Agent Reference — 17 Agents (Scrum Team)](#3-agent-reference--17-agents-scrum-team)
 4. [4. Tool Usage Reference](#4-tool-usage-reference)
 5. [5. Development Workflow](#5-development-workflow)
 6. [6. Non-Negotiable Rules](#6-non-negotiable-rules)
@@ -66,7 +66,7 @@ INIT → PLAN → PLAN_SCORED → EXECUTE → EXECUTE_SCORED → REVIEW → REVI
 ### Architecture
 
 ```
-agents/     → 16 agent instruction files (orchestrator, product-manager, scrum-master, developer, devops-engineer, quality-analyst, security-engineer, …)
+agents/     → 17 agent instruction files (orchestrator, product-manager, scrum-master, developer, devops-engineer, quality-analyst, security-engineer, …)
 skills/     → 45 skill directories (system-analyst, writing-plans, spec-driven-development, …)
 commands/   → slash commands (impeccable)
 contract/   → contract.template.json, contract.schema.json, state.template.md
@@ -88,7 +88,7 @@ The engine ships inside the container image (`COPY engine/ /opt/engine/`) and is
 ~/.config/opencode/
    ├── opencode.json → (bind-mounted) config/opencode.json
    ├── agent.md   → /opt/engine/agent.md      (instructions[0])
-   ├── /opt/engine/agents/    → /opt/engine/agents/        16 agent instruction files
+   ├── /opt/engine/agents/    → /opt/engine/agents/        17 agent instruction files
    ├── /opt/engine/skills/    → /opt/engine/skills/        45 skill directories
    ├── /opt/engine/commands/  → /opt/engine/commands/      slash commands
    ├── /opt/engine/rules/     → /opt/engine/rules/         rules.json (state machine)
@@ -106,7 +106,7 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 ```
 ├── agent.md           ← THIS FILE (instructions[0]; includes the §lean-ctx code-intelligence block)
 ├── README.md          ← Project overview (diagram, badges)
-├── /opt/engine/agents/            ← 16 agent instruction files
+├── /opt/engine/agents/            ← 17 agent instruction files
 ├── /opt/engine/doc/               ← Workflow guides, project.md, reports
 ├── /opt/engine/rules/             ← rules.json (state machine, scoring, cross-model review)
 ├── /opt/engine/skills/            ← 45 skill directories
@@ -120,11 +120,11 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 
 ---
 
-## 3. Agent Reference — 16 Agents (Scrum Team)
+## 3. Agent Reference — 17 Agents (Scrum Team)
 
 > Full agent instruction files at `/opt/engine/agents/` (symlinked into the OpenCode config dir). Each file defines role, MCPs, skills, and post-flight protocol.
 >
-> **Model tiers**: `executor` = `opencode/big-pickle` (build/plan tier — developer, fixer, system-analyst); `default` = `sumopod/glm-5.3-flash`, fallback `sumopod/deepseek-flash` (all other agents). Reviewers never share the executor's model — this is the basis of **cross-model review**.
+> **Model tiers**: `executor` = `opencode/big-pickle` (build/plan tier — developer, fixer, system-analyst); `default` = `sumopod/glm-5.3-flash` (all other agents), fallback `sumopod/deepseek-flash`; reviewers (`quality-analyst`, `security-engineer`) pinned to `sumopod/deepseek-flash`. Reviewers never share the executor's model — this is the basis of **cross-model review**.
 
 ### Orchestrator
 
@@ -132,6 +132,11 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 |-------|------|----------|--------|----------------|-------|--------|------|
 | **orchestrator** | Scrum lead / primary orchestrator — delegates, scores, drives the state machine | lean-ctx, context7 | Read/write (lean-ctx only) | `*` (all) | default | (orchestrator — agent.md) | `/opt/engine/agents/orchestrator.md` |
 | **design-orchestrator** | UI/UX specialist orchestrator — enforces 4-layer design pipeline (Exemplar > Generator > Taste > Gate) | lean-ctx, context7 | Read/write (lean-ctx only) | `*` (all) | default | design-exemplar, ui-ux-pro-max, design-taste-frontend, impeccable, banner-design, brand, slides, ui-styling | `/opt/engine/agents/design-orchestrator.md` |
+
+### Bootstrap Agent (primary entrypoint)
+
+| Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
+| **build** | Restricted bootstrap/interactive entrypoint (mode: primary) — no file or shell access, hands tasks to the orchestrator | lean-ctx | Restricted (frontmatter deny-all; `.env` read ask/allow) | n/a (primary) | executor | (none) | `/opt/engine/agents/build.md` |
 
 ### Product & Planning Agents (read-only)
 
@@ -179,6 +184,7 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 | `@fixer` | fixer | `fixer` |
 | `@council` | council | `council` |
 | `@observer` | observer | `observer` |
+| (entrypoint) | build | n/a (mode: primary) |
 
 ### Agent State Machine
 
@@ -197,7 +203,7 @@ See [`/opt/engine/doc/workflow.md`](/opt/engine/doc/workflow.md) for the canonic
 |------|-------------|-------|
 | **lean-ctx** | File reads, shell, search, edit, impact analysis, knowledge persistence, sessions | `/opt/engine/usage/lean-ctx.md` |
 | **Context7** | Library/framework docs lookup | `/opt/engine/usage/context7.md` |
-| **rag MCP** (`rag_search` / `rag_index` / `rag_status` / `rag_get`) | Semantic search over workspace code, docs, and engine skills before unfamiliar work | `/home/node/workspace/opencode/rag/README.md` |
+| **rag MCP** (`rag_search` / `rag_index` / `rag_status` / `rag_get`) | Semantic search over workspace code, docs, and engine skills before unfamiliar work | `/home/node/workspace/agents/opencode/rag/README.md` |
 | **Firecrawl plugin** | First-party V2 plugin: keyless developer search, keyed alexandria gated to ask, CLI skills registered at runtime | `/opt/engine/plugins/opencode-firecrawl/VENDORED.md` |
 
 ### 4.3 Tool Comparison Matrix
@@ -287,13 +293,13 @@ Run this ladder in order before writing ANY code:
 2. **Discuss phase** — 5-lens check: Business, System, Dev, QA, DevOps. Clarify requirements.
    - **Domain context (advisory)**: `rag_search` supplies domain context when the request touches unfamiliar code or docs.
 3. **Plan phase** — Delegate to @system-analyst: impact analysis, edge cases, implementation plan. @software-architect reviews the plan (independent model). Plans spanning >3 files or crossing services include an architecture/impact diagram (diagram-design).
-4. **Spec gate** (if >3 files, cross-service, or >30 min) — Gate check: `bash /opt/engine/scripts/sdd-gate.sh --file session/contract.json || STOP` — Write GWT-format specs. Cross-examine via DDD.
+4. **Spec gate** (if >3 files, cross-service, or >30 min) — Gate check: `lean-ctx ctx_shell /opt/engine/scripts/sdd-gate.sh --file session/contract.json || STOP` — Write GWT-format specs. Cross-examine via DDD.
 5. **Execute phase** — Delegate to @developer: implement plan step by step, write tests alongside code. @devops-engineer owns pipeline/deploy/migration. @fixer for scoped fixes. UI tasks load design-taste-frontend; developer passes the impeccable detector before marking UI work done (EXECUTE exit gate). Advisory retrieval: the developer consults `rag_search` for project conventions before writing non-trivial code, then verifies hits against the file before editing.
    - **Context gate**: @developer loads project standards via `/skill context-standards` before edits when the target project defines `context/` files; @quality-analyst verifies compliance during review.
 6. **Review phase** — Delegate to @quality-analyst (5-axis) AND @security-engineer (security) on the **reviewer model**, independent from the executor. Conflicting verdicts → BLOCKED, arbitrated by @council. UI diffs get the impeccable design-lens (slop detector) inside the readability axis.
 7. **Process gate** — @scrum-master audits transitions, enforces gates, and owns the Definition of Done before COMPLETE. Unblocks BLOCKED sessions.
 8. **Verify loop** — Run build commands, check conventions. Executors and fixers run `scripts/loop-validate.sh` as the inline done-gate before REVIEW.
-9. **Ship** — COMPLETE gate: `bash /opt/engine/scripts/verify-knowledge.sh --all || STOP` — Resolve issues, confirm deploy safety, run post-flight protocol; @learner captures lessons.
+9. **Ship** — COMPLETE gate: `lean-ctx ctx_shell /opt/engine/scripts/verify-knowledge.sh --all || STOP` — Resolve issues, confirm deploy safety, run post-flight protocol; @learner captures lessons.
 10. **Humanizer gate** — run `/skill humanizer` over all user-facing outputs shipped this session (READMEs, docs, PR descriptions, changelogs, release notes) before declaring COMPLETE. Docs that still carry AI patterns (em dashes, rule-of-three, promotional tone) are not done. Mandatory for user-facing text outputs; internal state files (session/state.md, contract JSON, code comments) are exempt.
 
 ### UI/UX Pipeline (Mandatory)
@@ -316,9 +322,9 @@ Use **Doubt-Driven Development (DDD)** when uncertain: spawn a fresh-context adv
 ### Before Commit (Post-Flight Protocol)
 
 
-**Pre-flight**: `bash /opt/engine/scripts/validate-contract.sh --file session/contract.json --score` (score < 70 = BLOCKED)
-**Parallel conflict check**: `bash /opt/engine/scripts/detect-parallel-conflicts.sh --file1 /tmp/a.txt --file2 /tmp/b.txt`
-**Atomic persist**: `bash /opt/engine/scripts/persist-contract.sh --file session/contract.json --inject-score 85` |
+**Pre-flight**: `lean-ctx ctx_shell /opt/engine/scripts/validate-contract.sh --file session/contract.json --score` (score < 70 = BLOCKED)
+**Parallel conflict check**: `lean-ctx ctx_shell /opt/engine/scripts/detect-parallel-conflicts.sh --file1 /tmp/a.txt --file2 /tmp/b.txt`
+**Atomic persist**: `lean-ctx ctx_shell /opt/engine/scripts/persist-contract.sh --file session/contract.json --inject-score 85` |
 
 Exceptions: docs-only changes skip impact, change-detect, and re-index steps. Config-only changes skip impact and change-detect.
 
@@ -335,7 +341,7 @@ lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value "<JSO
 # 2. Update session/state.md — append completed work items
 
 # 3. Archive snapshot to session/ (contract files + state log + index)
-bash /opt/engine/scripts/snapshot-contract.sh --snapshot-only
+lean-ctx ctx_shell /opt/engine/scripts/snapshot-contract.sh --snapshot-only
 
 # 4. Save conversation context (survives OpenCode restart)
 lean-ctx ctx_session save
@@ -351,7 +357,7 @@ After major changes (merged work or resumed sessions), synchronize all state sys
 ```bash
 
 # 3. Snapshot contract state (session/ → archive)
-bash /opt/engine/scripts/snapshot-contract.sh
+lean-ctx ctx_shell /opt/engine/scripts/snapshot-contract.sh
 
 # 4. Save conversation context (survives OpenCode restart)
 lean-ctx ctx_session save
@@ -410,7 +416,7 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 - **Never commit secrets, credentials, tokens, `.env` files**
 
 ### Cross-Model Review
-- **Reviewers (default tier, glm-5.3-flash) must run on a different model than the executor (build/plan tier, big-pickle)** they audit; fallbacks must not collapse separation — on double-fallback set `governance.cross_model_degraded` and cap verdict at RETRY.
+- **Reviewers (pinned to `sumopod/deepseek-flash`) must run on a different model than the executor (build/plan tier, big-pickle)** they audit; fallbacks must not collapse separation — on double-fallback set `governance.cross_model_degraded` and cap verdict at RETRY.
 - **Conflicting reviewer verdicts** (PASS vs BLOCK) → `BLOCKED`, arbitrated by `@council` (see `rules.json → enforcement.cross_model_review`)
 - **Security-sensitive changes** (auth, secrets, credentials, config, crypto) auto-require `@security-engineer` review
 

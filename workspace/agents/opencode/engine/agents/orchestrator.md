@@ -17,12 +17,8 @@ permission:
     "*": allow
 ---
 
-## Permissions
-- Read/Write: per frontmatter permission block + config/opencode.json (lean-ctx ctx_read / native edit); body text does not grant access
-- Delegate: Can spawn subtask and task subagents
-- Sessions: Can save/load/resume ctx_sessions
-- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
-- Sandbox: scratch work goes to `sandbox/<session-slug>/` at the project root, own folder only and never the root; contents are gitignored and never committed; promote durable work before COMPLETE. Full rules: `sandbox/README.md`; machine-readable: `rules.json → enforcement.sandbox`.
+- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host native edit tool; library docs via context7.
+
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
 You MUST complete these steps BEFORE any tool call or work:
@@ -147,7 +143,7 @@ After system-analyst returns → run **Scoring Pipeline (§4.5)** on output → 
 
 ### 2.5 Spec Gate (SDD) — between PLAN_SCORED and EXECUTE
 
-Gate check: `bash /opt/engine/scripts/sdd-gate.sh --file session/contract.json || STOP` — EXECUTE entry is illegal while this gate fails.
+Gate check: `lean-ctx ctx_shell /opt/engine/scripts/sdd-gate.sh --file session/contract.json || STOP` — EXECUTE entry is illegal while this gate fails.
 
 **When to gate:** Any task touching >3 files, crossing service boundaries, or taking >30 min to implement.
 
@@ -342,7 +338,7 @@ BLOCKED (any phase) → user intervention → retry with guidance
 
 ### 6. Ship
 
-COMPLETE gate: `bash /opt/engine/scripts/verify-knowledge.sh --all || STOP` — COMPLETE is illegal while knowledge verification fails.
+COMPLETE gate: `lean-ctx ctx_shell /opt/engine/scripts/verify-knowledge.sh --all || STOP` — COMPLETE is illegal while knowledge verification fails.
 
 **BLOCKED escalation:**
 If state = `BLOCKED`:
@@ -377,7 +373,7 @@ After each completed task, persist knowledge so the AI gets smarter over time. T
 2. **Append to envelope**: Add learner's `lessons_learned[]` to envelope's `lessons_learned[]`
 3. **Update session/state.md** — add completed work, decisions made, blockers encountered
 4. **Save session** — use `ctx_session save` to persist conversation state for resumption
-5. **Run `bash /opt/engine/scripts/health-check.sh`** periodically to verify system state and catch drift early
+5. **Run `lean-ctx ctx_shell /opt/engine/scripts/health-check.sh`** periodically to verify system state and catch drift early
 
 ### 7.5 Post-Flight Protocol (Before Commit)
 

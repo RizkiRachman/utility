@@ -19,11 +19,8 @@ permission:
   webfetch: deny
 ---
 
-## Permissions
-- Read: All project files
-- Write: None (strictly read-only)
-- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell DENIED (read-only tier), ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
-- Tool division: prefer context7 for per-library API docs; use firecrawl_developer_search for primary-source passages (GitHub issues, merged PRs, READMEs) when a library's behavior, errors, or contracts matter; the fetch MCP covers one-off pages; firecrawl_alexandria is keyed and ask-gated; the firecrawl CLI skills handle full web jobs when FIRECRAWL_API_KEY is set.
+- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host native edit tool; library docs via context7.
+
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
 1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`

@@ -310,10 +310,10 @@ check_index() {
         log_warn "lean-ctx data is ${ah}h old — consider re-indexing"
         if [[ "$DO_FIX" == true ]]; then
             log_info "Auto-fix: re-indexing..."
-            if command -v graphify >/dev/null 2>&1 && (cd "$PROJECT_ROOT" && graphify update . >/dev/null 2>&1); then
+            if false; then # auto re-index unsupported; run the rag_index task manually
                 log_pass "lean-ctx index refreshed"
             else
-                log_warn "Graphify not available — cannot refresh lean-ctx data"
+                log_warn "Auto re-index unsupported; run the rag_index task manually"
             fi
         fi
     else

@@ -39,7 +39,7 @@
 <rect x='1303' y='150' width='298' height='520' rx='12' fill='#f6f8fa' stroke='#d0d7de' stroke-width='1.6'/>
 <text x='1452.0' y='186' font-size='16.5' font-weight='bold' fill='#1f2328' text-anchor='middle'>agents in session</text>
 <line x1='1319' y1='202' x2='1585' y2='202' stroke='#d0d7de' stroke-width='1.4'/>
-<text x='1321' y='236' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>16 agents, tiered models</text>
+<text x='1321' y='236' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>17 agents, tiered models</text>
 <text x='1321' y='263' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>read-only: no write tool</text>
 <text x='1321' y='290' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>path gates on opencode.json</text>
 <text x='1321' y='317' font-size='14' font-weight='normal' fill='#1f2328' text-anchor='start'>and session/contract.json</text>

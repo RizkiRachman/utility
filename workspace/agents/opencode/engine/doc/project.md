@@ -4,7 +4,7 @@
 [![Project Status](https://img.shields.io/badge/status-active-brightgreen?style=for-the-badge)](https://github.com/RizkiRachman/workflow-state-engine)
 [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github)](https://github.com/RizkiRachman/workflow-state-engine)
 
-**Contract-driven state machine orchestration engine for AI agent workflows.** A shared JSON envelope (`session/contract.json`) drives an 8-state state machine that coordinates a 15-member scrum team of specialized AI agents across requirements, planning, execution, review, and process phases. Built for multi-agent orchestration with per-phase multi-model review, three-tier scoring, cross-session learning, and audit-grade observability.
+**Contract-driven state machine orchestration engine for AI agent workflows.** A shared JSON envelope (`session/contract.json`) drives an 8-state state machine that coordinates a 17-member scrum team of specialized AI agents across requirements, planning, execution, review, and process phases. Built for multi-agent orchestration with per-phase multi-model review, three-tier scoring, cross-session learning, and audit-grade observability.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -39,7 +39,7 @@ The engine ships inside the container image, so getting it running is build → 
 
 ```bash
 docker build -t workflow-state-engine .   # copies engine/ -> /opt/engine/ and symlinks into ~/.config/opencode/
-cp config/opencode.proposed.json config/opencode.json   # then fill in API-key placeholders
+cp engine/opencode.json.template config/opencode.json   # then fill in API-key placeholders
 docker run --rm -it -e OPENCODE_API_KEY="<your-key>" \
   -v "$PWD/config/opencode.json":/home/node/.config/opencode/opencode.json:ro \
   -p 4096:4096 workflow-state-engine
@@ -53,15 +53,15 @@ Then connect to OpenCode (web UI on port 4096). The orchestrator (orchestrator a
 
 The toolkit is organized as a **3-layer framework** of agents, skills, and contracts:
 
-- **`agents/` (16 agents)** -- Specialized instruction files defining role, state machine access, MCP permissions, and post-flight protocol. The orchestrator orchestrator leads a scrum team (product-manager, scrum-master, system-analyst, software-architect, developer, devops-engineer, fixer, quality-analyst, security-engineer, learner + support agents) in a spec-driven development (SDD) flow: Refine -> Plan -> Spec Gate -> Execute -> Review -> Process Gate -> Ship.
+- **`agents/` (17 agents)** -- Specialized instruction files defining role, state machine access, MCP permissions, and post-flight protocol. The orchestrator leads a scrum team (product-manager, scrum-master, system-analyst, software-architect, developer, devops-engineer, fixer, quality-analyst, security-engineer, learner, build + support agents) in a spec-driven development (SDD) flow: Refine -> Plan -> Spec Gate -> Execute -> Review -> Process Gate -> Ship.
 
-- **`skills/` (50 directories)** -- Runnable skill libraries providing deep guidance per domain. Each skill directory contains a `SKILL.md` with workflows, conventions, and quality gates. Loaded on demand via `/skill` when a task matches the skill's domain.
+- **`skills/` (45 directories)** -- Runnable skill libraries providing deep guidance per domain. Each skill directory contains a `SKILL.md` with workflows, conventions, and quality gates. Loaded on demand via `/skill` when a task matches the skill's domain.
 
 - **`contract/` (contract templates)** -- `contract.template.json` is the template for per-session envelopes. Live state lives at `session/contract.json`, which persists state transitions, decisions, scoring results, token budgets, and audit logs. `contract.schema.json` is the canonical API schema. Cross-session memory lives in `ctx_knowledge` for durable pattern learning.
 
 - **`sandbox/` (session playground)** -- Project-root scratch space, one folder per live session at `sandbox/<session-slug>/`. Probes, clones, and rendered tests go here instead of repo paths or `/tmp`; contents are gitignored and never committed, and only `README.md`, `.gitignore`, and `.gitkeep` are tracked. Promote durable work before COMPLETE. Policy: project-root `sandbox/README.md`; machine-readable: `rules/rules.json` -> `enforcement.sandbox`.
 
-- **Before-Commit Protocol** -- Every session runs: impact verify (`ctx_impact`) -> change detect (`ctx_delta`) -> knowledge persist (`ctx_knowledge remember`) -> graphify sync -> `session/state.md` update -> session save (all 6 systems). `session/` and `.session/` are LOCAL-ONLY runtime state — never commit or push them.
+- **Before-Commit Protocol** -- Every session runs: impact verify (`ctx_impact`) -> change detect (`ctx_delta`) -> knowledge persist (`ctx_knowledge remember`) -> `session/state.md` update -> session save (all 5 systems). `session/` and `.session/` are LOCAL-ONLY runtime state — never commit or push them.
 
 - **Doubt-Driven Development (DDD)** -- Non-trivial decisions get a fresh-context adversarial review before they stand. Used for correctness-critical, high-stakes, or unfamiliar-code decisions.
 

@@ -19,11 +19,8 @@ permission:
     "*": deny
 ---
 
-## Permissions
-- Read: All project files
-- Write: All project files (via the host's native edit tool — lean-ctx handles reads only)
-- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host's native edit tool; library docs via context7.
-- Sandbox: scratch work goes to `sandbox/<session-slug>/` at the project root, own folder only and never the root; contents are gitignored and never committed; promote durable work before COMPLETE. Full rules: `sandbox/README.md`; machine-readable: `rules.json → enforcement.sandbox`.
+- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host native edit tool; library docs via context7.
+
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
 1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
