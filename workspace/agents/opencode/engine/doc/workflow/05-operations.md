@@ -248,7 +248,7 @@ bash scripts/mcp-retry.sh --cmd "mcp-health.sh" --max-retries 5 # Increase retry
 ```bash
 bash scripts/mcp-health.sh                                      # Single check all endpoints
 bash scripts/mcp-health.sh --continuous                         # Continuous monitoring
-bash scripts/mcp-health.sh --endpoint sumopod                   # Check specific endpoint
+bash scripts/mcp-health.sh --check all                       # Check everything
 ```
 
 ### Feedback & Learning Scripts
@@ -275,8 +275,8 @@ bash scripts/contract-enforcer.sh --mode mcp --agent developer # Agent-level enf
 
 
 ```bash
-bash scripts/scheduled-runner.sh --list                        # List scheduled tasks
-bash scripts/scheduled-runner.sh --daemon                      # Start scheduler daemon
+bash scripts/scheduled-runner.sh --task drift-detect --schedule every-30   # One task on a 30-minute cadence
+bash scripts/scheduled-runner.sh --foreground --task heal --schedule daily   # Supervised in-process loop
 ```
 
 

@@ -72,7 +72,7 @@ Copy `workspace/agents/opencode/.env.template` to `.env` at the repository root.
 | `RAG_EMBEDDINGS_MODEL` | (empty) | Embeddings model id at that endpoint |
 | `RAG_EMBEDDINGS_KEY` | (empty) | Embeddings API key |
 
-Runtime knobs that are not env-driven (`OPENCODE_AUTH_REQUIRED=true`, `GRAPHIFY_ROOT`, `GRAPHIFY_BUILD=if-missing`, `GRAPHIFY_TIMEOUT=900`) are set directly in the compose file. Pinned build args (`OPENCODE_VERSION`, `GRAPHIFY_VERSION`, `LEAN_CTX_VERSION`, `CONTEXT7_VERSION`, `MCP_VERSION`, `MCP_SERVER_FETCH_VERSION`) live in the compose build section. The config directory also mounts `opencode-model-fallback.json` read-only: on 401/402/403/429/5xx replies or rate-limit patterns, OpenCode retries and falls back to `sumopod/deepseek-flash` (5 attempts, 60 s cooldown).
+Runtime knobs that are not env-driven (`OPENCODE_AUTH_REQUIRED=true`) are set directly in the compose file. Pinned build args (`OPENCODE_VERSION`, `LEAN_CTX_VERSION`, `CONTEXT7_VERSION`, `MCP_VERSION`, `MCP_SERVER_FETCH_VERSION`) live in the compose build section. The config directory also mounts `opencode-model-fallback.json` read-only: on 401/402/403/429/5xx replies or rate-limit patterns, OpenCode retries and falls back to `sumopod/deepseek-flash` (5 attempts, 60 s cooldown).
 
 ## Project Structure
 
@@ -88,8 +88,8 @@ utility/
     ├── agents/
     │   ├── opencode/                 # The product (see its README)
     │   │   ├── Dockerfile            # OpenCode 2.2.5 on node:22-bookworm-slim
-    │   │   ├── entrypoint.sh         # Boot chain: auth, graphify, MCP preflight, optional engine self-check, serve (serve/web probe fallback)
-    │   │   ├── config/               # opencode.json: 4 MCP servers, firecrawl plugin, 20 agents; model fallback config; rag-usage.md
+    │   │   ├── entrypoint.sh         # Boot chain: auth, MCP preflight, optional engine self-check, serve (serve/web probe fallback)
+    │   │   ├── config/               # opencode.json: 5 MCP servers, firecrawl plugin, 20 agents; model fallback config; rag-usage.md
     │   │   ├── rag/                  # RAG MCP server (SQLite FTS5 + vectors)
     │   │   ├── engine/               # Workflow State Engine, copied to /opt/engine at build
     │   │   ├── populate-preinstall.sh # Fills the offline store; runs inside the opencode-preinstall container

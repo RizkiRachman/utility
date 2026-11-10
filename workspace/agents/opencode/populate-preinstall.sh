@@ -17,10 +17,7 @@ OPENCODE_VERSION="${OPENCODE_VERSION:-2.2.5}"
 OPENCODE_ARCH="${OPENCODE_ARCH:-arm64}"  # @opencode/cli-linux-${OPENCODE_ARCH}
 OPENCODE_PLATFORM_VERSION="${OPENCODE_PLATFORM_VERSION:-2.2.5}"
 CONTEXT7_VERSION="${CONTEXT7_VERSION:-4.4.4}"
-GRAPHIFY_VERSION="${GRAPHIFY_VERSION:-0.9.100}"
 LEAN_CTX_VERSION="${LEAN_CTX_VERSION:-3.12.0}"
-MCP_MEMORY_VERSION="${MCP_MEMORY_VERSION:-2.0.1}"
-MCP_EVERYTHING_VERSION="${MCP_EVERYTHING_VERSION:-2.1.0}"
 MCP_VERSION="${MCP_VERSION:-2.3.0}"
 MCP_SERVER_FETCH_VERSION="${MCP_SERVER_FETCH_VERSION:-2026.10.28}"
 # @firecrawl/opencode runtime dependency + CLI companion (offline store pins)
@@ -98,8 +95,6 @@ echo "==> npm tarballs"
 npm_maybe_pack "@opencode/cli@${OPENCODE_VERSION}"
 npm_maybe_pack "@opencode/cli-linux-${OPENCODE_ARCH}@${OPENCODE_PLATFORM_VERSION}"
 npm_maybe_pack "@upstash/context7-mcp@${CONTEXT7_VERSION}"
-npm_maybe_pack "@modelcontextprotocol/server-memory@${MCP_MEMORY_VERSION}"
-npm_maybe_pack "@modelcontextprotocol/server-everything@${MCP_EVERYTHING_VERSION}"
 npm_maybe_pack "zod@${ZOD_VERSION}"
 npm_maybe_pack "firecrawl-cli@${FIRECRAWL_CLI_VERSION}"
 
@@ -121,15 +116,15 @@ pip_wheels_present() {
   return 1
 }
 
-# The container ships pipx but NOT python3-pip; prefer the graphifyy venv's
-# pip and fall back to python3 -m pip (e.g. on a dev host).
+# The container ships pipx but NOT python3-pip; prefer the fetch venv's pip
+# and fall back to python3 -m pip (e.g. on a dev host).
 fetch_pip_wheels() {
-  if [ -x /opt/pipx/venvs/graphifyy/bin/pip ]; then
-    /opt/pipx/venvs/graphifyy/bin/pip download --dest "$STORE_DIR/pip" \
-      "graphifyy[mcp]==${GRAPHIFY_VERSION}" "mcp==${MCP_VERSION}" "mcp-server-fetch==${MCP_SERVER_FETCH_VERSION}"
+  if [ -x /opt/pipx/venvs/mcp-server-fetch/bin/pip ]; then
+    /opt/pipx/venvs/mcp-server-fetch/bin/pip download --dest "$STORE_DIR/pip" \
+      "mcp==${MCP_VERSION}" "mcp-server-fetch==${MCP_SERVER_FETCH_VERSION}"
   else
     python3 -m pip download --dest "$STORE_DIR/pip" \
-      "graphifyy[mcp]==${GRAPHIFY_VERSION}" "mcp==${MCP_VERSION}" "mcp-server-fetch==${MCP_SERVER_FETCH_VERSION}"
+      "mcp==${MCP_VERSION}" "mcp-server-fetch==${MCP_SERVER_FETCH_VERSION}"
   fi
 }
 
@@ -138,7 +133,7 @@ if pip_wheels_present; then
   mark_skipped "pip wheels (already in store)"
 else
   fetch_pip_wheels
-  mark_added "pip wheels: graphifyy[mcp]==${GRAPHIFY_VERSION}, mcp==${MCP_VERSION}, mcp-server-fetch==${MCP_SERVER_FETCH_VERSION}"
+  mark_added "pip wheels: mcp==${MCP_VERSION}, mcp-server-fetch==${MCP_SERVER_FETCH_VERSION}"
 fi
 
 # --------------------------------------------------------------------------

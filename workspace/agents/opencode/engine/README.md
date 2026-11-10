@@ -5,51 +5,56 @@
 Contract-driven state machine orchestration engine for AI agent workflows: 17 agents, 45 skills, gated scoring on every delegation.
 
 ![states](https://img.shields.io/badge/states-8%2B1-0969DA?style=for-the-badge)
-![agents](https://img.shields.io/badge/agents-16-8250DF?style=for-the-badge)
-![skills](https://img.shields.io/badge/skills-66-1F883D?style=for-the-badge)
-![scripts](https://img.shields.io/badge/scripts-39-BF8700?style=for-the-badge)
+![agents](https://img.shields.io/badge/agents-17-8250DF?style=for-the-badge)
+![skills](https://img.shields.io/badge/skills-45-1F883D?style=for-the-badge)
+![scripts](https://img.shields.io/badge/scripts-40-BF8700?style=for-the-badge)
 
-Single source of truth for all AI agents. The canonical agent instruction file is [`agent.md`](agent.md), which is `instructions[0]` for every agent. The engine ships inside the container image (`engine/` copied to `/opt/engine/` and symlinked into the OpenCode config directory).
+**Purpose.** Agent work is easy to run and hard to trust: outputs drift, decisions vanish, and a confident answer ships unchecked. The engine makes behavior predictable by routing every request through a contract state machine with hard gates, keeps reasoning persistent in one task-namespaced session envelope plus a knowledge store, and stays efficient through a lean baked surface and explicit token budgets.
+
+**Concept.** Bake is the bundle: one container ships OpenCode, lean-ctx, five registered MCP servers (context7, fetch, lean-ctx, openui, rag), the vendored Firecrawl plugin, 45 skills, and deny-first workflow enforcement. There is no first-boot assembly step and no runtime package fetch, so the first boot is fully operational. The canonical instruction file is [`agent.md`](agent.md), loaded as `instructions[0]` by every agent.
+
+**Reasoning.** Storage and workflow are separate concerns. Git stores source, but the workflow assumes no VCS: services arrive with their own patterns, users connect and prepare their own repositories, and they instruct the agent in plain terms. `sandbox/` is the user playground, and any forge works, or none.
+
+## Design principles
+
+- **Predictable.** Same inputs produce the same transitions; gates fail loudly instead of degrading silently.
+- **Persistent reasoning.** One task-namespaced envelope key carries decisions across sessions; a single-writer finalizer keeps it consistent.
+- **Efficient.** Baked and offline-first, with budget visibility instead of hidden retries.
+- **Forge-agnostic.** Runs with or without GitLab or GitHub; the optional push-mirror recipe lives in [`docs/git-mirrors.md`](../docs/git-mirrors.md).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Table of Contents
 
-1. [About The Engine](#about-the-engine)
+1. [Design principles](#design-principles)
+2. [About The Engine](#about-the-engine)
    - [Built With](#built-with)
-2. [Quick Start](#quick-start)
-3. [Getting Started](#getting-started)
+3. [Quick Start](#quick-start)
+4. [Getting Started](#getting-started)
    - [Prerequisites](#prerequisites)
    - [Build](#build)
    - [Configure](#configure)
    - [Run](#run)
    - [Verify](#verify)
-4. [State Machine](#state-machine)
-5. [Scoring Pipeline](#scoring-pipeline)
-6. [Agents](#agents)
-7. [Scripts](#scripts)
-8. [Architecture](#architecture)
-9. [Workflow](#workflow)
-10. [Where State Lives](#where-state-lives)
-11. [Roadmap](#roadmap)
-12. [FAQ](#faq)
-13. [Troubleshooting](#troubleshooting)
-14. [Contributing](#contributing)
-15. [License](#license)
-16. [Acknowledgments](#acknowledgments)
+5. [State Machine](#state-machine)
+6. [Scoring Pipeline](#scoring-pipeline)
+7. [Agents](#agents)
+8. [Scripts](#scripts)
+9. [Architecture](#architecture)
+10. [Workflow](#workflow)
+11. [Where State Lives](#where-state-lives)
+12. [Roadmap](#roadmap)
+13. [FAQ](#faq)
+14. [Troubleshooting](#troubleshooting)
+15. [Contributing](#contributing)
+16. [License](#license)
+17. [Acknowledgments](#acknowledgments)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## About The Engine
 
-This is a reusable orchestration toolkit for AI coding agents. It codifies agent collaboration into a gated state machine (8 forward-flow states + BLOCKED escalation) that ensures:
-
-- **Every output is scored** via a three-tier pipeline (rule checks → LLM-as-judge → combined verdict)
-- **Every decision is tracked** in the shared JSON envelope (`session/contract.json`)
-- **Every session learns** from the last: lessons and patterns persist cross-session via `lean-ctx ctx_knowledge`
-- **Every delegation is gated**: agents only transition if scoring thresholds are met
-
-Reference docs beyond this README:
+This is a reusable orchestration toolkit for AI coding agents. The state machine and scoring sections below are the operating contract; reference docs beyond this README:
 
 | Resource | Content |
 |---|---|
@@ -103,7 +108,7 @@ The engine ships **inside the container image**: the Dockerfile copies `engine/`
 
 ### Build
 
-The Dockerfile bundles OpenCode, lean-ctx, Graphify, and Context7, then copies the engine. It installs packages from the offline store in `pre-install/` (mounted as the `preinstall` build context), so pass that context explicitly:
+The Dockerfile bundles OpenCode, lean-ctx, and Context7, then copies the engine. It installs packages from the offline store in `pre-install/` (mounted as the `preinstall` build context), so pass that context explicitly:
 
 ```bash
 docker build --build-context preinstall=./pre-install -t opencode:local .
@@ -133,7 +138,7 @@ docker run --rm -it \
   opencode:local
 ```
 
-The entrypoint configures auth (writes `OPENCODE_API_KEY` to `auth.json`, then unsets it), optionally builds the Graphify index, runs an MCP readiness preflight, optionally runs engine boot checks, then probes launch forms in order: `opencode serve --hostname 0.0.0.0 --port 4096` → fallback `opencode web --hostname 0.0.0.0 --port 4096` → fallback bare `opencode serve`.
+The entrypoint configures auth (writes `OPENCODE_API_KEY` to `auth.json`, then unsets it), runs an MCP readiness preflight, optionally runs engine boot checks, then probes launch forms in order: `opencode serve --hostname 0.0.0.0 --port 4096` → fallback `opencode web --hostname 0.0.0.0 --port 4096` → fallback bare `opencode serve`.
 
 Under compose, the host binding is `127.0.0.1:4096 → container 4096` (loopback only).
 
@@ -258,6 +263,7 @@ Automation and validation under [`scripts/`](scripts/health-check.sh), grouped b
 | Drift and coordination | `scripts/drift-detect.sh` | Knowledge vs file drift detection |
 | Drift and coordination | `scripts/detect-parallel-conflicts.sh` | Parallel shard conflict detection |
 | Drift and coordination | `scripts/verify-knowledge.sh` | Knowledge persistence verification |
+| Support | `scripts/gen-skills-manifest.sh` | Bakes the skills manifest at image build (name, description, path per skill) |
 | Support | `scripts/state-machine.ts` | TypeScript reference implementation of the state machine |
 | Support | `scripts/normalize-doc-paths.py` | Normalizes deployed doc paths |
 | Support | `scripts/lib/` | Shared shell libraries (`paths.sh`, `common.sh`) |
@@ -273,6 +279,7 @@ engine/
 ├── agent.md               ← Orchestrator instructions (instructions[0])
 ├── agents/                ← 17 agent instruction files
 ├── skills/                ← 45 engine-owned skill directories (SKILL.md + optional package.json); plugin-bundled CLI skills register at runtime and are not counted
+├── skills.json            ← build artifact: shipped-skills manifest, generated by scripts/gen-skills-manifest.sh
 ├── commands/              ← Slash commands (impeccable)
 ├── contract/              ← Contract templates & schema (contract.template.json, contract.schema.json, meta-contract.template.json, state.template.md)
 ├── rules/                 ← rules.json + rules.schema.json (state machine, scoring, cross-model review)
@@ -384,8 +391,8 @@ Scratch work from any session lives in the **project-root** `sandbox/` directory
 
 - [x] Core state machine (8 forward-flow states + BLOCKED)
 - [x] Three-tier scoring pipeline
-- [x] 16 specialized agent instructions (scrum team)
-- [x] Skill packaging (66 engine-owned SKILL.md directories; `package.json` where a skill needs deps; plugin-bundled CLI skills register at runtime and are not counted)
+- [x] 17 specialized agent instructions (scrum team)
+- [x] Skill packaging (45 engine-owned SKILL.md directories; `package.json` where a skill needs deps; plugin-bundled CLI skills register at runtime and are not counted)
 - [x] Cross-reference linting (scripts/check-cross-references.sh: 8-check link/ID integrity + context-standards + access-policy checks, wired into health-check lens-4, validate-toolkit.sh, pre-commit hook, CI)
 - [x] Doc style gate (scripts/check-doc-style.sh: mechanical em/en dash, AI vocabulary, and placeholder checks on shipped docs, wired into health-check --check docs, validate-toolkit.sh, pre-commit hook, CI)
 - [x] Project-context standards layer (skills/context-standards: load target-project context/*.md rules before edits, wired into agent.md Execute step, developer.md, quality-analyst.md, cross-reference check 7)
@@ -422,7 +429,7 @@ Compose publishes host `127.0.0.1:4096` → container 4096, so the UI never expo
 They target the V1 plugin API, and V2 rejects their `file://<file>` entries (`configured plugin path must be a directory`); they never loaded. They are dropped until ported to the `@opencode/plugin` V2 API; `scripts/check-plugins.sh` now enforces the no-`file`-to-`file` rule at setup, toolkit validation, and engine boot.
 
 **How do I add a skill?**
-Create a directory under `engine/skills/` containing a `SKILL.md` with frontmatter (`name`, `description`) and rebuild the image; `skills/` is symlinked into the OpenCode config directory and the skill is picked up automatically. Add a `package.json` only if the skill needs dependency metadata (28 of the current 66 have one). Conventions: [`doc/skill-conventions.md`](doc/skill-conventions.md).
+Create a directory under `engine/skills/` containing a `SKILL.md` with frontmatter (`name`, `description`) and rebuild the image; `skills/` is symlinked into the OpenCode config directory and the skill is picked up automatically. Add a `package.json` only if the skill needs dependency metadata (28 of the current 45 have one). Conventions: [`doc/skill-conventions.md`](doc/skill-conventions.md).
 
 **Where do project pattern standards live?**
 In the target project, not here. A `context/` directory at the project root with `*.md` files is discovered and loaded via `/skill context-standards` before edits, and review verifies the files were applied. The engine itself ships no style defaults.
@@ -449,10 +456,10 @@ The Dockerfile installs apt/pip/npm/git packages from the store mounted as the `
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Container crash-loops at boot | `OPENCODE_API_KEY` missing while `OPENCODE_AUTH_REQUIRED=true`; entrypoint exits 1 | Export a real key before `up`; or set `OPENCODE_AUTH_REQUIRED=false` for keyless testing |
-| `MCP FAIL <name>` (executable `<bin>` not found) at boot | The server's `command` in `config/opencode.json` points at a binary not installed in the image | Fix the command or add the package to the Dockerfile; `MCP_CHECK_STRICT=false` (default) continues degraded |
+| `MCP FAIL <name>` (executable `<bin>` not found) at boot | The server's `command` in `config/opencode.json` points at a binary not installed in the image | Fix the command or add the package to the Dockerfile. A failed built-in server (lean-ctx, context7, fetch, rag) exits 1 by default (`MCP_CHECK_BUILTIN_STRICT=true`); optional servers (openui) only warn unless `MCP_CHECK_STRICT=true` |
+| `skills manifest count N != M skill dirs` at boot | `engine/skills.json` was baked from a different skill set than the one shipped in `/opt/engine/skills` | Regenerate it with `scripts/gen-skills-manifest.sh` and rebuild; the image build runs the generator automatically |
 | Preinstall service finishes instantly, skips everything | Store already populated; repeat runs skip anything present | Expected behavior, not a bug |
 | Wrong-architecture build failures | `pre-install/` store tarballs match `OPENCODE_ARCH` (default `arm64`) | Override `OPENCODE_ARCH` (e.g. `x64`) and re-run the preinstall service for that arch |
-| Boot log: "continuing without a Graphify graph" | By design: `GRAPHIFY_BUILD=if-missing` skips when the graph exists; build failures/timeouts are warnings, boot continues | Set `GRAPHIFY_BUILD=always` to force a rebuild; raise `GRAPHIFY_TIMEOUT` (default 900) if builds time out |
 | `firecrawl_developer_search` refused on VPN, proxy, or cloud networks | Keyless developer search can be blocked on some networks | Set `FIRECRAWL_API_KEY` in the environment, or connect a key via `/connect` in the TUI |
 | Every `firecrawl_alexandria` run asks for confirmation | By design: the config permission sets `effect: ask` for alexandria | Confirm per run, or change the permission to `allow` in `config/opencode.json` if your policy allows |
 

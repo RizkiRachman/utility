@@ -113,75 +113,6 @@ configure_opencode_auth
 unset OPENCODE_API_KEY
 
 # -----------------------------------------------------------------------------
-# Graphify initialization
-# -----------------------------------------------------------------------------
-
-GRAPHIFY_ROOT="${GRAPHIFY_ROOT:-/home/node/workspace}"
-GRAPHIFY_GRAPH="${GRAPHIFY_GRAPH:-$GRAPHIFY_ROOT/graphify-out/graph.json}"
-GRAPHIFY_BUILD="${GRAPHIFY_BUILD:-if-missing}"
-GRAPHIFY_TIMEOUT="${GRAPHIFY_TIMEOUT:-900}"
-
-case "$GRAPHIFY_BUILD" in
-  always)
-    build=1
-    ;;
-  never)
-    build=0
-    ;;
-  if-missing)
-    if [ -f "$GRAPHIFY_GRAPH" ]; then
-      build=0
-    else
-      build=1
-    fi
-    ;;
-  *)
-    echo "[entrypoint] ERROR: invalid GRAPHIFY_BUILD=$GRAPHIFY_BUILD" >&2
-    echo "[entrypoint] Valid values: if-missing, always, never" >&2
-    exit 1
-    ;;
-esac
-
-if [ "$build" = "1" ]; then
-  if [ ! -d "$GRAPHIFY_ROOT" ]; then
-    echo "[entrypoint] WARNING: GRAPHIFY_ROOT not found: $GRAPHIFY_ROOT" >&2
-    echo "[entrypoint] continuing without building Graphify" >&2
-  elif ! command -v graphify >/dev/null 2>&1; then
-    echo "[entrypoint] WARNING: graphify executable not found" >&2
-    echo "[entrypoint] continuing without building Graphify" >&2
-  else
-    echo "[entrypoint] building Graphify graph"
-    echo "[entrypoint] root=$GRAPHIFY_ROOT"
-    echo "[entrypoint] graph=$GRAPHIFY_GRAPH"
-    echo "[entrypoint] timeout=${GRAPHIFY_TIMEOUT}s"
-
-    if (
-      cd "$GRAPHIFY_ROOT" &&
-      timeout "$GRAPHIFY_TIMEOUT" nice -n 10 graphify update .
-    ); then
-      if [ -f "$GRAPHIFY_GRAPH" ]; then
-        echo "[entrypoint] Graphify graph ready: $GRAPHIFY_GRAPH"
-      else
-        echo "[entrypoint] WARNING: Graphify completed without creating:" >&2
-        echo "[entrypoint] $GRAPHIFY_GRAPH" >&2
-      fi
-    else
-      status=$?
-
-      if [ "$status" = "124" ]; then
-        echo "[entrypoint] WARNING: Graphify timed out after ${GRAPHIFY_TIMEOUT}s" >&2
-      else
-        echo "[entrypoint] WARNING: Graphify failed with status $status" >&2
-      fi
-
-      echo "[entrypoint] continuing without a Graphify graph" >&2
-    fi
-  fi
-else
-  echo "[entrypoint] Graphify graph present or build disabled; skipping build"
-fi
-
-# -----------------------------------------------------------------------------
 # MCP readiness checks
 # -----------------------------------------------------------------------------
 #
@@ -191,18 +122,23 @@ fi
 # mid-session.
 #
 # Env:
-#   MCP_CHECK_ENABLED  true|false  enable the preflight (default: true)
-#   MCP_CHECK_TIMEOUT  seconds     per-server timeout (default: 20)
-#   MCP_CHECK_STRICT   true|false  exit 1 if any server is not ready (default: false)
+#   MCP_CHECK_ENABLED          true|false  enable the preflight (default: true)
+#   MCP_CHECK_TIMEOUT          seconds     per-server timeout (default: 20)
+#   MCP_CHECK_STRICT           true|false  exit 1 if ANY server is not ready (default: false)
+#   MCP_CHECK_BUILTIN_STRICT   true|false  exit 1 if a built-in server is not ready (default: true)
+#
+# Built-in servers (lean-ctx, context7, fetch, rag) are strict by default;
+# optional ones (openui) only warn.
 
 MCP_CHECK_ENABLED="${MCP_CHECK_ENABLED:-true}"
 MCP_CHECK_TIMEOUT="${MCP_CHECK_TIMEOUT:-20}"
 MCP_CHECK_STRICT="${MCP_CHECK_STRICT:-false}"
+MCP_CHECK_BUILTIN_STRICT="${MCP_CHECK_BUILTIN_STRICT:-true}"
 MCP_CHECK_CONFIG="${OPENCODE_CONFIG:-$HOME/.config/opencode/opencode.json}"
 
-# Function body lives in scripts/boot/mcp-check.sh (moved verbatim); source it
-# conditionally so a missing engine degrades to a skip, matching the in-body
-# fallback semantics (warn + continue, never fail the boot chain).
+# Function body lives in scripts/boot/mcp-check.sh; source it conditionally so a
+# missing engine degrades to a skip, matching the in-body fallback semantics
+# (warn + continue, never fail the boot chain).
 if [ -f /opt/engine/scripts/boot/mcp-check.sh ]; then
   . /opt/engine/scripts/boot/mcp-check.sh
   mcp_check_servers

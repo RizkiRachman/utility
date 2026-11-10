@@ -5,11 +5,8 @@ ARG OPENCODE_VERSION=2.2.5
 # (@opencode+cli-linux-<arch>-<version>.tgz). Override for x64 builds:
 # OPENCODE_ARCH=x64 (or x64-baseline depending on store contents).
 ARG OPENCODE_ARCH=arm64
-ARG GRAPHIFY_VERSION=0.9.100
 ARG LEAN_CTX_VERSION=3.12.0
 ARG CONTEXT7_VERSION=4.4.4
-ARG MCP_MEMORY_VERSION=2.0.1
-ARG MCP_EVERYTHING_VERSION=2.1.0
 ARG MCP_VERSION=2.3.0
 ARG MCP_SERVER_FETCH_VERSION=2026.10.28
 # Vendored first-party plugin (@firecrawl/opencode) + its runtime dep
@@ -114,41 +111,14 @@ RUN case "${TARGETARCH}" in \
  && install -m 0755 /tmp/docker/docker /usr/local/bin/docker \
  && rm -rf /tmp/docker /tmp/docker-cli.tgz
 
-# Install Graphify and its MCP server (wheel-first from the offline store).
+# Install the fetch MCP server (wheel-first from the offline store).
 ENV PIPX_HOME=/opt/pipx \
     PIPX_BIN_DIR=/usr/local/bin
 
-RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
-    --mount=from=preinstall,src=/,dst=/pi,ro \
-    set -eux; \
-    if ls /pi/pip/graphifyy-*.whl >/dev/null 2>&1; then \
-      PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx install /pi/pip/graphifyy-*.whl; \
-      PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx inject graphifyy /pi/pip/mcp-*.whl; \
-    else \
-      pipx install "graphifyy[mcp]==${GRAPHIFY_VERSION}"; \
-      pipx inject graphifyy "mcp==${MCP_VERSION}"; \
-    fi; \
-    graphify --help >/dev/null; \
-    command -v graphify-mcp
-
-# Memory + everything MCP servers and the fetch MCP server,
-# tarball/wheel-first from the offline store, network as fallback.
 RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     --mount=from=preinstall,src=/,dst=/pi,ro \
     set -eux; \
-    if ls /pi/npm/@modelcontextprotocol+server-memory-*.tgz >/dev/null 2>&1; then \
-      npm install -g --offline --no-audit --no-fund /pi/npm/@modelcontextprotocol+server-memory-*.tgz \
-        || npm install -g --no-audit --no-fund /pi/npm/@modelcontextprotocol+server-memory-*.tgz; \
-    else \
-      npm install -g --no-audit --no-fund "@modelcontextprotocol/server-memory@${MCP_MEMORY_VERSION}"; \
-    fi; \
-    if ls /pi/npm/@modelcontextprotocol+server-everything-*.tgz >/dev/null 2>&1; then \
-      npm install -g --offline --no-audit --no-fund /pi/npm/@modelcontextprotocol+server-everything-*.tgz \
-        || npm install -g --no-audit --no-fund /pi/npm/@modelcontextprotocol+server-everything-*.tgz; \
-    else \
-      npm install -g --no-audit --no-fund "@modelcontextprotocol/server-everything@${MCP_EVERYTHING_VERSION}"; \
-    fi; \
     if ls /pi/pip/mcp_server_fetch-*.whl >/dev/null 2>&1; then \
       PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx install /pi/pip/mcp_server_fetch-*.whl; \
     else \
@@ -157,7 +127,7 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     # Bake readabilipy's Readability.js deps: without node_modules in the
     # package dir, the fetch server shells out to `npm install` per request,
     # which fails air-gapped. Small tree; network-at-build is acceptable
-    # (same trade-off as the graphify/firecrawl fallbacks above).
+    # (same trade-off as the other network fallbacks above).
     JS_DIR="/opt/pipx/venvs/mcp-server-fetch/lib/python3.11/site-packages/readabilipy/javascript"; \
     npm install --prefix "$JS_DIR" --no-audit --no-fund; \
     test -d "$JS_DIR/node_modules/@mozilla/readability"
@@ -209,6 +179,11 @@ ENV ENGINE_ROOT=/opt/engine
 USER root
 
 COPY engine/ /opt/engine/
+
+# Bake the skills manifest (engine/skills.json): boot checks compare its count
+# against the shipped skill directories without scanning at runtime.
+RUN bash /opt/engine/scripts/gen-skills-manifest.sh /opt/engine/skills.json \
+ && jq -e '.count > 0' /opt/engine/skills.json >/dev/null
 
 # RAG MCP server: zero-dependency node script (rag/server.js -> /opt/rag).
 # Image-baked as the base; compose additionally bind-mounts ./rag:/opt/rag:ro

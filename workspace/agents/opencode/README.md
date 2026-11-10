@@ -51,7 +51,7 @@ open http://127.0.0.1:4096   # OpenCode's own pairing screen, enter your key onc
 
 Both the compose stack and the standalone run above publish OpenCode on `127.0.0.1:4096` (loopback only). The first visit shows OpenCode's own pairing prompt; enter the key there.
 
-The entrypoint boot chain: write `OPENCODE_API_KEY` to `auth.json` and unset it, optionally build the Graphify index, run the MCP readiness preflight, optionally run engine boot checks, then probe launch forms in order: `opencode serve --hostname 0.0.0.0 --port 4096` → `opencode web --hostname 0.0.0.0 --port 4096` → bare `opencode serve`.
+The entrypoint boot chain: write `OPENCODE_API_KEY` to `auth.json` and unset it, run the MCP readiness preflight, optionally run engine boot checks, then probe launch forms in order: `opencode serve --hostname 0.0.0.0 --port 4096` → `opencode web --hostname 0.0.0.0 --port 4096` → bare `opencode serve`.
 
 ## Configuration
 
@@ -74,9 +74,6 @@ Compose file: [`docker-compose.example.yaml`](../../../docker-compose.example.ya
 | `RAG_EMBEDDINGS_KEY` | No | (empty) | Bearer key for the embeddings endpoint |
 | `OPENCODE_AUTH_REQUIRED` | No | `true` | Fail boot when `OPENCODE_API_KEY` is missing |
 | `OPENCODE_CONFIG` | No | `/home/node/.config/opencode/opencode.json` | Config path inside the container |
-| `GRAPHIFY_ROOT` | No | `/home/node/workspace` | Graphify index root |
-| `GRAPHIFY_BUILD` | No | `if-missing` | `if-missing` / `always` / `never` |
-| `GRAPHIFY_TIMEOUT` | No | `900` | Graph build timeout (seconds) |
 | `MCP_CHECK_ENABLED` | No | `true` | Boot-time MCP readiness preflight |
 | `MCP_CHECK_TIMEOUT` | No | `20` | Per-server probe timeout (seconds) |
 | `MCP_CHECK_STRICT` | No | `false` | Exit 1 when a server is not ready |
@@ -90,7 +87,6 @@ Compose file: [`docker-compose.example.yaml`](../../../docker-compose.example.ya
 |---|---|---|
 | `OPENCODE_VERSION` | `2.2.5` | OpenCode CLI pin |
 | `OPENCODE_ARCH` | `arm64` | Platform package (`@opencode/cli-linux-arm64`); x64 builds override |
-| `GRAPHIFY_VERSION` | `0.9.100` | `graphifyy[mcp]` pin (PyPI) |
 | `LEAN_CTX_VERSION` | `3.12.0` | lean-ctx pin |
 | `CONTEXT7_VERSION` | `4.4.4` | `@upstash/context7-mcp` pin |
 | `MCP_VERSION` | `2.3.0` | MCP Python SDK pin |
@@ -124,7 +120,7 @@ Defined in `config/opencode.json`:
 | `@firecrawl/opencode` (plugin) | vendored at `engine/plugins/opencode-firecrawl` | Keyless `firecrawl_developer_search`; `firecrawl_alexandria` is ask-gated; keyed scrape/crawl via `firecrawl-cli` |
 | `openui` | `node /home/node/workspace/agents/openui/mcp-bridge.mjs` | Stdio bridge to the openui container (OPENUI_URL=http://openui:3000): `generate_ui`, `preview_url` |
 
-The stock demo servers (`memory`, `everything`) and the knowledge-graph MCP (`graphify`) are installed in the image but not registered in `config/opencode.json`; re-add them there and restart to enable.
+The image ships no demo MCP servers - everything installed is registered in `config/opencode.json`; to add a server, install it, register it there, and restart.
 
 MCP wiring:
 
@@ -177,7 +173,6 @@ Details: [engine/doc/health-check.md](engine/doc/health-check.md).
 | Context7 MCP | `@upstash/context7-mcp@4.4.4` | npm |
 | Memory MCP | `@modelcontextprotocol/server-memory@2.0.1` | npm |
 | Everything MCP | `@modelcontextprotocol/server-everything@2.1.0` | npm |
-| Graphify | `graphifyy[mcp]==0.9.100` | PyPI |
 | MCP Python SDK | `mcp==2.3.0` | PyPI |
 | Fetch MCP | `mcp-server-fetch==2026.10.28` | PyPI |
 | lean-ctx | `v3.12.0` | [GitHub release](https://github.com/yvgude/lean-ctx) |
@@ -191,7 +186,7 @@ Details: [engine/doc/health-check.md](engine/doc/health-check.md).
 ```text
 opencode/
 ├── Dockerfile                   # Image build; consumes the preinstall context
-├── entrypoint.sh                # Boot chain: auth → graphify → MCP preflight → serve
+├── entrypoint.sh                # Boot chain: auth → MCP preflight → serve
 ├── docker-compose.example.yaml  # opencode + preinstall + scheduler services
 ├── rag/                            # RAG MCP server (zero npm dependencies)
 │   ├── server.js                   # CLI + MCP stdio; SQLite FTS5 + vectors
@@ -213,7 +208,7 @@ opencode/
     ├── rules/                   # rules.json + rules.schema.json
     ├── contract/                # Contract templates + JSON Schema
     ├── scripts/                 # Automation & validation scripts (incl. boot/)
-    ├── usage/                   # 4 tool guides (lean-ctx, graphify, context7, opencode)
+    ├── usage/                   # 3 tool guides (lean-ctx, context7, opencode)
     ├── doc/                     # Workflow + health-check docs
     ├── templates/               # judge-prompt.md
     └── opencode.json.template   # Config template (V2-native shape)
@@ -232,13 +227,12 @@ Host browser → 127.0.0.1:4096 (loopback, published) → opencode serve :4096
 
 entrypoint.sh boot chain:
   1. auth: OPENCODE_API_KEY to auth.json, then unset
-  2. Graphify build: if-missing / always / never, timeout 900
-  3. MCP preflight: JSON-RPC initialize per enabled local server
-  4. engine boot checks: validate-contract --score, check-plugins
-  5. launch probe: serve, then web, then bare serve
+  2. MCP preflight: JSON-RPC initialize per enabled local server
+  3. engine boot checks: validate-contract --score, check-plugins
+  4. launch probe: serve, then web, then bare serve
 
 opencode serve attaches to:
-  - MCP servers: lean-ctx, context7, fetch, rag, openui bridge; demo servers and graphify installed but unregistered
+  - MCP servers: lean-ctx, context7, fetch, rag, openui bridge
   - Firecrawl plugin: keyless developer search, alexandria ask-gated
   - workflow-state-engine: 17 agents, 45 skills, session/, sandbox/
 ```

@@ -60,7 +60,7 @@ const FUSE_VECTOR = 0.4;     // cosine weight
 const SNIPPET_CHARS = 200;
 const SKIP_DIRS = new Set([
   '.git', 'node_modules', '__pycache__', '.next', 'dist',
-  'pre-install', 'graphify-out', 'session', '.session', '.venv',
+  'pre-install', 'session', '.session', '.venv',
   // Java / JVM build outputs and IDE metadata
   'target', 'build', '.gradle', '.mvn', 'out', '.settings', '.idea', 'bin',
   '.classpath',

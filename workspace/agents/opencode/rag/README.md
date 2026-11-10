@@ -66,7 +66,7 @@ Markdown, Java, and everything else each get their own chunker. Java files (`.ja
 | Other code and plain text | Split on blank-line boundaries, about 1200 chars per chunk with about 150 chars of overlap |
 | File cap | Files above 512 KB are skipped |
 | Binary detection | First bytes scanned for a null byte; extension skips run after it |
-| Skipped directories | `.git`, `node_modules`, `__pycache__`, `.next`, `dist`, `pre-install`, `graphify-out`, `session`, `.session`, `.venv`, and build outputs: `target`, `build`, `.gradle`, `.mvn`, `out`, `.settings`, `.idea`, `bin`, `.classpath` |
+| Skipped directories | `.git`, `node_modules`, `__pycache__`, `.next`, `dist`, `pre-install`, `session`, `.session`, `.venv`, and build outputs: `target`, `build`, `.gradle`, `.mvn`, `out`, `.settings`, `.idea`, `bin`, `.classpath` |
 | Skipped filenames | `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `gradle.lockfile`, `.DS_Store`, `Thumbs.db` |
 | Skipped extensions | Archives (`jar`, `war`, `zip`, `tar`, `gz`, ...), compiled artifacts (`class`, `exe`, `dll`, `so`, `dylib`, ...), images, fonts, office and media files; `svg` stays indexed |
 | Default root | `/home/node/workspace` |
