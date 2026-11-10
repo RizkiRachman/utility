@@ -251,6 +251,7 @@
     }
   },
   "enforcement": {
+    "retry_total_attempt_cap": 6,
     "version": "0.8.0",
     "desc": "Runtime contract validation and agent→state MCP enforcement",
     "runtime_validation": {

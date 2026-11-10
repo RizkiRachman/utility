@@ -14,7 +14,6 @@ services:
       args:
         OPENCODE_VERSION: "2.2.5"  # pinned for reproducible builds
         OPENCODE_ARCH: "arm64"     # matches pre-install store tarballs; x64 builds override
-        GRAPHIFY_VERSION: "0.9.100"
         LEAN_CTX_VERSION: "3.12.0"
         CONTEXT7_VERSION: "4.4.4"
         MCP_VERSION: "2.3.0"
@@ -44,8 +43,8 @@ services:
       RAG_EMBEDDINGS_URL: ${RAG_EMBEDDINGS_URL:-}
       RAG_EMBEDDINGS_MODEL: ${RAG_EMBEDDINGS_MODEL:-}
       RAG_EMBEDDINGS_KEY: ${RAG_EMBEDDINGS_KEY:-}
-      # Graphify disabled but config preserved
-      GRAPHIFY_TIMEOUT: "900"
+      # Rag search relevance floor (0 = keep all hits; raise to prune weak ones)
+      RAG_MIN_SCORE: ${RAG_MIN_SCORE:-0.25}
     volumes:
       - .:/home/node/workspace
       - ./config/opencode.json:/home/node/.config/opencode/opencode.json:ro
@@ -83,6 +82,6 @@ services:
       - .:/home/node/workspace
     environment:
 
-    command: sh -c "scripts/scheduled-runner.sh --task archive --schedule daily --pid-file /tmp/scheduled-archive.pid; scripts/scheduled-runner.sh --task heal --schedule daily --pid-file /tmp/scheduled-heal.pid"
+    command: sh -c "scripts/scheduled-runner.sh --task archive --schedule daily --pid-file /tmp/scheduled-archive.pid; scripts/scheduled-runner.sh --task heal --schedule daily --pid-file /tmp/scheduled-heal.pid; scripts/scheduled-runner.sh --task rag-reindex --schedule daily --pid-file /tmp/scheduled-rag-reindex.pid"
 volumes:
   opencode-data:

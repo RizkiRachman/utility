@@ -342,6 +342,31 @@ do_fix() {
     if [[ "$fixes" -gt 0 ]]; then log_pass "Applied $fixes fix(es)"; else log_pass "Nothing to fix"; fi
 }
 
+# Check: Scheduler Heartbeat (R2-11) - fail when scheduled tasks stop reporting
+check_heartbeat() {
+    log_section "Check: Scheduler Heartbeat"
+    local hb="${SESSION_DIR}/heartbeat.json"
+    if [[ ! -f "$hb" ]]; then
+        log_info "No scheduler heartbeat (${hb}) — scheduled tasks not in use"
+        return 0
+    fi
+    local ts now age_h
+    ts=$(jq -r '.timestamp // empty' "$hb" 2>/dev/null || true)
+    if [[ -z "$ts" ]]; then
+        log_fail "heartbeat.json present but unreadable: $hb"
+        return 1
+    fi
+    ts=$(date -u -d "$ts" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$ts" +%s 2>/dev/null || echo 0)
+    now=$(date -u +%s)
+    age_h=$(( (now - ts) / 3600 ))
+    if (( age_h > 48 )); then
+        log_fail "scheduler heartbeat is stale (${age_h}h old, threshold 48h): $hb"
+        return 1
+    fi
+    log_pass "scheduler heartbeat fresh (${age_h}h old)"
+    return 0
+}
+
 # ── Persist to session/health.json ────────────────────────────────
 persist_results() {
     local session="$1" report="$2"
@@ -384,7 +409,7 @@ main() {
     log_section "Health Check — $br"
     log_verbose "Mode: $CHECK_MODE, Fix: $DO_FIX, Output: $OUTPUT_MODE"
     case "$CHECK_MODE" in
-        all|*) check_scripts || true; check_contract || true; check_rules || true; check_references || true; check_docs || true; check_git || true; check_deps || true; check_index || true ;;
+        all|*) check_scripts || true; check_contract || true; check_rules || true; check_references || true; check_docs || true; check_git || true; check_deps || true; check_index || true; check_heartbeat || true ;;
         scripts) check_scripts || true ;;
         contract) check_contract || true ;;
         rules) check_rules || true ;;
@@ -393,6 +418,7 @@ main() {
         session) check_git || true ;;
         deps) check_deps || true ;;
         index) check_index || true ;;
+        heartbeat) check_heartbeat || true ;;
     esac
     if [[ "$DO_FIX" == true ]]; then do_fix; fi
     local rj

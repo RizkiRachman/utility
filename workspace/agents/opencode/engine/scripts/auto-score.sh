@@ -30,6 +30,7 @@ PROJECT_DIR="$(resolve_project_root "${SCRIPT_DIR}/..")"
 CONTRACT_FILE=""
 RULES_FILE=""
 DRY_RUN=false
+SCORE_PHASE=""
 TIER_FILTER="all"  # all, 1, 2
 SCORE_ONLY=false
 VERBOSE=false
@@ -69,6 +70,7 @@ OPTIONS
     --tier N          Score only a specific tier: 1 (rules) or 2 (judge)
                       (default: all — both tiers)
     --score-only      Output only the combined score number (for CI/scripts)
+    --phase NAME      Optional phase label recorded in the scores.jsonl ledger
     --dry-run         Show each check without scoring or modifying anything
     --verbose         Detailed output per check
     --help            Show this help message and exit
@@ -564,6 +566,7 @@ main() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --file)     CONTRACT_FILE="$2"; shift 2 ;;
+            --phase)    SCORE_PHASE="$2"; shift 2 ;;
             --rules)    RULES_FILE="$2"; shift 2 ;;
             --tier)     TIER_FILTER="$2"; shift 2 ;;
             --score-only) SCORE_ONLY=true; shift ;;
@@ -741,6 +744,13 @@ main() {
                     verdict: $v
                 }
             }'
+    fi
+
+    # Scores ledger: append one JSONL line per scoring run (R2-08)
+    local scores_file
+    scores_file="$(dirname "$CONTRACT_FILE")/scores.jsonl"
+    if ! jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg phase "${SCORE_PHASE:-}" --argjson combined "$combined_score" --arg verdict "$verdict" 'if $phase == "" then {timestamp: $ts, phase: null, combined: $combined, verdict: $verdict} else {timestamp: $ts, phase: $phase, combined: $combined, verdict: $verdict} end' >> "$scores_file" 2>/dev/null; then
+        echo "WARN: failed to append scores ledger: $scores_file" >&2
     fi
 
     # Exit code

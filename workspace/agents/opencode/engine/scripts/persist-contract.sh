@@ -30,6 +30,7 @@ CONTRACT_FILE="${PROJECT_DIR}/session/contract.json"
 exec 9>"${CONTRACT_FILE}.lock" 2>/dev/null || true
 flock 9 2>/dev/null || true
 SCORE=""
+FROM_FILE=""
 RUN_VALIDATE=false
 VERBOSE=false
 
@@ -47,6 +48,7 @@ Atomically persist a contract envelope using temp-file + rename.
 
 Options:
   --file PATH    Target file (default: $PROJECT_DIR/session/contract.json)
+  --from-file P  Install an already-prepared contract file atomically
   --score N      Score value to inject before writing
   --validate     Run validate-contract.sh on the file after write
   --verbose      Verbose output
@@ -59,6 +61,7 @@ EOF
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --file) CONTRACT_FILE="$2"; shift 2 ;;
+        --from-file) FROM_FILE="$2"; shift 2 ;;
         --score) SCORE="$2"; shift 2 ;;
         --validate) RUN_VALIDATE=true; shift ;;
         --verbose) VERBOSE=true; shift ;;
@@ -67,12 +70,21 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [[ -n "$FROM_FILE" && -n "$SCORE" ]]; then
+    echo "ERROR: --from-file and --score are mutually exclusive" >&2
+    exit 2
+fi
+
 if [[ "$VERBOSE" == true ]]; then
     echo -e "${YELLOW}[INFO]${NC} Persisting: $CONTRACT_FILE"
 fi
 
 # --- Check input file exists -----------------------------------------------
-if [[ ! -f "$CONTRACT_FILE" ]]; then
+if [[ -n "$FROM_FILE" && ! -f "$FROM_FILE" ]]; then
+    echo "ERROR: --from-file source not found: $FROM_FILE" >&2
+    exit 2
+fi
+if [[ -z "$FROM_FILE" && ! -f "$CONTRACT_FILE" ]]; then
     echo "ERROR: Contract file not found: $CONTRACT_FILE" >&2
     exit 2
 fi
@@ -80,11 +92,11 @@ fi
 # --- Validate JSON before writing ------------------------------------------
 if ! python3 -c "
 import json, sys
-with open('$CONTRACT_FILE') as f:
+with open('${FROM_FILE:-$CONTRACT_FILE}') as f:
     json.load(f)
 sys.exit(0)
 " 2>/dev/null; then
-    echo "ERROR: Invalid JSON in $CONTRACT_FILE — aborting" >&2
+    echo "ERROR: Invalid JSON in ${FROM_FILE:-$CONTRACT_FILE} — aborting" >&2
     exit 2
 fi
 
@@ -95,7 +107,7 @@ if [[ -n "$SCORE" ]]; then
     fi
     python3 -c "
 import json
-with open('$CONTRACT_FILE') as f:
+with open('${FROM_FILE:-$CONTRACT_FILE}') as f:
     data = json.load(f)
 data['score'] = data.get('score', {})
 data['score']['combined'] = $SCORE
@@ -118,7 +130,7 @@ if [[ -z "$TEMP_FILE" ]]; then
 fi
 
 # Copy to temp
-cp "$CONTRACT_FILE" "$TEMP_FILE"
+cp "${FROM_FILE:-$CONTRACT_FILE}" "$TEMP_FILE"
 
 # Verify temp file is valid JSON
 if ! python3 -c "

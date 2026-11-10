@@ -62,6 +62,7 @@ INIT → PLAN → PLAN_SCORED → EXECUTE → EXECUTE_SCORED → REVIEW → REVI
 1. **Tier 1 — Rule-Based Checks**: Schema valid (-15), permissions violated (-40), blast radius HIGH (-40), writing order wrong (-15), required fields missing (-15). Subtotal ≥ 70 → Tier 2.
 2. **Tier 2 — LLM-as-Judge**: Scores 0-100 on requirements fulfillment (0-40), governance compliance (0-30), completeness (0-20), edge cases (0-10).
 3. **Tier 3 — Combined Verdict**: PASS (≥70), RETRY (50-69, max 3 attempts), BLOCKED (<50).
+4. **Scores Ledger**: each scoring run appends a JSONL line (timestamp, phase, combined, verdict) to scores.jsonl beside the contract (auto-score.sh --phase).
 
 ### Architecture
 

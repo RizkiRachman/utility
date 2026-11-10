@@ -6,6 +6,10 @@ log_fail() { echo -e "\033[31m✗ $1\033[0m"; }
 log_info() { echo -e "\033[34mℹ $1\033[0m"; }
 log_verbose() { [[ "${VERBOSE:-0}" == "1" ]] && echo -e "\033[33m⋯ $1\033[0m"; }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/paths.sh"
+
 usage() {
     cat << EOF
 Usage: scheduled-runner.sh [OPTIONS] --task TASK
@@ -41,6 +45,10 @@ TASK OPTIONS:
   drift-detect  Run drift detection
   health        Run MCP health check
   metrics       Aggregate metrics
+  archive       Archive old sessions
+  heal          Self-healing contract validation retry
+  watchdog      Monitor WATCH_PID via timeout-watchdog.sh
+  rag-reindex   Rebuild the rag workspace index
 
 EXAMPLES:
   scheduled-runner.sh --task validate --schedule hourly
@@ -136,6 +144,17 @@ run_task() {
         heal)
             bash scripts/self-healing-retry.sh --command "bash scripts/validate-contract.sh --file ${CONTRACT_FILE:-session/contract.json}" --label contract-validate --max-retries 3 || exit_code=1
             ;;
+        watchdog)
+            if [[ -z "${WATCH_PID:-}" ]]; then
+                log_fail "watchdog task requires the WATCH_PID env var"
+                exit_code=1
+            else
+                bash scripts/timeout-watchdog.sh --watch "$WATCH_PID" ${WATCH_LABEL:+--label "$WATCH_LABEL"} || exit_code=1
+            fi
+            ;;
+        rag-reindex)
+            node "${SCRIPT_DIR}/../rag/server.js" index || exit_code=1
+            ;;
 
 
         *)
@@ -143,6 +162,12 @@ run_task() {
             exit_code=1
             ;;
     esac
+    # Heartbeat: record the last task run for stale detection (R2-11)
+    local hb_dir hb_ts
+    hb_dir="$(resolve_session_dir "$(resolve_project_root "${SCRIPT_DIR}/..")")"
+    mkdir -p "$hb_dir"
+    hb_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf '{"timestamp":"%s","task":"%s","exit_code":%s}\n' "$hb_ts" "$TASK" "$exit_code" > "${hb_dir}/heartbeat.json"
     return $exit_code
 }
 

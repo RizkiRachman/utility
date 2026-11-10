@@ -253,6 +253,16 @@ if [[ -n "$TARGET_TO" ]]; then
       echo -e "${RED}BLOCKED: retry exhausted ($R_ATT/$R_MAX); BLOCKED is the only legal path${NC}" >&2
       exit 1
     fi
+    # R2-25: post-unblock total attempt cap (attempts + escalation history)
+    T_ATT=$(( $(jq -r ".retry.attempt // 0" "$CONTRACT") + $(jq -r ".retry.escalation_trace // [] | length" "$CONTRACT") ))
+    T_CAP=$(jq -r ".enforcement.retry_total_attempt_cap // 0" "${RULES_FILE:-}" 2>/dev/null || echo 0)
+    if (( T_CAP <= 0 )); then
+      T_CAP=$(( R_MAX * 2 ))
+    fi
+    if (( T_ATT >= T_CAP )); then
+      echo -e "${RED}BLOCKED: total attempt cap reached ($T_ATT/$T_CAP); manual reset required${NC}" >&2
+      exit 1
+    fi
   fi
   echo -e "${GREEN}PASS: transition $CURRENT_STATE -> $TARGET_TO is legal${NC}"
 fi

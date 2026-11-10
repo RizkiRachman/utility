@@ -101,7 +101,16 @@ fi
 
 echo "All symlinks valid."
 echo ""
-echo "NOTE: .githooks/pre-commit stays dormant unless the workspace is a git repo;"
-echo "      hooks activate only when the target directory is a git repository."
+
+# Activate git hooks when this checkout is a git repository (R2-26)
+ENGINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(git -C "$ENGINE_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "$REPO_ROOT" ] && [ -d "$ENGINE_DIR/.githooks" ]; then
+  git -C "$REPO_ROOT" config core.hooksPath "$ENGINE_DIR/.githooks"
+  echo "Git hooks activated: core.hooksPath -> $ENGINE_DIR/.githooks"
+fi
+
+echo "NOTE: .githooks/pre-commit activates automatically on git checkouts (core.hooksPath);"
+echo "      outside a git repository the hooks stay dormant."
 echo ""
 echo "Setup complete. The toolkit is ready."

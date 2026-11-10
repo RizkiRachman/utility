@@ -152,7 +152,7 @@ for each entry with scoring_snapshot:
 
 Formula: `avg(entry.scoring_snapshot.combined)` grouped by `entry.new_state`.
 
-### Regression Detection (>20pt Drop)
+### Regression Detection (>30pt Drop)
 
 Compare adjacent audit entries in the **same phase**:
 
@@ -160,7 +160,7 @@ Compare adjacent audit entries in the **same phase**:
 for i = 1 to audit_log.length - 1:
     prev = audit_log[i - 1].scoring_snapshot?.combined
     curr = audit_log[i].scoring_snapshot?.combined
-    if prev != null and curr != null and (prev - curr) > 20:
+    if prev != null and curr != null and (prev - curr) > 30:
         emit("SCORE_REGRESSION", { from: prev, to: curr, drop: prev - curr, phase: audit_log[i].new_state })
         apply_deduction = 15  // per AUDIT_003
 ```

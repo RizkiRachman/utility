@@ -251,7 +251,7 @@ if [[ -n "$OLD_STATE" && -n "$NEW_STATE" && "$OLD_STATE" != "$NEW_STATE" ]]; the
            --arg trig "$TRIGGERED_BY" \
            --argjson score "$CURRENT_SCORE" \
            '.audit_log += [{"timestamp": $ts, "prev_state": $from, "new_state": $to, "triggered_by": $trig, "scoring_snapshot": $score}]' \
-           "$CONTRACT_FILE" > "${CONTRACT_FILE}.tmp" && mv "${CONTRACT_FILE}.tmp" "$CONTRACT_FILE" && {
+           "$CONTRACT_FILE" > "${CONTRACT_FILE}.tmp" && "$SCRIPT_DIR/persist-contract.sh" --file "$CONTRACT_FILE" --from-file "${CONTRACT_FILE}.tmp" && rm -f "${CONTRACT_FILE}.tmp" && {
             log_info "Audit entry added: $OLD_STATE → $NEW_STATE"
             # Re-read contract JSON after audit modification
             CONTRACT_JSON="$(jq -c '.' "$CONTRACT_FILE" 2>/dev/null)"

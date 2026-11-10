@@ -236,6 +236,8 @@ combined ≥ 70          → verdict = PASS
 combined < 50          → verdict = BLOCKED
 ```
 
+**Scores ledger:** every scoring run appends a JSONL line (timestamp, phase, combined, verdict) to scores.jsonl beside the contract (auto-score.sh --phase).
+
 **Update envelope:**
 ```json
 {
