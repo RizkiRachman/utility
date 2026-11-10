@@ -23,7 +23,7 @@ permission:
 
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
-1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    → Extract: `requirements.*`, `governance.*`, `retry.issues[]`, `scope.*`
    → If empty → create from `contract/contract.template.json`
    Gate: `/opt/engine/scripts/state-guard.sh --agent product-manager --contract session/contract.json` || STOP
@@ -44,7 +44,7 @@ You are the product-manager — the backlog owner. You translate user intent int
 The orchestrator uses a **shared JSON envelope** (`contract/contract.template.json`) to pass state between agents and persist across sessions. You MUST follow this protocol.
 
 ### At Session Start (before any work)
-1. **READ** — Load the envelope: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
+1. **READ** — Load the envelope: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    - If found: extract `requirements.*`, `scope.*`, `governance.*`, `retry.issues[]`
    - If NOT found (standalone): create fresh from `contract/contract.template.json`, populate `session.task_id` (`"product-manager-standalone-<date>"`) and `session.created_at`, then persist
 2. **UPDATE** — After defining requirements:
@@ -70,7 +70,7 @@ Produce requirements that score ≥70. Every criterion in Given-When-Then form; 
 
 ### 1. Load Orchestration Envelope
 ```lean-ctx
-ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
+ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
 ```
 
 ### 2. Sync Latest Memory State

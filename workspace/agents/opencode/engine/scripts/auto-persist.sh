@@ -17,6 +17,9 @@
 # Exit codes:
 #   0 = Success
 #   1 = Error (invalid args, missing file, invalid JSON, etc.)
+#
+# Lock: acquires the same exclusive flock on <contract>.lock (fd 9) that
+# persist-contract.sh holds, covering the knowledge write and the file write.
 
 set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -262,6 +265,14 @@ if [[ -n "$OLD_STATE" && -n "$NEW_STATE" && "$OLD_STATE" != "$NEW_STATE" ]]; the
         }
     fi
 fi
+
+# ---------------------------------------------------------------------------
+# Session lock (R3-18): same flock contract as persist-contract.sh. Acquired
+# after the audit-log child call (which locks itself) so no nested lock.
+# ---------------------------------------------------------------------------
+# Group form: keeps fd 2 alive (bare `exec 9>f 2>/dev/null` silences all later stderr).
+{ exec 9>"${CONTRACT_FILE}.lock"; } 2>/dev/null || true
+flock 9 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Persist to lean-ctx knowledge (unless --no-knowledge)

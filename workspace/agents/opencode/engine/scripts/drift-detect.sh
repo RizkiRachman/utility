@@ -165,8 +165,20 @@ if [[ "$NO_KNOWLEDGE" == false ]]; then
         exit 2
     fi
 
-    # Capture knowledge output (may contain "Error:" or valid JSON)
-    KV_RAW="$(kb_recall "orchestration-contract" 2>/dev/null || true)"
+    # R3-07: recall the task-namespaced key first (TASK_ID derived exactly as
+    # auto-persist.sh derives it), then fall back to the bare legacy key.
+    TASK_ID=""
+    if [[ -f "$CONTRACT_FILE" ]]; then
+        TASK_ID="$(jq -r '.session.task_id // "default"' "$CONTRACT_FILE" 2>/dev/null || echo "default")"
+    fi
+    KV_RAW=""
+    if [[ -n "$TASK_ID" ]]; then
+        KV_RAW="$(kb_recall "orchestration-contract:${TASK_ID}" 2>/dev/null || true)"
+    fi
+    if [[ -z "$KV_RAW" ]]; then
+        # Legacy bare key - one-time compatibility with pre-namespace envelopes
+        KV_RAW="$(kb_recall "orchestration-contract" 2>/dev/null || true)"
+    fi
 
     if echo "$KV_RAW" | jq -e . >/dev/null 2>&1; then
         KV_JSON="$KV_RAW"

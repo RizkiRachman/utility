@@ -21,7 +21,7 @@ permission:
 
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
-1. **Load envelope**: Read `session/contract.json` at the project root (seeded from `contract/contract.template.json`; in-container this is `/home/node/workspace/session/contract.json`) or `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)` — extract `decisions.*`, `governance.*`, `scope.included`
+1. **Load envelope**: Read `session/contract.json` at the project root (seeded from `contract/contract.template.json`; in-container this is `/home/node/workspace/session/contract.json`) or `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)` — extract `decisions.*`, `governance.*`, `scope.included`
    Gate: `/opt/engine/scripts/state-guard.sh --agent design-orchestrator --contract session/contract.json` || STOP
 2. **Shell discipline**: Use `lean-ctx ctx_shell` for ALL shell commands. `bash` is denied in permissions and blocks automation
 3. **Impact check**: `ctx_impact({target, direction: "upstream"})` before any edit

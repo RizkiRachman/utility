@@ -18,6 +18,9 @@
 #   0 = Write successful (and validation passed, if --validate)
 #   1 = Validation failed (only with --validate)
 #   2 = Write failed (temp file error, rename failed)
+#
+# Lock: holds an exclusive flock on <contract>.lock (fd 9) for its whole
+# lifetime; every other envelope writer must take the same lock.
 # =============================================================================
 
 set -euo pipefail
@@ -27,7 +30,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/paths.sh"
 PROJECT_DIR="$(resolve_project_root "${SCRIPT_DIR}/..")"
 CONTRACT_FILE="${PROJECT_DIR}/session/contract.json"
-exec 9>"${CONTRACT_FILE}.lock" 2>/dev/null || true
+# Group form: keeps fd 2 alive (bare `exec 9>f 2>/dev/null` silences all later stderr).
+{ exec 9>"${CONTRACT_FILE}.lock"; } 2>/dev/null || true
 flock 9 2>/dev/null || true
 SCORE=""
 FROM_FILE=""

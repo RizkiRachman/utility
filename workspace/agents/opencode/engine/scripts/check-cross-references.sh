@@ -522,8 +522,8 @@ check_forbidden_patterns() {
     hits=$(grep -rli 'graphify' $md_files 2>/dev/null || true)
     if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "graphify zombie mention(s) in: $(echo "$hits" | tr "\n" " ")"; fi
 
-    # 9e. Envelope keys missing the :task_id namespace
-    hits=$(grep -rlE 'remember key orchestration-contract([^:]|$)' $md_files 2>/dev/null || true)
+    # 9e. Envelope keys missing the :task_id namespace (write AND recall forms)
+    hits=$(grep -rlE 'remember[[:space:]]+(key[[:space:]]+)?orchestration-contract([^:]|$)|recall[[:space:]]+(key[[:space:]]*=?[[:space:]]*"?)?orchestration-contract([^:]|"|$)' $md_files 2>/dev/null || true)
     if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "bare envelope key(s) in: $(echo "$hits" | tr "\n" " ")"; fi
 
     if [[ "$broken" -eq 0 ]]; then

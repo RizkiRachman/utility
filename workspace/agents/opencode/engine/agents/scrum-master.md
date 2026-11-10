@@ -23,7 +23,7 @@ permission:
 
 
 ## ⛔ PRE-FLIGHT GATE — DO NOT SKIP
-1. **Load contract**: `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    → Extract: `state`, `governance.*`, `score.*`, `retry.*`, `validation.*`, `audit_log[]`
    → If empty → report "no active envelope" and audit the template instead
    Gate: `/opt/engine/scripts/state-guard.sh --agent scrum-master --contract session/contract.json` || STOP
@@ -41,7 +41,7 @@ You are the scrum-master — the process authority. You do NOT do the delivery w
 ## Orchestration Envelope — Session Protocol
 
 ### At Session Start
-1. **READ** — `ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
+1. **READ** — `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
    - Extract `state`, `retry.issues[]`, `retry.escalation_trace[]`, `validation.block_on`, `metrics.phases_completed[]`
 2. **AUDIT** — verify:
    - `state` is a legal state (`rules.json` `state_machine.states`)
@@ -109,7 +109,7 @@ If any box is unchecked → BLOCK COMPLETE.
 
 ### 1. Load Orchestration Envelope
 ```lean-ctx
-ctx_knowledge recall key="orchestration-contract" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
+ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
 ```
 
 ### 2. Load Rules & Workflow

@@ -27,12 +27,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/paths.sh"  # N1: session state lives with the project
 PROJECT_DIR="$(resolve_project_root "${SCRIPT_DIR}/..")"
+# R3-17: repo root for commit provenance (two levels up from the project root;
+# falls back to PROJECT_DIR when that path is not a git work tree).
+REPO_ROOT="$(cd "${PROJECT_DIR}/../.." 2>/dev/null && pwd || printf '%s\n' "$PROJECT_DIR")"
+if ! git -C "$REPO_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    REPO_ROOT="$PROJECT_DIR"
+fi
 CONTRACT_FILE=""
 RULES_FILE=""
 DRY_RUN=false
 SCORE_PHASE=""
 TIER_FILTER="all"  # all, 1, 2
 SCORE_ONLY=false
+JUDGE_FILE=""
 VERBOSE=false
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -71,6 +78,9 @@ OPTIONS
                       (default: all — both tiers)
     --score-only      Output only the combined score number (for CI/scripts)
     --phase NAME      Optional phase label recorded in the scores.jsonl ledger
+    --judge-file PATH External LLM judge result JSON
+                      ({score, rationale, missing_items, model}); supplies a
+                      real Tier 2 score instead of the bash fallback
     --dry-run         Show each check without scoring or modifying anything
     --verbose         Detailed output per check
     --help            Show this help message and exit
@@ -87,7 +97,9 @@ BEHAVIOR
     Tier 2 — LLM-as-Judge (pass-through):
       Reads requirements.goal + acceptance_criteria from the contract.
       Prints a judge-ready JSON prompt to stdout (for orchestrator to forward).
-      Without --tier 2, returns conservative fallback (Tier 1 subtotal).
+      With --judge-file, consumes the returned artifact as the Tier 2 score.
+      Without a judge artifact, returns conservative fallback (Tier 1 subtotal)
+      and the run is marked tier1_only.
 
     Tier 3 — Combined Verdict:
       combined ≥ 70   → PASS
@@ -98,9 +110,10 @@ OUTPUT (default):
     {
       "score": {
         "rules": { "pass": 4, "fail": 1, "deduction": 15, "subtotal": 85 },
-        "judge": { "score": 80, "rationale": "...", "missing_items": [] },
+        "judge": { "score": 80, "rationale": "...", "missing_items": [], "model": "..." },
         "combined": 82,
-        "verdict": "PASS"
+        "verdict": "PASS",
+        "tier1_only": false
       }
     }
 
@@ -467,6 +480,24 @@ run_tier2_judge() {
     local judge_score=0
     local judge_rationale="LLM judge unavailable in bash context — Tier 2 requires LLM invocation"
     local judge_missing="[]"
+    local judge_model=""
+
+    # R3-05: external judge artifact — real Tier 2 score when supplied
+    if [[ -n "$JUDGE_FILE" ]]; then
+        if [[ ! -f "$JUDGE_FILE" ]]; then
+            judge_rationale="Judge file not found: ${JUDGE_FILE} — judge unavailable, fell back to Tier 1 subtotal"
+        elif ! jq -e '(.score | type) == "number" and .score >= 0 and .score <= 100' "$JUDGE_FILE" >/dev/null 2>&1; then
+            judge_rationale="Judge file invalid (numeric .score 0..100 required): ${JUDGE_FILE} — judge unavailable, fell back to Tier 1 subtotal"
+        else
+            # Round to an integer: downstream combined-score math is bash integer arithmetic
+            judge_score=$(jq -r '.score | round' "$JUDGE_FILE" 2>/dev/null || echo 0)
+            judge_rationale=$(jq -r '.rationale // "external judge artifact"' "$JUDGE_FILE" 2>/dev/null | tr '\n' ' ' || echo "external judge artifact")
+            judge_missing=$(jq -c '.missing_items // []' "$JUDGE_FILE" 2>/dev/null || echo "[]")
+            judge_model=$(jq -r '.model // ""' "$JUDGE_FILE" 2>/dev/null || echo "")
+        fi
+        echo "${judge_score}|${judge_rationale}|${judge_missing}|${judge_model}"
+        return
+    fi
 
     if command -v lean-ctx &>/dev/null; then
         # Try lean-ctx ctx_shell for scoring (will likely fail in bash context)
@@ -526,23 +557,25 @@ run_tier2() {
     local result
     result=$(run_tier2_judge "$file" "$rules_file")
 
-    local judge_score judge_rationale judge_missing
+    local judge_score judge_rationale judge_missing judge_model
     judge_score=$(echo "$result" | cut -d'|' -f1)
     judge_rationale=$(echo "$result" | cut -d'|' -f2)
     judge_missing=$(echo "$result" | cut -d'|' -f3)
+    judge_model=$(echo "$result" | cut -d'|' -f4)
 
     # Fallback: if LLM judge unavailable (score=0), use Tier 1 subtotal as per spec
     if [[ "$judge_score" == "0" && "$judge_rationale" == *"unavailable"* ]]; then
         judge_score="$subtotal"
         judge_rationale="LLM judge unavailable — fell back to Tier 1 subtotal (${subtotal})"
         judge_missing="[]"
+        judge_model=""
     fi
 
     >&2 echo ""
     >&2 echo -e "${CYAN}── Tier 2 Result: score=${judge_score} ──${NC}"
 
     # Only the result line goes to stdout for capture by caller
-    echo "${judge_score}|${judge_rationale}|${judge_missing}"
+    echo "${judge_score}|${judge_rationale}|${judge_missing}|${judge_model}"
 }
 
 # ── Tier 3: Combined Verdict ───────────────────────────────────────────────
@@ -569,6 +602,7 @@ main() {
             --phase)    SCORE_PHASE="$2"; shift 2 ;;
             --rules)    RULES_FILE="$2"; shift 2 ;;
             --tier)     TIER_FILTER="$2"; shift 2 ;;
+            --judge-file) JUDGE_FILE="$2"; shift 2 ;;
             --score-only) SCORE_ONLY=true; shift ;;
             --dry-run)  DRY_RUN=true; shift ;;
             --verbose)  VERBOSE=true; shift ;;
@@ -603,6 +637,25 @@ main() {
         exit 2
     fi
 
+    # R3-05: optional external judge artifact (real Tier 2 evidence)
+    local judge_usable=false
+    if [[ -n "$JUDGE_FILE" ]]; then
+        if [[ ! -f "$JUDGE_FILE" ]]; then
+            echo "ERROR: judge file not found: $JUDGE_FILE" >&2
+            exit 2
+        fi
+        if jq -e '(.score | type) == "number" and .score >= 0 and .score <= 100' "$JUDGE_FILE" >/dev/null 2>&1; then
+            judge_usable=true
+        else
+            echo -e "${YELLOW}[WARN]${NC} Judge file invalid (numeric .score 0..100 required): $JUDGE_FILE" >&2
+        fi
+    fi
+    # R3-05: tier1_only marks runs with no independent judge evidence
+    local tier1_only=false
+    if [[ "$judge_usable" == false || "$TIER_FILTER" == "1" ]]; then
+        tier1_only=true
+    fi
+
     # Banner
     if [[ "$SCORE_ONLY" == false && "$DRY_RUN" == false ]]; then
         echo "=========================================="
@@ -634,6 +687,7 @@ main() {
     local judge_score=0
     local judge_rationale=""
     local judge_missing="[]"
+    local judge_model=""
 
     if [[ "$TIER_FILTER" == "2" ]]; then
         # --tier 2 mode: print judge prompt and subtotal, then exit
@@ -653,16 +707,19 @@ main() {
             judge_score=$tier1_subtotal
             judge_rationale="Tier 1 subtotal < 70 — Tier 2 skipped per spec"
             judge_missing="[]"
+            judge_model=""
+            tier1_only=true
             echo ""
             echo -e "${YELLOW}[INFO]${NC} Tier 1 subtotal ($tier1_subtotal) < 70 — skipping Tier 2"
         else
             local tier2_result
             tier2_result=$(run_tier2 "$CONTRACT_FILE" "${RULES_FILE:-not_found}" "$tier1_subtotal")
 
-            # Parse result: score|rationale|missing_items JSON array
+            # Parse result: score|rationale|missing_items JSON array|judge model
             judge_score=$(echo "$tier2_result" | cut -d'|' -f1)
             judge_rationale=$(echo "$tier2_result" | cut -d'|' -f2)
             judge_missing=$(echo "$tier2_result" | cut -d'|' -f3)
+            judge_model=$(echo "$tier2_result" | cut -d'|' -f4)
         fi
     fi
 
@@ -714,7 +771,7 @@ main() {
 
         # Escape judge items for JSON
         local judge_rationale_escaped
-        judge_rationale_escaped=$(echo "$judge_rationale" | jq -Rs .)
+        judge_rationale_escaped=$(printf '%s' "$judge_rationale" | jq -Rs .)
 
         echo ""
         jq -n \
@@ -727,6 +784,8 @@ main() {
             --argjson jm "$judge_missing" \
             --argjson cs "$combined_score" \
             --arg v "$verdict" \
+            --arg jmod "$judge_model" \
+            --argjson t1only "$tier1_only" \
             '{
                 score: {
                     rules: {
@@ -738,18 +797,31 @@ main() {
                     judge: {
                         score: $js,
                         rationale: ($jrt | fromjson),
-                        missing_items: $jm
+                        missing_items: $jm,
+                        model: $jmod
                     },
                     combined: $cs,
-                    verdict: $v
+                    verdict: $v,
+                    tier1_only: $t1only
                 }
             }'
     fi
 
-    # Scores ledger: append one JSONL line per scoring run (R2-08)
+    # Scores ledger: append one JSONL line per scoring run (R2-08, R3-17 provenance)
     local scores_file
     scores_file="$(dirname "$CONTRACT_FILE")/scores.jsonl"
-    if ! jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg phase "${SCORE_PHASE:-}" --argjson combined "$combined_score" --arg verdict "$verdict" 'if $phase == "" then {timestamp: $ts, phase: null, combined: $combined, verdict: $verdict} else {timestamp: $ts, phase: $phase, combined: $combined, verdict: $verdict} end' >> "$scores_file" 2>/dev/null; then
+    local ledger_task_id ledger_agent ledger_model ledger_commit
+    ledger_task_id=$(jq -r '.session.task_id // ""' "$CONTRACT_FILE" 2>/dev/null || echo "")
+    if [[ -z "$ledger_task_id" ]]; then
+        ledger_task_id="${TASK_ID:-}"
+    fi
+    ledger_agent="${AGENT_NAME:-orchestrator}"
+    ledger_model="${AGENT_MODEL:-}"
+    ledger_commit=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    if [[ -z "$ledger_commit" ]]; then
+        ledger_commit="unknown"
+    fi
+    if ! jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg phase "${SCORE_PHASE:-}" --argjson combined "$combined_score" --arg verdict "$verdict" --argjson tier1_only "$tier1_only" --arg task_id "$ledger_task_id" --arg agent "$ledger_agent" --arg model "$ledger_model" --arg commit "$ledger_commit" 'if $phase == "" then {timestamp: $ts, phase: null, combined: $combined, verdict: $verdict, tier1_only: $tier1_only, task_id: $task_id, agent: $agent, model: $model, commit: $commit} else {timestamp: $ts, phase: $phase, combined: $combined, verdict: $verdict, tier1_only: $tier1_only, task_id: $task_id, agent: $agent, model: $model, commit: $commit} end' >> "$scores_file" 2>/dev/null; then
         echo "WARN: failed to append scores ledger: $scores_file" >&2
     fi
 
