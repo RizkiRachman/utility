@@ -734,16 +734,28 @@ check_score_gate() {
         log_pass "Score gate — $current_state → $new_state (score $actual_score ≥ $require_score)"
     fi
     # N12: escalation precondition (score_lt) + conditional edges
-    local edge_score_lt edge_req
+    # R3-01: the wildcard BLOCKED edge declares or_retry_exhausted: true. When
+    # retries are spent, escalation must stay legal even at score >= score_lt,
+    # otherwise a RETRY-scored contract (50-69) with no retries left has no
+    # legal edge at all (the retry_allowed edge rejects it and this gate does).
+    local edge_score_lt edge_retry_or edge_req
     edge_score_lt=$(echo "$transition_data" | jq -r ".score_lt // empty")
+    edge_retry_or=$(echo "$transition_data" | jq -r ".or_retry_exhausted // false")
     if [[ -n "$edge_score_lt" ]]; then
-        local esc_score
+        local esc_score esc_att esc_max
         esc_score=$(jq -r ".score.combined // 0" "$contract_file")
+        esc_att=$(jq -r ".retry.attempt // 0" "$contract_file")
+        esc_max=$(jq -r ".retry.max_attempts // 3" "$contract_file")
         if (( ${esc_score%%.*} >= ${edge_score_lt%%.*} )); then
-            log_fail "Escalation gate - $current_state to $new_state requires score < $edge_score_lt (got $esc_score); use RETRY path"
-            return 1
+            if [[ "$edge_retry_or" == "true" ]] && (( esc_att >= esc_max )); then
+                log_pass "Escalation gate - retry exhausted (attempt $esc_att >= max $esc_max); BLOCKED legal regardless of score (got $esc_score)"
+            else
+                log_fail "Escalation gate - $current_state to $new_state requires score < $edge_score_lt (got $esc_score); use RETRY path"
+                return 1
+            fi
+        else
+            log_pass "Escalation gate - score $esc_score < $edge_score_lt"
         fi
-        log_pass "Escalation gate - score $esc_score < $edge_score_lt"
     fi
     edge_req=$(echo "$transition_data" | jq -r ".requires // empty")
     if [[ "$edge_req" == "user_override" ]]; then

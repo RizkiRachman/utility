@@ -30,7 +30,6 @@ Checks:
   all   — all checks
 
 EOF
-    exit 0
 }
 
 CHECK="all"
@@ -53,8 +52,10 @@ while [[ $# -gt 0 ]]; do
         --interval) INTERVAL="$2"; shift ;;
         --alert) ALERT_THRESHOLD="$2"; shift ;;
         --verbose) VERBOSE="true" ;;
-        --help|-h) usage ;;
-        *) echo "Unknown option: $1" >&2; usage ;;
+        --help|-h) usage; exit 0 ;;
+        # R3-02: an unknown option is a hard error. Previously this fell through
+        # usage() (which exits 0), so a misspelled mode looked like a pass.
+        *) echo "Unknown option: $1" >&2; usage; exit 2 ;;
     esac
     shift
 done
@@ -109,14 +110,14 @@ run_checks() {
     
     case "$CHECK" in
         mcp)
-            results+="$(check_lean-ctx)\n"
+            results+="$(check_lean-ctx | tail -n 1)\n"
             ;;
         api)
-            results+="$(check_sumopod)\n"
+            results+="$(check_sumopod | tail -n 1)\n"
             ;;
         all)
-            results+="$(check_lean-ctx)\n"
-            results+="$(check_sumopod)\n"
+            results+="$(check_lean-ctx | tail -n 1)\n"
+            results+="$(check_sumopod | tail -n 1)\n"
             ;;
     esac
     

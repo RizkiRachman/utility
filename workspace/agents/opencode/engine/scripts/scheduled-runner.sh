@@ -29,21 +29,26 @@ OPTIONS:
   --stop                Stop the running scheduler
   --status              Show scheduler status
   --run-once            Run task once and exit (no scheduling)
+  --foreground          Run the scheduler loop in-process (PID1 supervisor mode:
+                        no backgrounding, no exit after spawn; writes its own PID)
   --dry-run             Show what would run without executing
   --verbose             Show detailed scheduling output
   --json                Output results as JSON
   --help                Show this help
 
 SCHEDULE FORMATS:
-  hourly        Run every hour
-  daily         Run every day at midnight
+  hourly        Run every hour (3600s)
+  daily         Run every day at midnight (86400s)
+  5min          Run every 5 minutes (300s)
+  weekly        Run every week (604800s)
   every-N       Run every N minutes (e.g., every-30)
-  cron          Standard cron expression (e.g., "0 * * * *")
+  (cron expressions are not supported; unsupported values exit 2)
 
 TASK OPTIONS:
   validate      Run contract validation
   drift-detect  Run drift detection
-  health        Run MCP health check
+  health        Run MCP health check (mcp-health.sh --check all)
+  trend         Run score trend analysis (trend-analyzer.sh)
   metrics       Aggregate metrics
   archive       Archive old sessions
   heal          Self-healing contract validation retry
@@ -54,6 +59,8 @@ TASK OPTIONS:
 EXAMPLES:
   scheduled-runner.sh --task validate --schedule hourly
   scheduled-runner.sh --task drift-detect --schedule every-30
+  scheduled-runner.sh --task health --schedule 5min
+  scheduled-runner.sh --task trend --schedule daily --foreground
   scheduled-runner.sh --task health --run-once
   scheduled-runner.sh --stop
 EOF
@@ -72,6 +79,7 @@ DRY_RUN=0
 VERBOSE=0
 JSON_OUTPUT=0
 RUN_ONCE=0
+FOREGROUND=0
 ACTION="start"
 
 parse_args() {
@@ -89,6 +97,7 @@ parse_args() {
             --stop) ACTION="stop"; shift ;;
             --status) ACTION="status"; shift ;;
             --run-once) RUN_ONCE=1; shift ;;
+            --foreground) FOREGROUND=1; shift ;;
             --dry-run) DRY_RUN=1; shift ;;
             --verbose) VERBOSE=1; shift ;;
             --json) JSON_OUTPUT=1; shift ;;
@@ -101,17 +110,31 @@ parse_args() {
 get_timestamp() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 get_epoch_ms() { date +%s%3N; }
 
+# Schedule errors go to stderr so `parse_schedule >/dev/null` (fail-fast probe in
+# main) still surfaces the reason before exiting 2.
+schedule_error() { echo -e "\033[31m✗ $1\033[0m" >&2; }
+
 parse_schedule() {
     local interval_seconds=3600
     case "$SCHEDULE" in
         hourly) interval_seconds=3600 ;;
         daily) interval_seconds=86400 ;;
+        5min) interval_seconds=300 ;;
+        weekly) interval_seconds=604800 ;;
         every-*)
             local mins=$(echo "$SCHEDULE" | sed 's/every-//')
+            if ! [[ "$mins" =~ ^[0-9]+$ ]] || [[ "$mins" -le 0 ]]; then
+                schedule_error "Invalid every-N schedule: $SCHEDULE (N must be a positive minute count)"
+                return 1
+            fi
             interval_seconds=$((mins * 60))
             ;;
         cron)
-            log_fail "cron schedules unsupported; use hourly, daily, or every-N"
+            schedule_error "cron schedules unsupported; use hourly, daily, 5min, weekly, or every-N"
+            return 1
+            ;;
+        *)
+            schedule_error "Unsupported schedule: $SCHEDULE (use hourly, daily, 5min, weekly, or every-N)"
             return 1
             ;;
     esac
@@ -134,7 +157,10 @@ run_task() {
             bash scripts/drift-detect.sh 2>/dev/null || exit_code=1
             ;;
         health)
-            bash scripts/mcp-health.sh --mode quick || exit_code=1
+            bash scripts/mcp-health.sh --check all || exit_code=1
+            ;;
+        trend)
+            bash scripts/trend-analyzer.sh --mode trend || exit_code=1
             ;;
         metrics)
             bash scripts/metrics-aggregator.sh --mode summary || exit_code=1
@@ -177,7 +203,7 @@ run_task() {
 
 run_scheduler() {
     local interval
-    interval=$(parse_schedule) || exit 1
+    interval=$(parse_schedule) || exit 2
     local run_count=0
     log_info "Starting scheduler (task: $TASK, interval: ${interval}s)"
     while true; do
@@ -227,7 +253,15 @@ main() {
     parse_args "$@"
     case "$ACTION" in
         start)
+            # R3-03: fail fast (exit 2) on an unsupported schedule before any
+            # task runs or a daemon is spawned — never silently fall back.
+            parse_schedule >/dev/null || exit 2
             if [[ "$RUN_ONCE" -eq 1 ]] || [[ "$DRY_RUN" -eq 1 ]]; then
+                run_scheduler
+            elif [[ "$FOREGROUND" -eq 1 ]]; then
+                # R3-04: supervise in-process so PID1 never dies after spawn.
+                echo $$ > "$PID_FILE"
+                log_pass "Scheduler running in foreground (PID: $$)"
                 run_scheduler
             else
                 run_scheduler &
