@@ -355,6 +355,12 @@
         "BLOCKED": {
           "owner": "scrum-master",
           "tier": "reviewer"
+        },
+        "judge": {
+          "owner": "orchestrator",
+          "tier": "reviewer",
+          "model": "sumopod/deepseek-flash",
+          "desc": "Tier-2 LLM-as-judge scoring subtask; runs on a model different from the orchestrator's own model. A run without a judge response is labeled tier1_only."
         }
       },
       "rule": "A reviewer MUST run on a different model tier than the agent that produced the artifact under review.",
@@ -413,7 +419,7 @@
         ".gitkeep"
       ],
       "committed": false,
-      "gitignore_pattern": "certs",
+      "gitignore_pattern": "sandbox",
       "quota_mb": 200,
       "ttl_days": 7,
       "ports": {
@@ -615,10 +621,6 @@
         }
       },
       "auto_adjustments": {
-        "threshold_lower": {
-          "condition": "avg_score < 65",
-          "adjustment": "-5"
-        },
         "threshold_raise": {
           "condition": "avg_score > 90",
           "adjustment": "+5"

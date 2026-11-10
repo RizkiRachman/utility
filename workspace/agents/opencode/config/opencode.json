@@ -467,7 +467,7 @@
     "software-architect": {
       "description": "Strategic architecture advisor and independent design reviewer — trade-offs, system-level debugging, YAGNI enforcement. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "sumopod/deepseek-flash",
       "steps": 60,
       "permissions": [
         {
@@ -1103,13 +1103,49 @@
       ]
     },
     "plan": {
-      "model": "sumopod/glm-5.3-flash"
+      "model": "sumopod/glm-5.3-flash",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "write",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ]
     },
     "general": {
-      "model": "sumopod/glm-5.3-flash"
+      "model": "sumopod/glm-5.3-flash",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "write",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ]
     },
     "explore": {
-      "model": "sumopod/glm-5.3-flash"
+      "model": "sumopod/glm-5.3-flash",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "write",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ]
     }
   },
   "instructions": [

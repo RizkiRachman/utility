@@ -1,12 +1,12 @@
 <!-- omit from toc -->
 
-# Workflow State Engine — Orchestration Toolkit
+# Workflow State Engine - Orchestration Toolkit
 
 **Contract-driven state machine orchestration engine for AI agent workflows.**
 
 State machine: `INIT → PLAN → PLAN_SCORED → EXECUTE → EXECUTE_SCORED → REVIEW → REVIEW_SCORED → COMPLETE`
 
-Single source of truth for all AI agents. Reference skills and usage guides for depth. This file is `instructions[0]` — loaded by every agent at session start.
+Single source of truth for all AI agents. Reference skills and usage guides for depth. This file is `instructions[0]` - loaded by every agent at session start.
 
 [![Contributors][contributors-shield]][contributors-url] [![Forks][forks-shield]][forks-url] [![Stargazers][stars-shield]][stars-url] [![Issues][issues-shield]][issues-url] [![License][license-shield]][license-url]
 
@@ -15,7 +15,7 @@ Single source of truth for all AI agents. Reference skills and usage guides for 
 ## Table of Contents
 1. [1. Project Overview](#1-project-overview)
 2. [2. Framework Architecture](#2-framework-architecture)
-3. [3. Agent Reference — 17 Agents (Scrum Team)](#3-agent-reference--17-agents-scrum-team)
+3. [3. Agent Reference - 17 Agents (Scrum Team)](#3-agent-reference--17-agents-scrum-team)
 4. [4. Tool Usage Reference](#4-tool-usage-reference)
 5. [5. Development Workflow](#5-development-workflow)
 6. [6. Non-Negotiable Rules](#6-non-negotiable-rules)
@@ -29,7 +29,7 @@ Single source of truth for all AI agents. Reference skills and usage guides for 
 
 | Concept | Description |
 |---------|-------------|
-| **Shared JSON Envelope** | `session/contract.json` — single source of truth for state, decisions, outputs, scoring |
+| **Shared JSON Envelope** | `session/contract.json` - single source of truth for state, decisions, outputs, scoring |
 | **State Machine** | 8 forward-flow states + BLOCKED escalation; agents transition through the workflow via the envelope |
 | **Scoring Pipeline** | Three-tier scoring after every delegation (rule checks → LLM-as-judge → combined verdict) |
 | **Agent Delegation** | Orchestrator delegates to specialized scrum-team agents (product-manager, system-analyst, developer, devops-engineer, quality-analyst, security-engineer, scrum-master, …) |
@@ -59,10 +59,21 @@ INIT → PLAN → PLAN_SCORED → EXECUTE → EXECUTE_SCORED → REVIEW → REVI
 
 ### Scoring Pipeline (Three-Tier)
 
-1. **Tier 1 — Rule-Based Checks**: Schema valid (-15), permissions violated (-40), blast radius HIGH (-40), writing order wrong (-15), required fields missing (-15). Subtotal ≥ 70 → Tier 2.
-2. **Tier 2 — LLM-as-Judge**: Scores 0-100 on requirements fulfillment (0-40), governance compliance (0-30), completeness (0-20), edge cases (0-10).
-3. **Tier 3 — Combined Verdict**: PASS (≥70), RETRY (50-69, max 3 attempts), BLOCKED (<50).
+1. **Tier 1 - Rule-Based Checks**: Schema valid (-15), permissions violated (-40), blast radius HIGH (-40), writing order wrong (-15), over-engineering (-15), required fields missing (-15). Subtotal ≥ 70 → Tier 2.
+2. **Tier 2 - LLM-as-Judge**: Scores 0-100 on requirements fulfillment (0-40), governance compliance (0-30), completeness (0-20), edge cases (0-10).
+3. **Tier 3 - Combined Verdict**: PASS (≥70), RETRY (50-69, max 3 attempts), BLOCKED (<50).
 4. **Scores Ledger**: each scoring run appends a JSONL line (timestamp, phase, combined, verdict) to scores.jsonl beside the contract (auto-score.sh --phase).
+
+**Tier 1 checks** (start at 100, deduct per violation):
+
+| Check | Method | Deduction |
+|-------|--------|-----------|
+| Schema valid | Parse output against expected structure | -15 |
+| Permissions violated | Forbidden anti-patterns (conventions violations, FQN, edits outside scope) | -40 |
+| Blast radius safe | `ctx_impact` on changed symbols | -40 if HIGH/CRITICAL |
+| Writing order correct | Verify port->service->mapper->adapter order in plan | -15 |
+| Over-engineering safe | No speculative abstractions beyond plan scope | -15 |
+| Required fields present | Check expected keys are non-null in output | -15 |
 
 ### Architecture
 
@@ -102,7 +113,7 @@ Engine changes take effect on container rebuild; the bind-mounted config on rest
 
 ### Directory Tree
 
-The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy:
+The `engine/` source mirrors the runtime layout - edit here, rebuild to deploy:
 
 ```
 ├── agent.md           ← THIS FILE (instructions[0]; includes the §lean-ctx code-intelligence block)
@@ -121,23 +132,23 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 
 ---
 
-## 3. Agent Reference — 17 Agents (Scrum Team)
+## 3. Agent Reference - 17 Agents (Scrum Team)
 
 > Full agent instruction files at `/opt/engine/agents/` (symlinked into the OpenCode config dir). Each file defines role, MCPs, skills, and post-flight protocol.
 >
-> **Model tiers**: `executor` = `opencode/big-pickle` (build/plan tier — developer, fixer, system-analyst); `default` = `sumopod/glm-5.3-flash` (all other agents), fallback `sumopod/deepseek-flash`; reviewers (`quality-analyst`, `security-engineer`) pinned to `sumopod/deepseek-flash`. Reviewers never share the executor's model — this is the basis of **cross-model review**.
+> **Model tiers**: `executor` = `opencode/big-pickle` (build/plan tier - developer, fixer, system-analyst); `default` = `sumopod/glm-5.3-flash` (all other agents), fallback `sumopod/deepseek-flash`; reviewers (`quality-analyst`, `security-engineer`, `software-architect`) pinned to `sumopod/deepseek-flash`. Reviewers never share the executor's model - this is the basis of **cross-model review**.
 
 ### Orchestrator
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **orchestrator** | Scrum lead / primary orchestrator — delegates, scores, drives the state machine | lean-ctx, context7 | Read/write (lean-ctx only) | `*` (all) | default | (orchestrator — agent.md) | `/opt/engine/agents/orchestrator.md` |
-| **design-orchestrator** | UI/UX specialist orchestrator — enforces 4-layer design pipeline (Exemplar > Generator > Taste > Gate) | lean-ctx, context7 | Read/write (lean-ctx only) | `*` (all) | default | design-exemplar, ui-ux-pro-max, design-taste-frontend, impeccable, banner-design, brand, slides, ui-styling | `/opt/engine/agents/design-orchestrator.md` |
+| **orchestrator** | Scrum lead / primary orchestrator - delegates, scores, drives the state machine | lean-ctx, context7 | Read/write (lean-ctx only) | `*` (all) | default | (orchestrator - agent.md) | `/opt/engine/agents/orchestrator.md` |
+| **design-orchestrator** | UI/UX specialist orchestrator - enforces 4-layer design pipeline (Exemplar > Generator > Taste > Gate) | lean-ctx, context7 | Read/write (lean-ctx only) | `*` (all) | default | design-exemplar, ui-ux-pro-max, design-taste-frontend, impeccable, banner-design, brand, slides, ui-styling | `/opt/engine/agents/design-orchestrator.md` |
 
 ### Bootstrap Agent (primary entrypoint)
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
-| **build** | Restricted bootstrap/interactive entrypoint (mode: primary) — no file or shell access, hands tasks to the orchestrator | lean-ctx | Restricted (frontmatter deny-all; `.env` read ask/allow) | n/a (primary) | executor | (none) | `/opt/engine/agents/build.md` |
+| **build** | Restricted bootstrap/interactive entrypoint (mode: primary) - no file or shell access, hands tasks to the orchestrator | lean-ctx | Restricted (frontmatter deny-all; `.env` read ask/allow) | n/a (primary) | executor | (none) | `/opt/engine/agents/build.md` |
 
 ### Product & Planning Agents (read-only)
 
@@ -145,7 +156,7 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 |-------|------|----------|--------|----------------|-------|--------|------|
 | **product-manager** | Requirements + acceptance-criteria backlog (GWT) | lean-ctx, context7 | Read-only | `INIT`, `PLAN` | default | business-analyst, brainstorming, writing-plans, diagram-design | `/opt/engine/agents/product-manager.md` |
 | **system-analyst** | Impact analysis, specs, detailed plans | lean-ctx | Read-only | `INIT`, `PLAN`, `PLAN_SCORED` | executor | system-analyst, business-analyst, writing-plans, diagram-design | `/opt/engine/agents/system-analyst.md` |
-| **software-architect** | Architecture trade-offs, tech-debt assessment | lean-ctx | Read-only | `INIT`, `PLAN`, `PLAN_SCORED`, `REVIEW` | default | system-analyst, java-developer, diagram-design | `/opt/engine/agents/software-architect.md` |
+| **software-architect** | Architecture trade-offs, tech-debt assessment | lean-ctx | Read-only | `INIT`, `PLAN`, `PLAN_SCORED`, `REVIEW` | deepseek-flash | system-analyst, java-developer, diagram-design | `/opt/engine/agents/software-architect.md` |
 
 ### Implementation Agents (read/write)
 
@@ -160,9 +171,9 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
 | **quality-analyst** | Independent quality review (5-axis: correctness, readability, architecture, security, performance) | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | default | qa-expert, security-expert, code-review-and-quality, impeccable | `/opt/engine/agents/quality-analyst.md` |
-| **security-engineer** | Independent security review — threat model, vulns, secrets, trust boundaries | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | default | security-expert, code-review-and-quality | `/opt/engine/agents/security-engineer.md` |
-| **scrum-master** | Process owner — guards the contract, state machine, and workflow; unblocks BLOCKED, DoD gate | lean-ctx | Read-only | `*` (all), `BLOCKED` | default | orchestration-template, audit-observability, adaptive-solver | `/opt/engine/agents/scrum-master.md` |
-| **learner** | Post-execution retro — extract lessons, gotchas, patterns | lean-ctx | Read-only | `REVIEW_SCORED`, `COMPLETE` | default | verification-before-completion | `/opt/engine/agents/learner.md` |
+| **security-engineer** | Independent security review - threat model, vulns, secrets, trust boundaries | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | default | security-expert, code-review-and-quality | `/opt/engine/agents/security-engineer.md` |
+| **scrum-master** | Process owner - guards the contract, state machine, and workflow; unblocks BLOCKED, DoD gate | lean-ctx | Read-only | `*` (all), `BLOCKED` | default | orchestration-template, audit-observability, adaptive-solver | `/opt/engine/agents/scrum-master.md` |
+| **learner** | Post-execution retro - extract lessons, gotchas, patterns | lean-ctx | Read-only | `REVIEW_SCORED`, `COMPLETE` | default | verification-before-completion | `/opt/engine/agents/learner.md` |
 
 ### Support Agents (read-only)
 
@@ -171,7 +182,7 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 | **explorer** | Fast codebase search / unknowns discovery | lean-ctx | Read-only | `*` (all) | default | (exploration) | `/opt/engine/agents/explorer.md` |
 | **librarian** | External docs / library research | context7 | Read-only | `*` (all) | default | (research) | `/opt/engine/agents/librarian.md` |
 | **council** | Multi-model consensus + cross-model arbitration | lean-ctx | Read-only | `*` (all) | default | (multi-LLM consensus) | `/opt/engine/agents/council.md` |
-| **observer** | Visual analysis — images, PDFs, diagrams | lean-ctx | Read-only | `*` (all) | default | (visual analysis), impeccable, diagram-design | `/opt/engine/agents/observer.md` |
+| **observer** | Visual analysis - images, PDFs, diagrams | lean-ctx | Read-only | `*` (all) | default | (visual analysis), impeccable, diagram-design | `/opt/engine/agents/observer.md` |
 
 ### Lane Name Mapping
 | Lane | Agent | subagent_type |
@@ -185,6 +196,12 @@ The `engine/` source mirrors the runtime layout — edit here, rebuild to deploy
 | `@fixer` | fixer | `fixer` |
 | `@council` | council | `council` |
 | `@observer` | observer | `observer` |
+| `@system-analyst` | system-analyst | `system-analyst` |
+| `@developer` | developer | `developer` |
+| `@quality-analyst` | quality-analyst | `quality-analyst` |
+| `@learner` | learner | `learner` |
+| `@software-architect` | software-architect | `software-architect` |
+| `@design-orchestrator` | design-orchestrator | `design-orchestrator` |
 | (entrypoint) | build | n/a (mode: primary) |
 
 ### Agent State Machine
@@ -236,7 +253,7 @@ Guardrails:
 
 Index scope: `/home/node/workspace`, built automatically at session boot when the server starts; run `rag_index` after bulk changes.
 
-### 4.5 Retrieval Routing — ask the right layer once
+### 4.5 Retrieval Routing - ask the right layer once
 
 Every retrieval question has exactly one right tool. Query the wrong layer and you pay an inference round-trip for nothing.
 
@@ -249,7 +266,7 @@ Every retrieval question has exactly one right tool. Query the wrong layer and y
 | Single known page | `fetch` | scrape-first patterns |
 | Past decisions, conventions, lessons | `ctx_knowledge recall` | re-deriving from scratch |
 
-Scope `rag_search` with `glob` (e.g. `agents/opencode/engine/**`) before widening the query. Run `rag_index` after bulk edits — it is incremental and hash-based.
+Scope `rag_search` with `glob` (e.g. `agents/opencode/engine/**`) before widening the query. Run `rag_index` after bulk edits - it is incremental and hash-based.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -276,16 +293,19 @@ One owner per capability; agents must use the designated tool, not a parallel pa
 
 ### Session Model
 
-Work is tracked in a single `session/` directory — no git branches required.
+Work is tracked in a single `session/` directory - no git branches required.
 
 - All contract state lives in `session/contract.json`; snapshots are archived in `session/`.
-- The engine is repository-agnostic — never block on branch or VCS checks.
+- The engine is repository-agnostic - never block on branch or VCS checks.
 - Every session is self-contained and resumable from `session/`.
+
+Git stores source code; the workflow never assumes a VCS - services arrive with their own patterns.
+Users connect and prepare their own repositories and tell the agent what to do; sandbox/ is the user playground.
 
 ### Before Any Edit
 
 ```
-1. ctx_read / ctx_compose — understand the code first
+1. ctx_read / ctx_compose - understand the code first
 2. ctx_impact({target: "symbol", direction: "upstream"})   # blast radius
 3. If HIGH/CRITICAL → warn user before proceeding
 ```
@@ -305,30 +325,30 @@ Run this ladder in order before writing ANY code:
 
 **Not sacrificed:** Input validation at trust boundaries, data-loss error handling, security, accessibility, anything explicitly requested. Non-trivial logic leaves ONE runnable check (assert-based, no framework).
 
-### Orchestration Flow (Scrum Team — Spec-Driven Development)
+### Orchestration Flow (Scrum Team - Spec-Driven Development)
 
-1. **Refine phase** — Delegate to @product-manager: capture intent, write Given-When-Then acceptance criteria, declare scope + non-goals. Attach user-journey or story-map diagrams via diagram-design when intent spans multiple actors.
-2. **Discuss phase** — 5-lens check: Business, System, Dev, QA, DevOps. Clarify requirements.
-   - **Domain context (advisory)**: `rag_search` supplies domain context when the request touches unfamiliar code or docs.
-3. **Plan phase** — Delegate to @system-analyst: impact analysis, edge cases, implementation plan. @software-architect reviews the plan (independent model). Plans spanning >3 files or crossing services include an architecture/impact diagram (diagram-design).
-4. **Spec gate** (if >3 files, cross-service, or >30 min) — Gate check: `lean-ctx ctx_shell /opt/engine/scripts/sdd-gate.sh --file session/contract.json || STOP` — Write GWT-format specs. Cross-examine via DDD.
-5. **Execute phase** — Delegate to @developer: implement plan step by step, write tests alongside code. @devops-engineer owns pipeline/deploy/migration. @fixer for scoped fixes. UI tasks load design-taste-frontend; developer passes the impeccable detector before marking UI work done (EXECUTE exit gate). Advisory retrieval: the developer consults `rag_search` for project conventions before writing non-trivial code, then verifies hits against the file before editing.
-   - **Context gate**: @developer loads project standards via `/skill context-standards` before edits when the target project defines `context/` files; @quality-analyst verifies compliance during review.
-6. **Review phase** — Delegate to @quality-analyst (5-axis) AND @security-engineer (security) on the **reviewer model**, independent from the executor. Conflicting verdicts → BLOCKED, arbitrated by @council. UI diffs get the impeccable design-lens (slop detector) inside the readability axis.
-7. **Process gate** — @scrum-master audits transitions, enforces gates, and owns the Definition of Done before COMPLETE. Unblocks BLOCKED sessions.
-8. **Verify loop** — Run build commands, check conventions. Executors and fixers run `scripts/loop-validate.sh` as the inline done-gate before REVIEW.
-9. **Ship** — COMPLETE gate: `lean-ctx ctx_shell /opt/engine/scripts/verify-knowledge.sh --all || STOP` — Resolve issues, confirm deploy safety, run post-flight protocol; @learner captures lessons.
-10. **Humanizer gate** — run `/skill humanizer` over all user-facing outputs shipped this session (READMEs, docs, PR descriptions, changelogs, release notes) before declaring COMPLETE. Docs that still carry AI patterns (em dashes, rule-of-three, promotional tone) are not done. Mandatory for user-facing text outputs; internal state files (session/state.md, contract JSON, code comments) are exempt.
+1. **Refine phase** - Delegate to @product-manager: capture intent, write Given-When-Then acceptance criteria, declare scope + non-goals. Attach user-journey or story-map diagrams via diagram-design when intent spans multiple actors.
+2. **Discuss phase** - 5-lens check: Business, System, Dev, QA, DevOps. Clarify requirements.
+  - **Domain context (advisory)**: `rag_search` supplies domain context when the request touches unfamiliar code or docs.
+3. **Plan phase** - Delegate to @system-analyst: impact analysis, edge cases, implementation plan. @software-architect reviews the plan (independent model). Plans spanning >3 files or crossing services include an architecture/impact diagram (diagram-design).
+4. **Spec gate** (if >3 files, cross-service, or >30 min) - Gate check: `lean-ctx ctx_shell /opt/engine/scripts/sdd-gate.sh --file session/contract.json || STOP` - Write GWT-format specs. Cross-examine via DDD.
+5. **Execute phase** - Delegate to @developer: implement plan step by step, write tests alongside code. @devops-engineer owns pipeline/deploy/migration. @fixer for scoped fixes. UI tasks load design-taste-frontend; developer passes the impeccable detector before marking UI work done (EXECUTE exit gate). Advisory retrieval: the developer consults `rag_search` for project conventions before writing non-trivial code, then verifies hits against the file before editing.
+  - **Context gate**: @developer loads project standards via `/skill context-standards` before edits when the target project defines `context/` files; @quality-analyst verifies compliance during review.
+6. **Review phase** - Delegate to @quality-analyst (5-axis) AND @security-engineer (security) on the **reviewer model**, independent from the executor. Conflicting verdicts → BLOCKED, arbitrated by @council. UI diffs get the impeccable design-lens (slop detector) inside the readability axis.
+7. **Process gate** - @scrum-master audits transitions, enforces gates, and owns the Definition of Done before COMPLETE. Unblocks BLOCKED sessions.
+8. **Verify loop** - Run build commands, check conventions. Executors and fixers run `scripts/loop-validate.sh` as the inline done-gate before REVIEW.
+9. **Ship** - COMPLETE gate: `lean-ctx ctx_shell /opt/engine/scripts/verify-knowledge.sh --all || STOP` - Resolve issues, confirm deploy safety, run post-flight protocol; @learner captures lessons.
+10. **Humanizer gate** - run `/skill humanizer` over all user-facing outputs shipped this session (READMEs, docs, PR descriptions, changelogs, release notes) before declaring COMPLETE. Docs that still carry AI patterns (em dashes, rule-of-three, promotional tone) are not done. Mandatory for user-facing text outputs; internal state files (session/state.md, contract JSON, code comments) are exempt.
 
 ### UI/UX Pipeline (Mandatory)
 
-All UI work runs the 4-layer pipeline in this order — enforced by @design-orchestrator:
+All UI work runs the 4-layer pipeline in this order - enforced by @design-orchestrator:
 
 | # | Layer | Skill | Role |
 |---|-------|-------|------|
 | 1 | Exemplar | `design-exemplar` | Copy a proven look from the 84-brand DESIGN.md library (Linear, Stripe, Vercel, …) when a reference brand is named |
 | 2 | Generator | `ui-ux-pro-max` | BM25-search a fitting design system (styles, palettes, fonts, patterns) for the user's own product |
-| 3 | Taste | `design-taste-frontend` | Art direction pass — kill generic "AI-slop" patterns, enforce gallery-grade composition |
+| 3 | Taste | `design-taste-frontend` | Art direction pass - kill generic "AI-slop" patterns, enforce gallery-grade composition |
 | 4 | Gate | `impeccable` | No UI task is done without an impeccable design-lens review |
 
 Layer selection: user names a reference brand → Exemplar; user describes their own product → Generator; neither → Generator; trivial tweak (<10 lines, no new components) → pipeline may be skipped, impeccable gate still applies.
@@ -350,7 +370,7 @@ Exceptions: docs-only changes skip impact, change-detect, and re-index steps. Co
 
 When the user says "save session" or a phase completes, run the full 8-step Post-Flight protocol; the canonical procedure lives in [doc/workflow/05-operations.md](doc/workflow/05-operations.md) (section E1, Save Session Protocol). Partial saves lose audit trail, break resumption, or leave stale indexes. Save to ALL systems every time.
 
-> **LOCAL-ONLY:** `session/`, `.session/` and everything inside them are runtime state — NEVER `git add`, commit, or push them (gitignored; history grows unbounded). Archive historical state logs to `.session/` instead.
+> **LOCAL-ONLY:** `session/`, `.session/` and everything inside them are runtime state - NEVER `git add`, commit, or push them (gitignored; history grows unbounded). Archive historical state logs to `.session/` instead.
 
 ### Update All States
 
@@ -369,7 +389,7 @@ lean-ctx ctx_session save
 ### Session Lifecycle Protocol
 
 Every orchestration session persists contract state to the `session/` directory for cross-session traceability and safe resumption.
-> **LOCAL-ONLY:** `session/`, `.session/` and everything inside them are runtime state — NEVER `git add`, commit, or push them (gitignored; history grows unbounded). Archive historical state logs to `.session/` instead.
+> **LOCAL-ONLY:** `session/`, `.session/` and everything inside them are runtime state - NEVER `git add`, commit, or push them (gitignored; history grows unbounded). Archive historical state logs to `.session/` instead.
 
 
 #### Directory Layout
@@ -395,15 +415,15 @@ session/
 ```bash
 /opt/engine/scripts/snapshot-contract.sh                # Full snapshot: copy files + update state.md
 /opt/engine/scripts/snapshot-contract.sh --snapshot-only  # Copy files only (skip state.md updates)
-/opt/engine/scripts/snapshot-contract.sh --summary "State: ${STATE} — description"  # Custom entry
+/opt/engine/scripts/snapshot-contract.sh --summary "State: ${STATE} - description"  # Custom entry
 /opt/engine/scripts/snapshot-contract.sh --dry-run --verbose  # Preview without changes
 ```
 
 #### Why It Matters
 
 The `session/` archive preserves:
-- **Audit trail**: `session/state.md` grows monotonically — every state transition, every decision, every blocker
-- **Safe resume**: `session/contract.json` is the exact state from last session — no reconstruction needed
+- **Audit trail**: `session/state.md` grows monotonically - every state transition, every decision, every blocker
+- **Safe resume**: `session/contract.json` is the exact state from last session - no reconstruction needed
 
 ### Complex Tasks (Orchestration Template)
 
@@ -418,14 +438,14 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 - **Never commit secrets, credentials, tokens, `.env` files**
 
 ### Cross-Model Review
-- **Reviewers (pinned to `sumopod/deepseek-flash`) must run on a different model than the executor (build/plan tier, big-pickle)** they audit; fallbacks must not collapse separation — on double-fallback set `governance.cross_model_degraded` and cap verdict at RETRY.
+- **Reviewers (pinned to `sumopod/deepseek-flash`) must run on a different model than the executor (build/plan tier, big-pickle)** they audit; fallbacks must not collapse separation - on double-fallback set `governance.cross_model_degraded` and cap verdict at RETRY.
 - **Conflicting reviewer verdicts** (PASS vs BLOCK) → `BLOCKED`, arbitrated by `@council` (see `rules.json → enforcement.cross_model_review`)
 - **Security-sensitive changes** (auth, secrets, credentials, config, crypto) auto-require `@security-engineer` review
 
 ### Code Safety
-- **Never edit without `ctx_impact`** — run impact analysis first
-- **Never commit without `ctx_delta`** — verify scope
-- **Never rename with find-and-replace** — use `ctx_refactor`
+- **Never edit without `ctx_impact`** - run impact analysis first
+- **Never commit without `ctx_delta`** - verify scope
+- **Never rename with find-and-replace** - use `ctx_refactor`
 - **Ignore HIGH/CRITICAL impact warnings** = governance violation
 
 ### Access (Mandatory)
@@ -434,7 +454,7 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 - **Bypassing the lean-ctx channel with a raw execution path is a governance violation**; deviations from any of the above require an explicit reason in the agent output
 
 ### Shell Safety
-- **Always use `lean-ctx ctx_shell`** — never `bash` or `snip` (both denied in permissions)
+- **Always use `lean-ctx ctx_shell`** - never `bash` or `snip` (both denied in permissions)
 - `bash` and `snip` trigger permission prompts and block automation
 
 ### Sandbox (Playground)
@@ -442,7 +462,7 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 - **One folder per live session**, slugified from the OpenCode session title (`opencode optimizer` → `opencode-optimizer`); on collision append a 4-character session-ID prefix.
 - **Write only inside your own folder.** Other sessions' folders are read-only; deleting one needs explicit user approval.
 - **Never write at `sandbox/` root.** Only `README.md`, `.gitignore`, and `.gitkeep` live there, and only those are tracked.
-- **Sandbox contents are never committed** (gitignored on the `certs/` pattern). Promote anything durable to its project folder before COMPLETE.
+- **Sandbox contents are never committed** (gitignored via the dedicated sandbox pattern). Promote anything durable to its project folder before COMPLETE.
 - **No secrets, tokens, credentials, certificates, or customer data.** Bind servers to `127.0.0.1`, use ports 4100-4999, stop them before finishing.
 - **Budget:** 200 MB and 7 days per session folder. Rules, naming, and prune commands: `sandbox/README.md`; machine-readable: `rules.json → enforcement.sandbox`.
 
@@ -460,17 +480,17 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 
 Every tool call is one full LLM inference round-trip. The rules below are mandatory discipline, not style:
 
-1. **Batch rule** — 2+ independent tool calls: issue them in ONE turn (parallel), never serialized.
-2. **Chain rule** — dependent commands on the same tool: ONE call chained with `&&` (commit-push-sync-verify is one call), never one call per step.
-3. **Gate-first rule** — check policy/security constraints BEFORE composing a command. A blocked command costs a full wasted inference; never retry-blind — reroute through the sanctioned path.
-4. **Spawn-tax rule** — every subagent prompt carries complete context (requirements, decisions, retry issues, exact paths). Subagents start at turn 1 of real work — zero re-discovery turns.
-5. **Tier rule** — execution tiers by blast radius × reversibility × ambiguity:
-   - **T1 Direct** (1–2 files, git-revertible, clear scope): orchestrator executes inline — edit → check → commit → push → verify. No subagent, no ceremony. Budget ≤10 turns.
-   - **T2 Light** (3–10 files, parallelizable): max ONE subagent with a full-context prompt; orchestrator verifies after. Budget ≤20 turns.
-   - **T3 Full** (security-sensitive, ambiguous scope, multi-service, or user-requested audit): analyst → developer → review with all gates.
-6. **Verdict rule** — mechanical decisions (score pass/fail, routing choice, risk class): single-shot, no-tools inference on the cheapest capable model. Never a tool-loop turn.
+1. **Batch rule** - 2+ independent tool calls: issue them in ONE turn (parallel), never serialized.
+2. **Chain rule** - dependent commands on the same tool: ONE call chained with `&&` (commit-push-sync-verify is one call), never one call per step.
+3. **Gate-first rule** - check policy/security constraints BEFORE composing a command. A blocked command costs a full wasted inference; never retry-blind - reroute through the sanctioned path.
+4. **Spawn-tax rule** - every subagent prompt carries complete context (requirements, decisions, retry issues, exact paths). Subagents start at turn 1 of real work - zero re-discovery turns.
+5. **Tier rule** - execution tiers by blast radius × reversibility × ambiguity:
+  - **T1 Direct** (1-2 files, git-revertible, clear scope): orchestrator executes inline - edit → check → commit → push → verify. No subagent, no ceremony. Budget ≤10 turns.
+  - **T2 Light** (3-10 files, parallelizable): max ONE subagent with a full-context prompt; orchestrator verifies after. Budget ≤20 turns.
+  - **T3 Full** (security-sensitive, ambiguous scope, multi-service, or user-requested audit): analyst → developer → review with all gates.
+6. **Verdict rule** - mechanical decisions (score pass/fail, routing choice, risk class): single-shot, no-tools inference on the cheapest capable model. Never a tool-loop turn.
 
-7. **lean-ctx fluency rule** — follow usage/lean-ctx.md §13 (Field Guide): descend the discovery→zoom→edit ladder, use `diff`-mode re-reads, verify exit status alongside compressed output, recover archives with `ctx_expand` — and never edit from compressed views.
+7. **lean-ctx fluency rule** - follow usage/lean-ctx.md §13 (Field Guide): descend the discovery→zoom→edit ladder, use `diff`-mode re-reads, verify exit status alongside compressed output, recover archives with `ctx_expand` - and never edit from compressed views.
 
 Known platform gap: subagent spawn does not fall back automatically on provider quota errors. On quota exhaustion, re-dispatch the same task with the fallback model set explicitly.
 
@@ -480,7 +500,7 @@ All skills at `/opt/engine/skills/` (symlinked into the OpenCode config dir). Us
 
 | Skill | When to Load |
 |-------|-------------|
-| `java-developer` | Java 21 idioms, anti-patterns, quality gates (meta-skill — see companion skills below) |
+| `java-developer` | Java 21 idioms, anti-patterns, quality gates (meta-skill - see companion skills below) |
 | `software-developer` | Full-stack conventions, clean code, SOLID |
 | `system-analyst` | Architecture evaluation, dependency mapping |
 | `business-analyst` | Requirements gathering, acceptance criteria |
@@ -498,7 +518,7 @@ All skills at `/opt/engine/skills/` (symlinked into the OpenCode config dir). Us
 | `writing-plans` | Create structured implementation plans |
 | `humanizer` | Remove AI writing patterns from output |
 | `doubt-driven-development` | Validate assumptions before committing to design |
-| `adaptive-solver` | Meta-cognitive uncertainty resolution — structured loop for ambiguity, low confidence, or failed attempts |
+| `adaptive-solver` | Meta-cognitive uncertainty resolution - structured loop for ambiguity, low confidence, or failed attempts |
 | `spec-driven-development` | Write spec first, implement after |
 | `subagent-driven-development` | Delegate bounded work to specialized subagents |
 | `systematic-debugging` | Structured root cause analysis |
@@ -507,31 +527,31 @@ All skills at `/opt/engine/skills/` (symlinked into the OpenCode config dir). Us
 | `audit-observability` | State contract audit trail, orchestration observability, score analytics, cross-service consistency |
 | `code-review-and-quality` | Review checklists, quality metrics |
 | `simplify` | Reduce complexity without changing behavior |
-| `impeccable` | Design director — critique, audit, polish UI; offline slop detector; required before UI tasks are marked done |
-| `design-taste-frontend` | Art direction for frontend builds — design brief, tokens, browser self-check loop |
+| `impeccable` | Design director - critique, audit, polish UI; offline slop detector; required before UI tasks are marked done |
+| `design-taste-frontend` | Art direction for frontend builds - design brief, tokens, browser self-check loop |
 | `diagram-design` | 45+ branded HTML/SVG diagram types (architecture, flows, ER, journeys, deployment); Mermaid/drawio/excalidraw import |
-| `design-exemplar` | Exemplar layer — awesome-design-md brand index (84 DESIGN.md files), fetch workflow, when to copy a reference look |
-| `ui-ux-pro-max` | Generator layer — BM25 design-system search (192 industry rules, 79 styles, 192 palettes, 74 font pairings), `--design-system`, `--persist` (MASTER.md) |
+| `design-exemplar` | Exemplar layer - awesome-design-md brand index (84 DESIGN.md files), fetch workflow, when to copy a reference look |
+| `ui-ux-pro-max` | Generator layer - BM25 design-system search (192 industry rules, 79 styles, 192 palettes, 74 font pairings), `--design-system`, `--persist` (MASTER.md) |
 | `banner-design` | Banner/hero art direction for social media, ads, web heroes (companion of ui-ux-pro-max) |
 | `brand` | Brand voice, visual identity, messaging frameworks, asset consistency (companion of ui-ux-pro-max) |
 | `design` | Umbrella design skill: logo generation, CIP mockups, HTML presentations, banners, icons, social photos (companion of ui-ux-pro-max) |
 | `design-system` | Token architecture (primitive→semantic→component), CSS variables, component specs, slide generation (companion of ui-ux-pro-max) |
 | `slides` | Strategic HTML presentations with Chart.js, design tokens, responsive layouts (companion of ui-ux-pro-max) |
 | `ui-styling` | shadcn/ui + Tailwind + canvas-based UI styling, accessible components, theming (companion of ui-ux-pro-max) |
-| `awesome-readme` | README/docs standard — badges, TOC, quick start, config tables, architecture notes (distilled from matiassingers/awesome-readme) |
-| `awesome-pr` | Pull request authoring — Conventional Commit titles, description template, review checklist, small-PR sizing |
-| `shipping-and-launch` | End-to-end release orchestration — pre-launch verification, canary rollout, rollback planning, post-deploy smoke tests |
-| `lean-ctx` | LeanCTX Context Gateway — select task-relevant context, apply controls, reuse local knowledge, inspect recorded evidence |
+| `awesome-readme` | README/docs standard - badges, TOC, quick start, config tables, architecture notes (distilled from matiassingers/awesome-readme) |
+| `awesome-pr` | Pull request authoring - Conventional Commit titles, description template, review checklist, small-PR sizing |
+| `shipping-and-launch` | End-to-end release orchestration - pre-launch verification, canary rollout, rollback planning, post-deploy smoke tests |
+| `lean-ctx` | LeanCTX Context Gateway - select task-relevant context, apply controls, reuse local knowledge, inspect recorded evidence |
 | `context-standards` | Discover and load project-specific pattern and standards files (context/*.md) before implementation, review, or design work |
-| `dispatching-parallel-agents` | Coordinating multiple sub-agents for parallel execution — file-disjoint sharding, conflict avoidance, reconciliation |
-| `tool-economy` | Tool-call discipline — batching, chaining, gate-first, spawn-tax, execution tiers, single-shot verdicts; retrieval routing table (§4.5) |
+| `dispatching-parallel-agents` | Coordinating multiple sub-agents for parallel execution - file-disjoint sharding, conflict avoidance, reconciliation |
+| `tool-economy` | Tool-call discipline - batching, chaining, gate-first, spawn-tax, execution tiers, single-shot verdicts; retrieval routing table (§4.5) |
 
 *Last updated: 2026-11-09. If you modify conventions, workflows, or config, update this file.*
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- lean-ctx:start -->
-# lean-ctx — Code Intelligence
+# lean-ctx - Code Intelligence
 
 This project is indexed by lean-ctx as **workflow-state-engine** (1675 symbols, 1666 relationships, 0 execution flows). Use the lean-ctx MCP tools to understand code, assess impact, and navigate safely.
 
@@ -542,13 +562,13 @@ This project is indexed by lean-ctx as **workflow-state-engine** (1675 symbols, 
 - **MUST run `detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows. For regression review, compare against the previous snapshot..
 - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
 - When exploring unfamiliar code, use `query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `context({name: "symbolName"})`.
+- When you need full context on a specific symbol - callers, callees, which execution flows it participates in - use `context({name: "symbolName"})`.
 
 ## Never Do
 
 - NEVER edit a function, class, or method without first running `impact` on it.
 - NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `rename` which understands the call graph.
+- NEVER rename symbols with find-and-replace - use `rename` which understands the call graph.
 - NEVER commit changes without running `detect_changes()` to check affected scope.
 
 <!-- lean-ctx:end -->

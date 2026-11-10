@@ -3,7 +3,14 @@
   "version": "0.8.0",
   "state_machine_version": "0.8.0",
   "service_type": "Core",
-  "service_type_rules": {},
+  "service_type_rules": {
+    "Core": {
+      "score_threshold": 75
+    },
+    "UI": {
+      "score_threshold": 70
+    }
+  },
   "state": "INIT",
   "session": {
     "task_id": "",
@@ -75,7 +82,7 @@
   "retry": {
     "attempt": 0,
     "max_attempts": 3,
-    "score_threshold": 70,
+    "score_threshold": 75,
     "escalation_threshold": 50,
     "current_phase": "",
     "issues": [],

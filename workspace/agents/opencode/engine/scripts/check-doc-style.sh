@@ -63,7 +63,7 @@ PLACEHOLDER_PATTERN='TODO|lorem|coming soon'
 
 # Default targets: shipped user-facing docs. Bare README.md resolves against
 # the repo root; engine docs resolve against PROJECT_ROOT (engine/).
-DEFAULT_TARGETS=("$REPO_ROOT/README.md" "$PROJECT_ROOT/README.md" "$PROJECT_ROOT/contract/README.md")
+DEFAULT_TARGETS=("$REPO_ROOT/README.md" "$PROJECT_ROOT/README.md" "$PROJECT_ROOT/contract/README.md" "$PROJECT_ROOT/agent.md")
 
 # Color output (disable if not a terminal)
 if [[ -t 1 ]]; then
