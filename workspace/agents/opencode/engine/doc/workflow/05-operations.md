@@ -64,7 +64,7 @@ sandbox/                     ← Session playground (project root; contents giti
 | **State transition** | Update `session/contract.json` → snapshot via `scripts/snapshot-contract.sh` |
 | **Session end** (COMPLETE/BLOCKED) | Final snapshot → append summary to `session/state.md` → promote durable sandbox work, then prune the session folder (7-day TTL policy) |
 | **Session resume** | Load `session/contract.json` + `session/state.md`; snapshot to record the resume |
-| **Post-transition** | Run `update all states`: lean-ctx re-index → Graphify re-index → snapshot → save session |
+| **Post-transition** | Run `update all states`: lean-ctx re-index → snapshot → save session |
 
 Scratch work belongs in `sandbox/<session-slug>/`, one folder per live session. Writes stay inside your own folder, other sessions' folders are read-only, and nothing in the sandbox is committed. Promote anything durable before COMPLETE; full rules live in the project-root `sandbox/README.md`, the machine-readable form in `rules/rules.json` -> `enforcement.sandbox`.
 

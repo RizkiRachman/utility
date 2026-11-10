@@ -5,6 +5,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/paths.sh"
+source "${SCRIPT_DIR}/lib/knowledge.sh"
 CONTRACT_FILE="${1:-}"
 if [[ -z "$CONTRACT_FILE" || ! -f "$CONTRACT_FILE" ]]; then
     echo "ERROR: contract file required: $0 <contract.json>" >&2
@@ -13,7 +14,7 @@ fi
 TASK_ID=$(jq -r '.session.task_id // "default"' "$CONTRACT_FILE")
 KEY="orchestration-contract:${TASK_ID}"
 CONTRACT_JSON=$(cat "$CONTRACT_FILE")
-if ! echo "$CONTRACT_JSON" | lean-ctx ctx_knowledge remember --key "$KEY" --value "$CONTRACT_JSON" >/dev/null 2>&1; then
+if ! kb_remember "$CONTRACT_JSON" "$KEY" state >/dev/null 2>&1; then
     echo "ERROR: knowledge persist failed for $KEY" >&2
     exit 1
 fi

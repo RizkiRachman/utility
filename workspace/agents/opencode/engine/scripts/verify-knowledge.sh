@@ -25,6 +25,7 @@ set -euo pipefail
 # --- Config ----------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/paths.sh"  # N1: session state lives with the project
+source "${SCRIPT_DIR}/lib/knowledge.sh"
 PROJECT_DIR="$(resolve_project_root "${SCRIPT_DIR}/..")"
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
@@ -132,7 +133,7 @@ LEAN_CTX_AVAILABLE=false
 if command -v lean-ctx &>/dev/null; then
     LEAN_CTX_AVAILABLE=true
 else
-    log_info "lean-ctx not available, cannot verify knowledge. Try: lean-ctx ctx_knowledge status"
+    log_info "lean-ctx not available, cannot verify knowledge. Try: lean-ctx knowledge status"
 fi
 
 # Determine which phases to check
@@ -169,7 +170,7 @@ count_knowledge_entries() {
         return
     fi
     local result
-    result=$(lean-ctx ctx_knowledge recall --query "$category" --mode semantic 2>/dev/null) || true
+    result=$(kb_recall "$category" 2>/dev/null) || true
     # Count non-empty lines as entries (heuristic)
     echo "$result" | grep -cE '.+' 2>/dev/null || echo 0
 }

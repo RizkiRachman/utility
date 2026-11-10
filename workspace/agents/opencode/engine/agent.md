@@ -255,6 +255,23 @@ Scope `rag_search` with `glob` (e.g. `agents/opencode/engine/**`) before widenin
 
 ---
 
+### 4.6 Tool Ownership
+
+One owner per capability; agents must use the designated tool, not a parallel path:
+
+| Capability | Owner | Notes |
+|---|---|---|
+| Repo reads, search, shell | lean-ctx (`ctx_read`/`ctx_search`/`ctx_shell`) | Mandatory access layer; native read/bash bypass = governance violation |
+| Library / framework docs | context7 | Official docs lookup; never guess from memory |
+| Semantic workspace search | rag (`rag_search`) | Discovery across the workspace; verify hits before editing |
+| Single known page | fetch | Keyless one-off HTTP GET |
+| Broad web search | websearch | Current events beyond library docs |
+| Issues / PRs / READMEs | firecrawl_developer_search | Primary-source passages, keyless |
+| Gated data providers | firecrawl_alexandria | `ask` permission; needs user confirmation |
+| UI generation | openui | Live UI rendering |
+| Subagent dispatch | task | One owner for spawning work |
+
+
 ## 5. Development Workflow
 
 ### Session Model
@@ -331,25 +348,9 @@ Exceptions: docs-only changes skip impact, change-detect, and re-index steps. Co
 
 ### Save Session Protocol
 
-When the user says "save session" or a phase completes, save to **ALL** systems:
+When the user says "save session" or a phase completes, run the full 8-step Post-Flight protocol; the canonical procedure lives in [doc/workflow/05-operations.md](doc/workflow/05-operations.md) (section E1, Save Session Protocol). Partial saves lose audit trail, break resumption, or leave stale indexes. Save to ALL systems every time.
+
 > **LOCAL-ONLY:** `session/`, `.session/` and everything inside them are runtime state — NEVER `git add`, commit, or push them (gitignored; history grows unbounded). Archive historical state logs to `.session/` instead.
-
-
-```bash
-# 1. Persist orchestration envelope to lean-ctx knowledge
-lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value "<JSON>"
-
-# 2. Update session/state.md — append completed work items
-
-# 3. Archive snapshot to session/ (contract files + state log + index)
-lean-ctx ctx_shell /opt/engine/scripts/snapshot-contract.sh --snapshot-only
-
-# 4. Save conversation context (survives OpenCode restart)
-lean-ctx ctx_session save
-
-```
-
-**One-shot alias**: `save session` = all 5 steps above. Always run the full protocol — partial saves lose audit trail, break resumption, or leave stale indexes.
 
 ### Update All States
 

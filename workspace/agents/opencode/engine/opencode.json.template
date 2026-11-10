@@ -15,11 +15,125 @@
     ]
   },
   "permissions": [
-    { "action": "*", "resource": "*", "effect": "allow" },
-    { "action": "lean-ctx_*", "resource": "*", "effect": "allow" },
-    { "action": "firecrawl_alexandria", "resource": "*", "effect": "ask" }
+    {
+      "action": "*",
+      "resource": "*",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "edit",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "write",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "grep",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "glob",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "list",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "task",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "question",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "skill",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "websearch",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "lean-ctx_*",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "context7_*",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "rag_*",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "openui_*",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "fetch",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "opencode_*",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "firecrawl_developer_search",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "firecrawl_alexandria",
+      "resource": "*",
+      "effect": "ask"
+    },
+    {
+      "action": "edit",
+      "resource": "**/opencode.json",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "**/contract.json",
+      "effect": "deny"
+    },
+    {
+      "action": "read",
+      "resource": "**/.env*",
+      "effect": "deny"
+    },
+    {
+      "action": "edit",
+      "resource": "**/.env*",
+      "effect": "deny"
+    }
   ],
-  "plugins": ["/opt/engine/plugins/opencode-firecrawl"],
+  "plugins": [
+    "/opt/engine/plugins/opencode-firecrawl"
+  ],
   "providers": {
     "sumopod": {
       "name": "SumoPod",
@@ -43,9 +157,21 @@
       "mode": "primary",
       "model": "opencode/big-pickle",
       "permissions": [
-        { "action": "read", "resource": "*.env", "effect": "ask" },
-        { "action": "read", "resource": "*.env.*", "effect": "ask" },
-        { "action": "read", "resource": "*.env.example", "effect": "allow" }
+        {
+          "action": "read",
+          "resource": "*.env",
+          "effect": "ask"
+        },
+        {
+          "action": "read",
+          "resource": "*.env.*",
+          "effect": "ask"
+        },
+        {
+          "action": "read",
+          "resource": "*.env.example",
+          "effect": "allow"
+        }
       ]
     },
     "orchestrator": {
@@ -54,15 +180,51 @@
       "model": "sumopod/glm-5.3-flash",
       "steps": 50,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "deny" },
-        { "action": "grep", "resource": "*", "effect": "deny" },
-        { "action": "glob", "resource": "*", "effect": "deny" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "design-orchestrator": {
@@ -71,17 +233,61 @@
       "model": "sumopod/glm-5.3-flash",
       "steps": 50,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "deny" },
-        { "action": "grep", "resource": "*", "effect": "deny" },
-        { "action": "glob", "resource": "*", "effect": "deny" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "skill", "resource": "*", "effect": "allow" },
-        { "action": "subagent", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "skill",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "subagent",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "product-manager": {
@@ -90,16 +296,56 @@
       "model": "sumopod/deepseek-flash",
       "steps": 40,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "scrum-master": {
@@ -108,16 +354,56 @@
       "model": "sumopod/deepseek-flash",
       "steps": 40,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "system-analyst": {
@@ -126,16 +412,56 @@
       "model": "sumopod/glm-5.3-flash",
       "steps": 80,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "software-architect": {
@@ -144,16 +470,56 @@
       "model": "sumopod/glm-5.3-flash",
       "steps": 60,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "developer": {
@@ -162,16 +528,56 @@
       "model": "sumopod/glm-5.3-flash",
       "steps": 100,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "allow" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "devops-engineer": {
@@ -180,16 +586,56 @@
       "model": "sumopod/glm-5.3-flash",
       "steps": 60,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "allow" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "quality-analyst": {
@@ -198,16 +644,56 @@
       "model": "sumopod/deepseek-flash",
       "steps": 80,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "security-engineer": {
@@ -216,16 +702,56 @@
       "model": "sumopod/deepseek-flash",
       "steps": 60,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "explorer": {
@@ -234,16 +760,56 @@
       "model": "sumopod/glm-5.3-flash",
       "steps": 30,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "librarian": {
@@ -252,16 +818,56 @@
       "model": "sumopod/glm-5.3-flash",
       "steps": 30,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "council": {
@@ -270,16 +876,56 @@
       "model": "sumopod/glm-5.3-flash",
       "steps": 30,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "observer": {
@@ -288,16 +934,56 @@
       "model": "sumopod/glm-5.3-flash",
       "steps": 30,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "fixer": {
@@ -306,16 +992,56 @@
       "model": "sumopod/glm-5.3-flash",
       "steps": 40,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "allow" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "learner": {
@@ -324,16 +1050,56 @@
       "model": "sumopod/glm-5.3-flash",
       "steps": 40,
       "permissions": [
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "read", "resource": "*", "effect": "allow" },
-        { "action": "grep", "resource": "*", "effect": "allow" },
-        { "action": "glob", "resource": "*", "effect": "allow" },
-        { "action": "webfetch", "resource": "*", "effect": "deny" },
-        { "action": "question", "resource": "*", "effect": "deny" },
-        { "action": "context7_*", "resource": "*", "effect": "allow" },
-        { "action": "memory_*", "resource": "*", "effect": "allow" },
-        { "action": "lean-ctx_*", "resource": "*", "effect": "allow" }
+        {
+          "action": "shell",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "read",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "grep",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "glob",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "webfetch",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "question",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "context7_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "memory_*",
+          "resource": "*",
+          "effect": "allow"
+        },
+        {
+          "action": "lean-ctx_*",
+          "resource": "*",
+          "effect": "allow"
+        }
       ]
     },
     "plan": {

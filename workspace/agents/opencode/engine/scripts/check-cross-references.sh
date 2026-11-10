@@ -76,7 +76,7 @@ OPTIONS
     --check NAME Run a single check by name; an unknown name prints this
                  usage and exits 2. Valid names:
                  markdown-links, engine-refs, skill-ids, script-refs,
-                 agent-refs, relpath-refs, context-standards, access-policy
+                 agent-refs, relpath-refs, context-standards, access-policy, forbidden-patterns
 
 CHECKS
   1. Markdown relative links
@@ -119,6 +119,14 @@ CHECKS
      Verifies every agents/*.md carries the identical "Access policy"
      line (plus a lean-ctx reference) and that agent.md declares the
      mandatory access layer.
+
+  9. Forbidden patterns
+     Drift-class sweep over agent-facing docs (README.md excluded: it
+     documents Dockerfile build behavior). Flags stale count claims
+     (16 agent, 15-member, 50 directories, 66/67 skills, 8 MCP), bare
+     bash /opt/engine gate phrasing, prose Permissions headings in
+     agents/*.md, graphify zombie mentions, and envelope keys missing
+     the :task_id namespace.
 
 EXIT CODES
   0   All references resolve
@@ -488,6 +496,43 @@ check_access_policy() {
     fi
 }
 
+# ── Check 9: Forbidden patterns (R2-16 drift classes) ─────────────────────────────
+check_forbidden_patterns() {
+    echo "  Check 9: Forbidden patterns (stale counts, gate phrasing, permission prose, zombies)"
+    local broken=0
+    local hits
+    # Agent-facing docs only; README.md excluded (documents Dockerfile build behavior)
+    local md_files
+    md_files=$(find "$PROJECT_ROOT" -name '*.md' -not -name 'README.md' 2>/dev/null)
+    if [[ -z "$md_files" ]]; then return 0; fi
+
+    # 9a. Stale count claims
+    hits=$(grep -rlE '(^|[^0-9])(16 agent|16 Agent|15-member|50 director(y|ies)|66 skills|67 skills|8 MCP)' $md_files 2>/dev/null || true)
+    if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "stale count claim(s) in: $(echo "$hits" | tr "\n" " ")"; fi
+
+    # 9b. Bare bash gate phrasing
+    hits=$(grep -rl 'bash /opt/engine' $md_files 2>/dev/null || true)
+    if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "bare bash gate phrasing in: $(echo "$hits" | tr "\n" " ")"; fi
+
+    # 9c. Prose Permissions headings in agent files
+    hits=$(grep -rl '^## Permissions' "$PROJECT_ROOT/agents/" 2>/dev/null || true)
+    if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "prose Permissions section(s) in: $(echo "$hits" | tr "\n" " ")"; fi
+
+    # 9d. Graphify zombie mentions (case-insensitive)
+    hits=$(grep -rli 'graphify' $md_files 2>/dev/null || true)
+    if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "graphify zombie mention(s) in: $(echo "$hits" | tr "\n" " ")"; fi
+
+    # 9e. Envelope keys missing the :task_id namespace
+    hits=$(grep -rlE 'remember key orchestration-contract([^:]|$)' $md_files 2>/dev/null || true)
+    if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "bare envelope key(s) in: $(echo "$hits" | tr "\n" " ")"; fi
+
+    if [[ "$broken" -eq 0 ]]; then
+        log_pass "Check 9: no forbidden patterns found"
+    else
+        log_verbose "Check 9: $broken forbidden-pattern class(es)"
+    fi
+}
+
 # ── Summary ─────────────────────────────────────────────────────────────────
 print_summary() {
     local total_checks=$((CHECK_COUNT + PASS_COUNT + FAIL_COUNT))
@@ -525,7 +570,7 @@ main() {
             --check)
                 if [[ -z "${2:-}" ]]; then
                     echo "Error: --check requires a check name."
-                    echo "Valid names: markdown-links, engine-refs, skill-ids, script-refs, agent-refs, relpath-refs, context-standards, access-policy"
+                    echo "Valid names: markdown-links, engine-refs, skill-ids, script-refs, agent-refs, relpath-refs, context-standards, access-policy, forbidden-patterns"
                     exit 2
                 fi
                 ONLY_CHECK="$2"
@@ -554,6 +599,7 @@ main() {
             relpath-refs)      check_relpath_refs ;;
             context-standards) check_context_standards_wiring ;;
             access-policy)     check_access_policy ;;
+            forbidden-patterns) check_forbidden_patterns ;;
             *)
                 echo "Unknown check: $ONLY_CHECK" >&2
                 usage 2
@@ -568,6 +614,7 @@ main() {
         check_relpath_refs
         check_context_standards_wiring
         check_access_policy
+        check_forbidden_patterns
     fi
 
     echo ""

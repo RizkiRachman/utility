@@ -16,7 +16,7 @@ usage() {
 Usage: $(basename "$0") [options]
 
 Options:
-  --mode MODE      summary|by-state|timeline|quality (default: summary)
+  --mode MODE      summary|by-state|timeline|quality|monthly (default: summary)
   --days N         Lookback window (default: 30)
   --session B       Filter to a specific session
   --json           Machine-readable output
@@ -27,9 +27,64 @@ Modes:
   by-state  Distribution of state outcomes (COMPLETE/BLOCKED/RETRY)
   timeline  Chronological score sequence by session
   quality   Composite quality score (avg × pass_rate / block_rate)
+  monthly   Month-over-month score trend into session/eval-report.md
 
 EOF
     exit 0
+}
+
+# mstats MONTH LEDGER - prints count, avg combined, pass count
+mstats() {
+    local month="$1" ledger="$2"
+    jq -r --arg m "$month" 'select(.timestamp[0:7] == $m) | "\(.combined) \(.verdict)"' "$ledger" 2>/dev/null | awk '{n++; s+=$1; if ($2=="PASS") p++} END {if (n==0) print "0 0 0"; else printf "%d %.1f %d\n", n, s/n, p}'
+}
+
+# Monthly month-over-month score trend (R2-15): reads the auto-score.sh
+# JSONL ledger and writes session/eval-report.md. Gracefully handles an
+# absent or empty ledger (fresh clones, first month).
+mode_monthly() {
+    local ledger="session/scores.jsonl"
+    local report="session/eval-report.md"
+    local this_month prev_month
+    this_month=$(date -u +%Y-%m)
+    local py pm
+    py="$(date -u +%Y)"
+    pm=$((10#$(date -u +%m)))
+    if [[ "$pm" -eq 1 ]]; then py=$((py-1)); pm=12; else pm=$((pm-1)); fi
+    prev_month="$(printf '%04d-%02d' "$py" "$pm")"
+
+    if [[ ! -f "$ledger" ]]; then
+        {
+            echo "# Eval Report - ${this_month}"
+            echo ""
+            echo "No scores ledger at ${ledger}; nothing to aggregate yet."
+            echo "Populate it via auto-score.sh (runs after every scoring pass)."
+        } > "$report"
+        log_info "No scores ledger; wrote empty report to ${report}"
+        return 0
+    fi
+    local cur_n cur_avg cur_pass prev_n prev_avg prev_pass
+    read -r cur_n cur_avg cur_pass <<< "$(mstats "$this_month" "$ledger")"
+    read -r prev_n prev_avg prev_pass <<< "$(mstats "$prev_month" "$ledger")"
+    {
+        echo "# Eval Report - ${this_month}"
+        echo ""
+        echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo ""
+        echo "| Month | Runs | Avg combined | PASS |"
+        echo "|---|---|---|---|"
+        echo "| ${prev_month} | ${prev_n} | ${prev_avg} | ${prev_pass} |"
+        echo "| ${this_month} | ${cur_n} | ${cur_avg} | ${cur_pass} |"
+        echo ""
+        if [[ "${cur_n}" -eq 0 && "${prev_n}" -eq 0 ]]; then
+            echo "No scored runs in either month yet."
+        elif [[ "${cur_n}" -eq 0 ]]; then
+            echo "No runs this month; trend unavailable."
+        else
+            echo "Avg combined moved from ${prev_avg} to ${cur_avg}."
+        fi
+    } > "$report"
+    log_info "Eval report written to ${report}"
 }
 
 MODE="summary"
@@ -209,6 +264,7 @@ main() {
         by-state) mode_by_state "$metrics" ;;
         timeline) mode_timeline "$metrics" ;;
         quality) mode_quality "$metrics" ;;
+        monthly) mode_monthly ;;
         *) echo "Unknown mode: $MODE" >&2; exit 1 ;;
     esac
 

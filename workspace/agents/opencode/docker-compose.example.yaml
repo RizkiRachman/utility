@@ -82,6 +82,6 @@ services:
       - .:/home/node/workspace
     environment:
 
-    command: sh -c "scripts/scheduled-runner.sh --task archive --schedule daily --pid-file /tmp/scheduled-archive.pid; scripts/scheduled-runner.sh --task heal --schedule daily --pid-file /tmp/scheduled-heal.pid; scripts/scheduled-runner.sh --task rag-reindex --schedule daily --pid-file /tmp/scheduled-rag-reindex.pid"
+    command: sh -c "scripts/scheduled-runner.sh --task archive --schedule daily --pid-file /tmp/scheduled-archive.pid; scripts/scheduled-runner.sh --task heal --schedule daily --pid-file /tmp/scheduled-heal.pid; scripts/scheduled-runner.sh --task rag-reindex --schedule daily --pid-file /tmp/scheduled-rag-reindex.pid; scripts/scheduled-runner.sh --task recall-test --schedule daily --pid-file /tmp/scheduled-recall-test.pid"
 volumes:
   opencode-data:

@@ -49,6 +49,7 @@ TASK OPTIONS:
   heal          Self-healing contract validation retry
   watchdog      Monitor WATCH_PID via timeout-watchdog.sh
   rag-reindex   Rebuild the rag workspace index
+  recall-test   Prove ctx_knowledge writes and recalls a marker lesson
 
 EXAMPLES:
   scheduled-runner.sh --task validate --schedule hourly
@@ -154,6 +155,9 @@ run_task() {
             ;;
         rag-reindex)
             node "${SCRIPT_DIR}/../rag/server.js" index || exit_code=1
+            ;;
+        recall-test)
+            bash "${SCRIPT_DIR}/recall-test.sh" || exit_code=1
             ;;
 
 

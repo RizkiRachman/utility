@@ -19,6 +19,8 @@
 #   1 = Error (invalid args, missing file, invalid JSON, etc.)
 
 set -euo pipefail
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "${SCRIPT_DIR}/lib/knowledge.sh"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -225,7 +227,7 @@ fi
 # ---------------------------------------------------------------------------
 OLD_STATE=""
 if command -v lean-ctx &>/dev/null; then
-    OLD_STATE=$(lean-ctx ctx_knowledge recall --key "orchestration-contract:${TASK_ID}" --mode "exact" 2>/dev/null | jq -r '.state // ""' 2>/dev/null || echo "")
+    OLD_STATE=$(kb_recall "orchestration-contract:${TASK_ID}" 2>/dev/null | jq -r '.state // ""' 2>/dev/null || echo "")
 fi
 log_verbose "OLD_STATE='${OLD_STATE}'"
 
@@ -269,18 +271,9 @@ if [[ "$SKIP_KNOWLEDGE" == false ]]; then
         echo -e "${GREEN}[INFO]${NC} Persisting to lean-ctx knowledge (key: orchestration-contract)..."
 
         # Build optional flags for lean-ctx
-        LEARN_CTX_EXTRA=()
-        if [[ -n "$TRIGGERED_BY" ]]; then
-            LEARN_CTX_EXTRA+=(--triggered-by "$TRIGGERED_BY")
-        fi
-
-        # We use ctx_knowledge remember via the MCP tool mechanism.
-        # Since this is a shell script, we invoke lean-ctx CLI.
-        # Fallback: write to a temp file and pipe to lean-ctx if needed.
-        echo "$CONTRACT_JSON" | lean-ctx ctx_knowledge remember \
-            --key "orchestration-contract:${TASK_ID}" \
-            --value "$CONTRACT_JSON" \
-            "${LEARN_CTX_EXTRA[@]}" 2>/dev/null && {
+        # Persist via the knowledge CLI adapter (R2-14: deployed CLI is
+        # lean-ctx knowledge remember VALUE --category C --key K).
+        kb_remember "$CONTRACT_JSON" "orchestration-contract:${TASK_ID}" state 2>/dev/null && {
             echo -e "${GREEN}[PASS]${NC} Knowledge persisted successfully."
         } || {
             echo -e "${RED}[ERROR]${NC} lean-ctx knowledge persistence FAILED"

@@ -21,6 +21,8 @@
 # =============================================================================
 
 set -euo pipefail
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "${SCRIPT_DIR}/lib/knowledge.sh"
 
 # --- Config ----------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -164,7 +166,7 @@ if [[ "$NO_KNOWLEDGE" == false ]]; then
     fi
 
     # Capture knowledge output (may contain "Error:" or valid JSON)
-    KV_RAW="$(lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact" 2>/dev/null || true)"
+    KV_RAW="$(kb_recall "orchestration-contract" 2>/dev/null || true)"
 
     if echo "$KV_RAW" | jq -e . >/dev/null 2>&1; then
         KV_JSON="$KV_RAW"

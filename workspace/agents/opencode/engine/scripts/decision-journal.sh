@@ -52,6 +52,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Shared logging/counters/store_in helpers (scripts/lib)
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/knowledge.sh"
 
 # ── Colors ──────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -332,7 +333,7 @@ cmd_persist() {
             else
                 # Persist via lean-ctx if available
                 if command -v lean-ctx &>/dev/null; then
-                    if lean-ctx ctx_knowledge remember key "decision/${slug}" value "$entry_json" category decisions 2>/dev/null; then
+                    if kb_remember "$entry_json" "decision/${slug}" decisions 2>/dev/null; then
                         log_verbose "  Persisted: decision/${slug}"
                         persisted_count=$((persisted_count + 1))
                     else
@@ -380,7 +381,7 @@ cmd_persist() {
                 score_persisted=$((score_persisted + 1))
             else
                 if command -v lean-ctx &>/dev/null; then
-                    if lean-ctx ctx_knowledge remember key "decision/score/${slug}" value "$score_entry" category decisions 2>/dev/null; then
+                    if kb_remember "$score_entry" "decision/score/${slug}" decisions 2>/dev/null; then
                         log_verbose "  Persisted: decision/score/${slug}"
                         score_persisted=$((score_persisted + 1))
                     else
