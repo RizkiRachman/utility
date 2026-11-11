@@ -11,7 +11,7 @@ description: Writes tests before production code. Uses tests to drive API design
 
 ## 1. The Red-Green-Refactor Cycle
 
-### 🔴 Red — Write a failing test first
+### 🔴 Red  -  Write a failing test first
 
 Define the method signature and expected behavior before any implementation.
 
@@ -38,9 +38,9 @@ class ProductLookupServiceTest {
 }
 ```
 
-This test won't compile yet — `ProductLookupService.findByName()` doesn't exist. **That's the point.** The test drives you to create it.
+This test won't compile yet  -  `ProductLookupService.findByName()` doesn't exist. **That's the point.** The test drives you to create it.
 
-### 🟢 Green — Write minimal code to pass
+### 🟢 Green  -  Write minimal code to pass
 
 ```java
 @Service
@@ -57,7 +57,7 @@ public class ProductLookupService implements ProductLookupInPort {
 
 **Minimal.** No validation, no error handling, no logging. Just enough to turn the test green.
 
-### 🔵 Refactor — Clean up while tests stay green
+### 🔵 Refactor  -  Clean up while tests stay green
 
 ```java
 @Override
@@ -71,7 +71,7 @@ public ProductDomain findByName(String name) {
 }
 ```
 
-Run the test after each change. If it breaks, you went too far — revert and redo.
+Run the test after each change. If it breaks, you went too far  -  revert and redo.
 
 ---
 
@@ -79,7 +79,7 @@ Run the test after each change. If it breaks, you went too far — revert and re
 
 | Step | What You Write First | What the Test Proves |
 |------|---------------------|----------------------|
-| 1 | Port interface (`*InPort`, `*RepositoryPort`) | Compilation — signatures must exist |
+| 1 | Port interface (`*InPort`, `*RepositoryPort`) | Compilation  -  signatures must exist |
 | 2 | **Failing test** that uses the port | Desired behavior is defined |
 | 3 | Domain service (minimal impl) | Test turns green |
 | 4 | Mapper tests (domain ↔ entity, domain ↔ DTO) | Conversion logic is correct |
@@ -90,21 +90,21 @@ Run the test after each change. If it breaks, you went too far — revert and re
 
 ---
 
-## 3. When to TDD — Decision Framework
+## 3. When to TDD  -  Decision Framework
 
 | Scenario | TDD? | Why |
 |----------|------|-----|
 | New domain service method | ✅ **Always** | Core behavior, drives clean API design |
-| Bug fix | ✅ **Always** | Write regression test first — proves the bug exists, proves the fix works |
+| Bug fix | ✅ **Always** | Write regression test first  -  proves the bug exists, proves the fix works |
 | Mapper conversion logic | ✅ **Always** | Trivial to test, expensive if wrong |
 | Controller/WebAdapter | ✅ **Usually** | Validates request → domain → response flow |
 | Event handler | ✅ **Usually** | Verify event is consumed and side effects happen |
-| Configuration class | ⚠️ **Skip** | No behavior to drive — test via `@WebMvcTest` or integration test |
-| JPA repository query | ⚠️ **Integration test** | `@DataJpaTest` tests the query directly — no TDD cycle needed |
+| Configuration class | ⚠️ **Skip** | No behavior to drive  -  test via `@WebMvcTest` or integration test |
+| JPA repository query | ⚠️ **Integration test** | `@DataJpaTest` tests the query directly  -  no TDD cycle needed |
 | Build/CI config | ❌ **Skip** | Not testable via JUnit |
-| One-line delegate method | ❌ **Skip** | Test the caller instead — don't test getters/setters/trivial delegates |
+| One-line delegate method | ❌ **Skip** | Test the caller instead  -  don't test getters/setters/trivial delegates |
 
-**Rule of thumb**: If the method has a branch, a loop, a null check, or a calculation — TDD it.
+**Rule of thumb**: If the method has a branch, a loop, a null check, or a calculation  -  TDD it.
 
 ---
 
@@ -133,7 +133,7 @@ void shouldReturnProductWhenFoundByName() {
 
 ### 4.2 Test Naming Conventions
 
-Use `should<ExpectedBehavior>When<Condition>` — reads as a sentence:
+Use `should<ExpectedBehavior>When<Condition>`  -  reads as a sentence:
 
 | Name | What It Tests |
 |------|---------------|
@@ -144,10 +144,10 @@ Use `should<ExpectedBehavior>When<Condition>` — reads as a sentence:
 
 ### 4.3 One Assert Concept vs Scenario Tests
 
-**One assert concept per test** — verify one logical behavior:
+**One assert concept per test**  -  verify one logical behavior:
 
 ```java
-// ✅ GOOD — one concept: null on not found
+// ✅ GOOD  -  one concept: null on not found
 @Test
 void shouldReturnNullWhenProductNotFound() {
   when(productRepository.findByName("unknown")).thenReturn(null);
@@ -157,17 +157,17 @@ void shouldReturnNullWhenProductNotFound() {
   assertNull(result);
 }
 
-// ✅ GOOD — separate test for found case
+// ✅ GOOD  -  separate test for found case
 @Test
 void shouldReturnProductWhenFound() {
   // ...
 }
 ```
 
-**Scenario test** — multiple asserts that verify one *scenario* are fine:
+**Scenario test**  -  multiple asserts that verify one *scenario* are fine:
 
 ```java
-// ✅ ACCEPTABLE — all asserts verify different aspects of "create store"
+// ✅ ACCEPTABLE  -  all asserts verify different aspects of "create store"
 @Test
 void shouldCreateStoreWithAllFields() {
   var result = storeService.create(criteria);
@@ -191,11 +191,11 @@ void shouldCreateStoreWithAllFields() {
 Mock **ports** (boundaries), not domain logic:
 
 ```java
-// ✅ GOOD — mock the repository port
+// ✅ GOOD  -  mock the repository port
 @Mock private StoreRepositoryPort storeRepository;
 @Mock private ProductPriceQueryInPort productPriceQueryInPort;
 
-// ❌ BAD — mocking a domain service
+// ❌ BAD  -  mocking a domain service
 @Mock private StoreService storeService;  // Don't mock the class under test
 ```
 
@@ -315,18 +315,18 @@ void shouldPropagateRepositoryException() {
 
 ### ❌ Testing Implementation Details
 
-**Bad** — tests how, not what:
+**Bad**  -  tests how, not what:
 ```java
-// ❌ BAD — tests internal structure
+// ❌ BAD  -  tests internal structure
 @Test
 void shouldUseHashMapInternally() {
   assertTrue(service.getCache() instanceof HashMap);
 }
 ```
 
-**Good** — tests behavior:
+**Good**  -  tests behavior:
 ```java
-// ✅ GOOD — tests observable behavior
+// ✅ GOOD  -  tests observable behavior
 @Test
 void shouldReturnCachedResultOnSecondCall() {
   service.findByName("Susu");
@@ -338,12 +338,12 @@ void shouldReturnCachedResultOnSecondCall() {
 ### ❌ Fragile Tests (Tight Coupling to Wiring)
 
 ```java
-// ❌ BAD — breaks if you rename or reorder parameters
+// ❌ BAD  -  breaks if you rename or reorder parameters
 verify(repository).save(argThat(p -> p.getName().equals("X")));
 ```
 
 ```java
-// ✅ GOOD — explicit capture, readable assertion
+// ✅ GOOD  -  explicit capture, readable assertion
 verify(repository).save(captor.capture());
 assertEquals("X", captor.getValue().getName());
 ```
@@ -351,13 +351,13 @@ assertEquals("X", captor.getValue().getName());
 ### ❌ Over-Mocking
 
 ```java
-// ❌ BAD — mocking a value object
+// ❌ BAD  -  mocking a value object
 var product = mock(ProductDomain.class);
-when(product.getName()).thenReturn("Susu");  // Useless — just build one
+when(product.getName()).thenReturn("Susu");  // Useless  -  just build one
 ```
 
 ```java
-// ✅ GOOD — build real domain objects
+// ✅ GOOD  -  build real domain objects
 var product = ProductDomain.builder().id(1L).name("Susu").build();
 ```
 
@@ -366,11 +366,11 @@ var product = ProductDomain.builder().id(1L).name("Susu").build();
 ### ❌ Testing Through Multiple Layers
 
 ```java
-// ❌ BAD — tests controller through full Spring context for simple logic
+// ❌ BAD  -  tests controller through full Spring context for simple logic
 @SpringBootTest
 void testController() { ... }
 
-// ✅ GOOD — unit test the WebAdapter + integration test the controller
+// ✅ GOOD  -  unit test the WebAdapter + integration test the controller
 @ExtendWith(MockitoExtension.class)
 class WebAdapterTest { ... }
 
@@ -380,7 +380,7 @@ class ControllerWebMvcTest { ... }
 
 ---
 
-## 8. TDD in This Project — Project-Specific Patterns
+## 8. TDD in This Project  -  Project-Specific Patterns
 
 ### 8.1 AbstractGenericServiceTest
 
@@ -472,16 +472,16 @@ class StoreControllerWebMvcTest {
 ## 9. Running Tests in the Cycle
 
 ```bash
-# Red phase — run to see it fail
+# Red phase  -  run to see it fail
 mvn test -Dtest=ProductLookupServiceTest
 
-# Green phase — run after minimal implementation
+# Green phase  -  run after minimal implementation
 mvn test -Dtest=ProductLookupServiceTest
 
-# Refactor phase — run entire module to catch regressions
+# Refactor phase  -  run entire module to catch regressions
 mvn test
 
-# Before commit — full gate
+# Before commit  -  full gate
 mvn verify
 ```
 
@@ -491,11 +491,11 @@ mvn verify
 
 ## 10. Summary Checklist
 
-- [ ] Test fails first (Red) — proves the test detects missing behavior
-- [ ] Minimal code to pass (Green) — no speculative features
-- [ ] Refactor with tests green — clean code is safe code
-- [ ] One behavior per test — don't mix happy path and error path
-- [ ] Verify interactions — `verify()` proves side effects happened
-- [ ] Real domain objects — never mock models, use `.builder()`
-- [ ] Fast and isolated — no Spring context in pure unit tests
-- [ ] Run before commit — `mvn verify` must pass
+- [ ] Test fails first (Red)  -  proves the test detects missing behavior
+- [ ] Minimal code to pass (Green)  -  no speculative features
+- [ ] Refactor with tests green  -  clean code is safe code
+- [ ] One behavior per test  -  don't mix happy path and error path
+- [ ] Verify interactions  -  `verify()` proves side effects happened
+- [ ] Real domain objects  -  never mock models, use `.builder()`
+- [ ] Fast and isolated  -  no Spring context in pure unit tests
+- [ ] Run before commit  -  `mvn verify` must pass

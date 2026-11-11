@@ -104,7 +104,7 @@ Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` 
 | `./workspace` | `/home/node/workspace` | Working tree mounted into the container (repo compose) |
 | `config/opencode.json` | `/home/node/.config/opencode/opencode.json` | Read-only bind mount; restart to apply edits |
 | `config/opencode-model-fallback.json` | `/home/node/.config/opencode/opencode-model-fallback.json` | Read-only, dormant |
-| `opencode-data` (named volume) | `/home/node/.local/share/opencode` | Auth, session store, memory MCP file |
+| `opencode-data` (named volume) | `/home/node/.local/share/opencode` | Auth, session store, lean-ctx knowledge store, rag index |
 | `pre-install/` | build context `preinstall` | Offline package store, consumed at build time |
 
 ## MCP Servers
@@ -171,8 +171,6 @@ Details: [engine/doc/health-check.md](engine/doc/health-check.md).
 |---|---|---|
 | OpenCode v2 CLI | `@opencode/cli@2.2.5` + platform pkg `@opencode/cli-linux-${OPENCODE_ARCH}@2.2.5` | npm (`anomalyco/opencode`) |
 | Context7 MCP | `@upstash/context7-mcp@4.4.4` | npm |
-| Memory MCP | `@modelcontextprotocol/server-memory@2.0.1` | npm |
-| Everything MCP | `@modelcontextprotocol/server-everything@2.1.0` | npm |
 | MCP Python SDK | `mcp==2.3.0` | PyPI |
 | Fetch MCP | `mcp-server-fetch==2026.10.28` | PyPI |
 | lean-ctx | `v3.12.0` | [GitHub release](https://github.com/yvgude/lean-ctx) |
@@ -202,7 +200,7 @@ opencode/
 ├── sandbox/                     # Session playground, one folder per session (contents gitignored)
 └── engine/                      # Workflow-state-engine → copied to /opt/engine
     ├── agent.md                 # Orchestrator instructions (instructions[0])
-    ├── agents/                  # 16 agent instruction files
+    ├── agents/                  # 17 agent instruction files
     ├── skills/                  # 45 skill directories
     ├── commands/                # 1 slash command (impeccable)
     ├── rules/                   # rules.json + rules.schema.json
@@ -297,7 +295,7 @@ opencode serve attaches to:
 | Web UI unreachable, port already allocated | Host port 4096 is taken by another process | Change the host side of the `ports:` mapping in the compose file |
 | Config edits have no effect | `config/opencode.json` is mounted read-only | Restart the container after editing; the mount itself never changes |
 | `fetch` MCP fails to extract pages | Image predates the baked readabilipy dependencies; older builds installed them per request and needed network | Rebuild from this Dockerfile; the readability node modules are baked in |
-| Memory disappears between sessions | Memory MCP persists to `MEMORY_FILE_PATH` inside the `opencode-data` volume | Removing the volume removes memory; inspect `docker volume` before wiping |
+| Session state lost between restarts | Orchestration state lives in `session/` plus the lean-ctx knowledge store and rag index inside the `opencode-data` volume | Removing the volume removes the knowledge store, session store, and rag index; `session/contract.json` lives in the mounted workspace, so inspect both before wiping |
 | `rag_search` returns nothing | The index is empty or the server reads a different database than expected | Run `rag_index` (or `node /opt/rag/server.js index`), then check `rag_status`: it prints the db path, the indexed root, and a stale file count; make sure `RAG_DB` matches the path you expect |
 | rag embedding mode looks wrong | An index keeps the embedding mode it was built with; `rag_search` uses that mode, and switching `RAG_EMBEDDINGS_*` only takes hold on the next `rag_index` | Re-run `rag_index` after changing the env; `rag_status` prints `embedding_mode` and `dims` |
 

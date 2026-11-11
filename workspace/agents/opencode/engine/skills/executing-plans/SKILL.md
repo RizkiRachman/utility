@@ -5,14 +5,14 @@ description: Executes implementation plans step by step. Follow the plan's task 
 
 # Executing Plans
 
-Turn a structured plan into working code. This skill covers **what to do when things go wrong** — not just when they go right. Plans are hypotheses; execution is where reality pushes back.
+Turn a structured plan into working code. This skill covers **what to do when things go wrong** - not just when they go right. Plans are hypotheses; execution is where reality pushes back.
 
 > **Counterpart**: Use `writing-plans` to create the plans this skill executes.
-> **Pre-flight**: Load the orchestration envelope first (`lean-ctx ctx_knowledge recall --query "orchestration-contract"`) — decisions, retry issues, and scope inform every execution decision.
+> **Pre-flight**: Load the orchestration envelope first (`lean-ctx ctx_knowledge recall --query "orchestration-contract:<task_id>"`, resolving `<task_id>` from `session.task_id` in `session/contract.json`) - decisions, retry issues, and scope inform every execution decision.
 
 ---
 
-## 1. Agent Mode Decision — developer vs fixer
+## 1. Agent Mode Decision - developer vs fixer
 
 Which agent executes the plan changes **how** you handle each task.
 
@@ -21,7 +21,7 @@ Which agent executes the plan changes **how** you handle each task.
 | Scope | Multi-file, multi-service changes | Single bounded fix, single file or small cluster |
 | Plan granularity | Step-by-step with verification | Single task, known root cause |
 | Blocker escalation | Self-diagnose, try 2-3 strategies, then escalate | If stuck → escalate immediately (not diagnostic-capable) |
-| Deviation | Document and adjust if < 20% of plan scope | Deviate only if the fix is clearly wrong — escalate otherwise |
+| Deviation | Document and adjust if < 20% of plan scope | Deviate only if the fix is clearly wrong - escalate otherwise |
 | Test expectation | Write tests as part of plan | Run existing tests; do not add new test coverage |
 | Checkpoints | Full post-flight per task | Single verify step at the end |
 
@@ -68,7 +68,7 @@ Follow the writing order from AGENTS.md:
 |---|---|
 | New file | Write using `lean-ctx ctx_edit` with `create: true` or native `write` |
 | Existing file | `lean-ctx ctx_edit` with exact `old_string` match,  |
-| Rename | `ctx_refactor` — never find-and-replace |
+| Rename | `ctx_refactor` - never find-and-replace |
 | Test file | Write tests BEFORE production code (TDD) or alongside it; run `mvn test` immediately |
 
 ### 2.3 Verify
@@ -87,11 +87,11 @@ Against the task's acceptance criteria. Use these verification methods:
 ### 2.4 Post-Flight
 
 ```text
-□ 1. ctx_impact verify — blast radius matches expectations
-□ 2. ctx_delta — only expected files changed
-□ 3. Knowledge persist — save gotchas, patterns, decisions (lean-ctx ctx_knowledge remember)
-□ 4. STATE.md update — append completed work, update Current Focus / Known Blockers
-□ 5. Session save — ctx_session save
+□ 1. ctx_impact verify - blast radius matches expectations
+□ 2. ctx_delta - only expected files changed
+□ 3. Knowledge persist - save gotchas, patterns, decisions (lean-ctx ctx_knowledge remember)
+□ 4. STATE.md update - append completed work, update Current Focus / Known Blockers
+□ 5. Session save - ctx_session save
 ```
 
 ---
@@ -124,7 +124,7 @@ What kind of failure?
   └── Flaky test (intermittent) → Run 3 more times to confirm; log known flake; continue
 ```
 
-**Rule of thumb**: If you can't fix the failure in 3 attempts, do not keep trying — escalate. The plan may need adjustment.
+**Rule of thumb**: If you can't fix the failure in 3 attempts, do not keep trying - escalate. The plan may need adjustment.
 
 ### 3.3 Design Question Blocker (unclear how to implement)
 
@@ -155,7 +155,7 @@ If you've tried 2-3 strategies and the task is still blocked:
 1. Mark the task as BLOCKED in progress tracking (section 4)
 2. Document: what was tried, what failed, what's needed
 3. Switch to the next independent task (if any)
-4. Report at end: "Task X is BLOCKED — <reason>. Needs: <specific help>."
+4. Report at end: "Task X is BLOCKED - <reason>. Needs: <specific help>."
 ```
 
 Do not spend more than 15 minutes on a single blocker without escalating. Plans can be re-sequenced; time cannot be un-burned.
@@ -181,10 +181,10 @@ PENDING → IN_PROGRESS → VERIFIED → COMPLETE
 
 | # | Task | State | Blocker | Notes |
 |---|------|-------|---------|-------|
-| 1 | Create ProductInPort | COMPLETE | — | Done |
-| 2 | Create ProductService | IN_PROGRESS | — | Implementing findById |
+| 1 | Create ProductInPort | COMPLETE | - | Done |
+| 2 | Create ProductService | IN_PROGRESS | - | Implementing findById |
 | 3 | Create ProductController | BLOCKED | Blocked by task 2 | Waiting |
-| 4 | Add product search event | PENDING | — | Not yet started |
+| 4 | Add product search event | PENDING | - | Not yet started |
 ```
 
 ### When to Update
@@ -228,7 +228,7 @@ If the current agent is `developer` and you have independent tasks:
 
 ```
 Risk: Two agents modify the same file
-├── Mitigation: Assign files exclusively — no overlap
+├── Mitigation: Assign files exclusively - no overlap
 ├── Mitigation: If overlap is unavoidable, serialize those tasks
 └── Detection: ctx_delta() catches unexpected modifications
 ```
@@ -276,7 +276,7 @@ You must **ask** before:
 
 Deviation: <what happened>
 Reason: <why the plan didn't account for it>
-Impact: <what changed — scope, effort, risk>
+Impact: <what changed - scope, effort, risk>
 Decision: <ADJUSTED / ESCALATED>
 ```
 
@@ -286,15 +286,15 @@ Decision: <ADJUSTED / ESCALATED>
 
 Some signals mean the plan should stop and be reworked, not pushed through.
 
-### Red Flags — Stop and Escalate
+### Red Flags - Stop and Escalate
 
 | Signal | What it means | Action |
 |--------|---------------|--------|
 | **Pre-flight found existing bugs** (pre-existing test failures) | The plan assumed a clean baseline | Pause, document pre-existing issues, don't conflate with new work |
 | **Impact analysis shows CRITICAL risk** | Change touches a hub symbol with widespread effects | Stop, report to orchestrator, do not proceed without re-architecture |
-| **Work estimated > 3x original plan** | Underestimation — scope creep or complexity found | Stop at the 3x threshold, report, get a revised plan |
-| **Deviation invalidates goal** (section 6) | The plan is now solving the wrong problem | Abort the plan, not the project — re-scope |
-| **3+ consecutive blockers on different tasks** | Systematic issue (bad assumptions, wrong approach) | Do not keep pushing — the plan's model of the problem is wrong |
+| **Work estimated > 3x original plan** | Underestimation - scope creep or complexity found | Stop at the 3x threshold, report, get a revised plan |
+| **Deviation invalidates goal** (section 6) | The plan is now solving the wrong problem | Abort the plan, not the project - re-scope |
+| **3+ consecutive blockers on different tasks** | Systematic issue (bad assumptions, wrong approach) | Do not keep pushing - the plan's model of the problem is wrong |
 | **Test suite regression > 10%** | Unexpected behavioral change | Roll back, investigate root cause, do not patch over |
 | **Blocker time exceeds execution time** | More time spent debugging than implementing | Stop, escalate. The approach is off. |
 
@@ -320,9 +320,9 @@ Between tasks, run a lightweight checkpoint. This is the condensed version of th
 ### Standard Checkpoint (3-step, ~30 seconds)
 
 ```text
-□ ctx_delta()    — verify only expected files changed
-□ mvn test                     — verify no regressions
-□ lean-ctx ctx_session task —value "Task N complete: <summary>"
+□ ctx_delta() - verify only expected files changed
+□ mvn test - verify no regressions
+□ lean-ctx ctx_session task - value "Task N complete: <summary>"
 ```
 
 ### Full Checkpoint (after every 3rd task or any risky change)
@@ -352,7 +352,7 @@ Given a plan with tasks [CreatePort, CreateService, CreateController, AddEvents]
    → VERIFY: compiles, test passes. CHECKPOINT.
 5. Task 4 (AddEvents): PENDING → not yet started → skip for now (lower priority)
 6. POST-FLIGHT: ctx_delta, knowledge persist, STATE.md, session save
-7. REPORT: 3/4 tasks COMPLETE, 1 task PENDING (AddEvents — not a blocker)
+7. REPORT: 3/4 tasks COMPLETE, 1 task PENDING (AddEvents - not a blocker)
 ```
 
 **Key principles in action**:

@@ -13,7 +13,7 @@ Responds to code review feedback constructively. Accepts suggestions, improves c
 
 ## Guidelines
 - Read all comments before responding
-- Assume good intent — reviews improve code quality
+- Assume good intent  -  reviews improve code quality
 - For each comment: fix, explain, or discuss
 - If you disagree, explain your reasoning with evidence
 - Thank reviewers for catching issues

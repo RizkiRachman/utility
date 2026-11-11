@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: Debugs issues using the scientific method — hypothesis → isolate → fix → verify. Actionable templates, real Spring Boot scenarios, and project-specific tooling.
+description: Debugs issues using the scientific method  -  hypothesis → isolate → fix → verify. Actionable templates, real Spring Boot scenarios, and project-specific tooling.
 ---
 
 # Systematic Debugging
@@ -9,7 +9,7 @@ description: Debugs issues using the scientific method — hypothesis → isolat
 
 Debugging is not a guessing game. It is the **scientific method applied to software**: form a falsifiable hypothesis, design the cheapest experiment that disproves it, interpret the evidence, repeat. This skill gives you the frameworks, templates, and project-specific tooling to execute that cycle efficiently.
 
-The most common debugging mistake is **skipping the hypothesis step** and jumping straight to "try changing X." That's not debugging — that's cargo-culting. Every experiment must have a predicted outcome before you run it.
+The most common debugging mistake is **skipping the hypothesis step** and jumping straight to "try changing X." That's not debugging  -  that's cargo-culting. Every experiment must have a predicted outcome before you run it.
 
 ## When to Use
 
@@ -20,7 +20,7 @@ The most common debugging mistake is **skipping the hypothesis step** and jumpin
 | Production incident | Start with observability, skip to timeline reconstruction |
 | Intermittent failure | Binary search + logging injection |
 | Performance regression | Metric-first: profile before hypothesizing |
-| "I don't know why this works" | You don't understand it — doubt-driven development |
+| "I don't know why this works" | You don't understand it  -  doubt-driven development |
 | "I don't know why this broke" | This is the skill for that |
 
 **When NOT to use:**
@@ -35,14 +35,14 @@ The most common debugging mistake is **skipping the hypothesis step** and jumpin
 ### Core Loop
 
 ```
-1. REPRODUCE   — Establish a reliable trigger (not "sometimes")
-2. OBSERVE     — Collect evidence: logs, state, stack traces, metrics
-3. HYPOTHESIZE — Form a specific, falsifiable statement
-4. EXPERIMENT  — Smallest test that disproves the hypothesis
-5. INTERPRET   — Does the evidence confirm or refute?
-6. LOCALIZE    — Narrow to the exact line/component/responsibility
-7. FIX         — Minimal change addressing root cause
-8. VERIFY      — Fix works + regression test + no side effects
+1. REPRODUCE    -  Establish a reliable trigger (not "sometimes")
+2. OBSERVE      -  Collect evidence: logs, state, stack traces, metrics
+3. HYPOTHESIZE  -  Form a specific, falsifiable statement
+4. EXPERIMENT   -  Smallest test that disproves the hypothesis
+5. INTERPRET    -  Does the evidence confirm or refute?
+6. LOCALIZE     -  Narrow to the exact line/component/responsibility
+7. FIX          -  Minimal change addressing root cause
+8. VERIFY       -  Fix works + regression test + no side effects
 ```
 
 **Rule of thumb**: If you can't state your hypothesis in one sentence of the form *"If X is the cause, then when I do Y, Z will happen"*, you aren't ready to experiment yet.
@@ -82,26 +82,26 @@ Bug reported
 
 ### Framework 1: The Assumption Stack
 
-Every bug is a failed assumption. List your assumptions in order of **likelihood** — start with the layer that fails most often:
+Every bug is a failed assumption. List your assumptions in order of **likelihood**  -  start with the layer that fails most often:
 
 ```
-Configuration       — Wrong property? Wrong profile? Missing env var?
+Configuration        -  Wrong property? Wrong profile? Missing env var?
 ├─ application.yml, application-{profile}.yml
 ├─ @ConfigurationProperties bindings
 └─ @Value fields
 
-Data                — Null field? Wrong enum value? Stale cache?
+Data                 -  Null field? Wrong enum value? Stale cache?
 ├─ Database state (check directly with Postgres tool)
 ├─ Cache contents (Caffeine, Redis)
 └─ API input/output shapes
 
-Control flow        — Wrong branch? Missing event handler?
+Control flow         -  Wrong branch? Missing event handler?
 ├─ @Async not firing (see detailed example below)
 ├─ @TransactionalEventListener ordering
 ├─ AOP interceptor ordering vs @Transactional
 └─ Exception swallowed in catch block
 
-Boundary            — Cross-module contract mismatch?
+Boundary             -  Cross-module contract mismatch?
 ├─ Port interface contract vs adapter implementation
 ├─ Event shape vs handler expectation
 └─ API DTO → Domain → Entity mapping
@@ -156,7 +156,7 @@ Bug observed at:    API response has wrong price
 
 ### 3. Log-Based Narrowing
 
-Add targeted logging at **suspected boundary points** — not everywhere. The goal is to binary-search the code path:
+Add targeted logging at **suspected boundary points**  -  not everywhere. The goal is to binary-search the code path:
 
 ```java
 // Before vs after a transformation
@@ -192,7 +192,7 @@ grep -A 20 "BLOCKED\|WAITING" thread-dump-*.txt
 | `ERROR` | Something is broken and needs human action | Exception, correlation ID, input that caused it |
 | `WARN` | Something unexpected but not fatal | Degraded path taken, fallback used, retry count |
 | `INFO` | Normal operation, significant lifecycle | Service start/stop, config loaded, batch completed |
-| `DEBUG` | During active debugging — **never in production by default** | Method entry/exit with key params, transformation results |
+| `DEBUG` | During active debugging  -  **never in production by default** | Method entry/exit with key params, transformation results |
 | `TRACE` | Very granular flow tracing | Loop iterations, individual DB query results |
 
 ### Project Convention (from `@Slf4j` usage)
@@ -204,7 +204,7 @@ log.debug("calculateBestPrice: productId={}, storeIds={}", productId, storeIds);
 // Log exit with result
 log.debug("calculateBestPrice result: bestPrice={}", bestPrice);
 
-// Log errors with exception (NOT with .getMessage() — pass the full exception)
+// Log errors with exception (NOT with .getMessage()  -  pass the full exception)
 log.error("Failed to process receipt receiptId={}", receiptId, exception);
 
 // Log warnings for recoverable issues
@@ -219,7 +219,7 @@ log.debug("=== DEBUG: price field before persist: price={}, isPromo={}", price.g
 
 // 2. Run and check output
 // 3. If inconclusive, move the log point
-// 4. DELETE the debug logs when done — never commit temporary logging
+// 4. DELETE the debug logs when done  -  never commit temporary logging
 ```
 
 **Anti-pattern**: Adding 20 log statements at once. Add one. Move it. Delete it.
@@ -280,14 +280,14 @@ Symptom: Receipt correction doesn't update price summary
 For production incidents or bugs involving multiple services:
 
 ```
-10:02:15 — Receipt POST /api/v1/receipts/create → 200 OK
-10:02:16 — ReceiptCorrectedEvent published to ApplicationEventPublisher
-10:02:16 — @TransactionalEventListener handler should fire (AFTER_COMMIT)
-10:02:17 — Receipt marked as CORRECTED in DB
-10:02:18 — Price summary NOT updated (BUG: handler didn't fire)
+10:02:15  -  Receipt POST /api/v1/receipts/create → 200 OK
+10:02:16  -  ReceiptCorrectedEvent published to ApplicationEventPublisher
+10:02:16  -  @TransactionalEventListener handler should fire (AFTER_COMMIT)
+10:02:17  -  Receipt marked as CORRECTED in DB
+10:02:18  -  Price summary NOT updated (BUG: handler didn't fire)
 ```
 
-Fill in the timeline from logs, then look for **gaps** — where an expected event didn't happen, or happened out of order.
+Fill in the timeline from logs, then look for **gaps**  -  where an expected event didn't happen, or happened out of order.
 
 ---
 
@@ -303,7 +303,7 @@ Fill in the timeline from logs, then look for **gaps** — where an expected eve
 3. The method is public and called from outside the class → self-invocation bypasses proxy
 4. The `TaskExecutor` bean is configured with a queue capacity → tasks might be queued but never executed if queue is full
 
-**Hypothesis**: "If the executor bean name doesn't exist, Spring will silently fall back to `SimpleAsyncTaskExecutor` which runs in the caller's thread — so the work WOULD happen but synchronously. If the method is called from the same class, the proxy is bypassed entirely."
+**Hypothesis**: "If the executor bean name doesn't exist, Spring will silently fall back to `SimpleAsyncTaskExecutor` which runs in the caller's thread  -  so the work WOULD happen but synchronously. If the method is called from the same class, the proxy is bypassed entirely."
 
 **Experiment**: Add a breakpoint/log at the first line of the async method. Call the service. Does the log appear?
 
@@ -316,11 +316,11 @@ Fill in the timeline from logs, then look for **gaps** — where an expected eve
 **Project-specific check**: The project uses named executors (`receiptProcessorExecutor`, `activityLogExecutor`, `receiptApproveProcessorExecutor`). Check `@Async` annotation value matches exactly:
 
 ```java
-// GOOD — matches executor bean
+// GOOD  -  matches executor bean
 @Async("receiptApproveProcessorExecutor")
 public void doExecute(ReceiptCorrectedEvent event) { ... }
 
-// BAD — typo, bean won't be found
+// BAD  -  typo, bean won't be found
 @Async("receiptApproveExecutr")
 ```
 
@@ -330,7 +330,7 @@ public void doExecute(ReceiptCorrectedEvent event) { ... }
 
 **This is a real bug from the project CHANGELOG (line 139):**
 
-**Root cause**: The AOP interceptor (e.g., `@ActivityLog`) runs **before** `@Transactional` advisor in the interceptor chain. The `eventOutPort.publishLogged()` call executes before the transaction commits. When `@TransactionalEventListener(AFTER_COMMIT)` checks "is there an active transaction that just committed?", the answer is **no** — because the transaction hasn't even started, or it started but hasn't committed.
+**Root cause**: The AOP interceptor (e.g., `@ActivityLog`) runs **before** `@Transactional` advisor in the interceptor chain. The `eventOutPort.publishLogged()` call executes before the transaction commits. When `@TransactionalEventListener(AFTER_COMMIT)` checks "is there an active transaction that just committed?", the answer is **no**  -  because the transaction hasn't even started, or it started but hasn't committed.
 
 **Hypothesis**: "The event is published before the transaction commits, so `AFTER_COMMIT` phase never fires."
 
@@ -362,7 +362,7 @@ public ResponseEntity<Map<String, Object>> handleNotFound(NotFoundException e) {
 }
 ```
 
-**Hypothesis**: "The exception is thrown in a `@Service` method called from the controller, so `@ControllerAdvice` should catch it — unless the exception is wrapped in another exception."
+**Hypothesis**: "The exception is thrown in a `@Service` method called from the controller, so `@ControllerAdvice` should catch it  -  unless the exception is wrapped in another exception."
 
 **Experiment**: Add a test that calls the controller and expects 404. If it gets 500, the handler isn't being invoked:
 
@@ -373,7 +373,7 @@ mockMvc.perform(get("/api/v1/products/99999"))
 
 ### Scenario 4: DataIntegrityViolationException on NOT NULL Column
 
-**Symptom**: Update operation fails with `DataIntegrityViolationException` — the column is `NOT NULL` but a null value is being persisted.
+**Symptom**: Update operation fails with `DataIntegrityViolationException`  -  the column is `NOT NULL` but a null value is being persisted.
 
 **Project example**: `PriceService.update()` could pass `null` for `isPromo` field, causing insert/update to fail.
 
@@ -433,7 +433,7 @@ When the bug is in data or query behavior, go directly to the database:
 // Check for missing rows the app expects
 {"name": "postgres_pg_readonly", "arguments": {"sql": "SELECT p.* FROM prices p LEFT JOIN products pr ON p.product_id = pr.id WHERE pr.id IS NULL"}}
 
-// Check schema — does the column exist? Is it nullable?
+// Check schema  -  does the column exist? Is it nullable?
 {"name": "postgres_pg_describe_table", "arguments": {"table": "prices"}}
 ```
 
@@ -444,19 +444,19 @@ When the bug is in data or query behavior, go directly to the database:
 ### The Three Pillars in Debugging
 
 ```
-METRICS — What is happening?
+METRICS  -  What is happening?
   ├─ Request rate (is traffic hitting the service?)
   ├─ Error rate (are errors spiking?)
   ├─ Latency p50/p95/p99 (is something slow?)
   └─ Use for: first alert, before you start debugging
 
-TRACES — Where is it happening?
+TRACES  -  Where is it happening?
   ├─ Distributed trace across services
   ├─ Span: which operation took the longest
   ├─ Span: which operation failed
   └─ Use for: narrowing to the specific component
 
-LOGS — Why is it happening?
+LOGS  -  Why is it happening?
   ├─ Exception details and stack traces
   ├─ Request parameters and state
   └─ Use for: root cause identification
@@ -513,8 +513,8 @@ After applying a fix, run through these before calling it done:
 - Adding 20 log statements at once instead of moving one
 - Fixing a symptom without understanding root cause
 - "It works on my machine" without investigating environment differences
-- Applying the same fix twice (first time didn't stick — meaning you don't understand the cause)
-- Never running `ctx_impact` before the fix — did your change break other callers?
+- Applying the same fix twice (first time didn't stick  -  meaning you don't understand the cause)
+- Never running `ctx_impact` before the fix  -  did your change break other callers?
 - No regression test added for a bug fix
 
 ## Interaction with Other Skills

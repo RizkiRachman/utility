@@ -1,13 +1,13 @@
 ---
 name: shipping-and-launch
-description: End-to-end release orchestration — pre-launch verification, canary rollout, rollback planning, post-deploy smoke tests, and stakeholder communication. Invoked by the orchestrator orchestrator when contract.state transitions to EXECUTE_SCORED → REVIEW, and feeds into COMPLETE.
+description: End-to-end release orchestration - pre-launch verification, canary rollout, rollback planning, post-deploy smoke tests, and stakeholder communication. Invoked by the orchestrator orchestrator when contract.state transitions to EXECUTE_SCORED → REVIEW, and feeds into COMPLETE.
 ---
 
 # Shipping & Launch
 
-Take verified code to production safely. This skill covers **what to check before launch, how to roll out gradually, and how to roll back when things go wrong.** It assumes implementation and review (ArchUnit, SpotBugs, tests) are already complete — this is the **last mile**.
+Take verified code to production safely. This skill covers **what to check before launch, how to roll out gradually, and how to roll back when things go wrong.** It assumes implementation and review (ArchUnit, SpotBugs, tests) are already complete - this is the **last mile**.
 
-> **Pre-flight**: Load the orchestration envelope first (`lean-ctx ctx_knowledge recall --query "orchestration-contract"`). The `decisions.*`, `governance.*`, and `outputs.code_changes[]` fields determine what needs release verification.
+> **Pre-flight**: Load the orchestration envelope first (`lean-ctx ctx_knowledge recall --query "orchestration-contract:<task_id>"`). The `decisions.*`, `governance.*`, and `outputs.code_changes[]` fields determine what needs release verification.
 >
 > **Prerequisite**: All EXECUTE and REVIEW phase scoring must pass (≥70). Run `mvn verify` and confirm zero SpotBugs/PMD/ArchUnit failures before any launch step.
 
@@ -18,29 +18,29 @@ Take verified code to production safely. This skill covers **what to check befor
 Run this checklist **in order** before any deployment reaches production. Every check must pass; if any fails, resolve before proceeding.
 
 ```text
-□ 1. ENV VARS — All new environment variables (DB URLs, API keys, feature flags)
+□ 1. ENV VARS - All new environment variables (DB URLs, API keys, feature flags)
      are documented in `.env.example` and set in all target environments
      (staging, canary, production). No hardcoded secrets.
-□ 2. MIGRATIONS — All Flyway/Liquibase scripts are idempotent (repeatable).
+□ 2. MIGRATIONS - All Flyway/Liquibase scripts are idempotent (repeatable).
      Down-migration scripts exist for every up-migration. Tested against
      a production-sized dataset for performance impact.
-□ 3. FEATURE FLAGS — Every significant behavior change is gated behind a
+□ 3. FEATURE FLAGS - Every significant behavior change is gated behind a
      feature flag with a known owner and deprecation date. Flags default OFF
      in production.
-□ 4. MONITORING — New dashboards or alert rules exist for key metrics
+□ 4. MONITORING - New dashboards or alert rules exist for key metrics
      (error rate, latency p99, throughput). Baselines recorded from staging.
-□ 5. BACKWARDS COMPAT — API versioning strategy is decided (see §2.2).
+□ 5. BACKWARDS COMPAT - API versioning strategy is decided (see §2.2).
      No breaking changes without a co-existing v2 endpoint.
-□ 6. DEPENDENCIES — No unresolved CVEs in new or updated dependencies
+□ 6. DEPENDENCIES - No unresolved CVEs in new or updated dependencies
      (run `mvn verify -P security-check`).
-□ 7. HEALTH ENDPOINTS — `GET /actuator/health`, `GET /actuator/info`,
+□ 7. HEALTH ENDPOINTS - `GET /actuator/health`, `GET /actuator/info`,
      and any custom readiness/liveness probes are functional.
-□ 8. BUILD ARTIFACT — `mvn clean verify` passes. JAR/WAR is reproducible
+□ 8. BUILD ARTIFACT - `mvn clean verify` passes. JAR/WAR is reproducible
      (same commit = same checksum).
-□ 9. STATE.MD — Updated with release scope, known risks, and rollback contact.
-□ 10. ORCHESTRATION CONTRACT — `outputs.agent_reports[]` includes the
+□ 9. STATE.MD - Updated with release scope, known risks, and rollback contact.
+□ 10. ORCHESTRATION CONTRACT - `outputs.agent_reports[]` includes the
       quality-analyst's REVIEW score ≥70.
-□ 11. HUMANIZER — User-facing docs shipped this release (README, changelog,
+□ 11. HUMANIZER - User-facing docs shipped this release (README, changelog,
       release notes, PR description) pass `/skill humanizer`. Docs still
       carrying AI patterns (em dashes, rule-of-three, promotional tone) are
       not done. Internal state files (`session/state.md`, contract JSON,
@@ -51,12 +51,12 @@ Run this checklist **in order** before any deployment reaches production. Every 
 
 | If this check fails... | Severity | Action |
 |------------------------|----------|--------|
-| Env var missing in prod | CRITICAL | BLOCK — do not deploy. Raise infra ticket. |
-| Migration not idempotent | CRITICAL | BLOCK — rewrite migration, re-test. |
+| Env var missing in prod | CRITICAL | BLOCK - do not deploy. Raise infra ticket. |
+| Migration not idempotent | CRITICAL | BLOCK - rewrite migration, re-test. |
 | Feature flag defaults ON | HIGH | Set default to OFF. Verify with a staging deploy. |
 | No monitoring for new metric | HIGH | Add alert/dashboard before proceeding. |
-| Breaking API change, no version | CRITICAL | BLOCK — add co-existing version or postpone. |
-| CVE in new dependency | CRITICAL | BLOCK — patch or swap dependency. |
+| Breaking API change, no version | CRITICAL | BLOCK - add co-existing version or postpone. |
+| CVE in new dependency | CRITICAL | BLOCK - patch or swap dependency. |
 
 ---
 
@@ -69,25 +69,25 @@ Every release must have a rollback strategy **defined before deployment**, not d
 Use the **expand-contract pattern** for zero-downtime schema changes:
 
 ```
-Phase 1 — EXPAND (deploy N):
+Phase 1 - EXPAND (deploy N):
   ┌──────────────┐    ┌───────────────┐    ┌─────────────────┐
   │ Add new column│    │ Dual-write    │    │ Backfill data   │
   │ /new table   │ →  │ (old + new)   │ →  │ from old → new  │
   └──────────────┘    └───────────────┘    └─────────────────┘
   All code reads FROM old column. Writes go TO both.
 
-Phase 2 — MIGRATE (deploy N+1):
+Phase 2 - MIGRATE (deploy N+1):
   ┌───────────────┐    ┌──────────────┐
   │ Switch reads   │    │ Remove dead  │
   │ to new column  │ →  │ writes to old│
   └───────────────┘    └──────────────┘
 
-Phase 3 — CONTRACT (deploy N+2, after validation):
+Phase 3 - CONTRACT (deploy N+2, after validation):
   ┌─────────────────┐
   │ Drop old column │
   │ /old table      │
   └─────────────────┘
-  Rollback at Phase 2 or 3 is a *code revert only* — no DB undo needed.
+  Rollback at Phase 2 or 3 is a *code revert only* - no DB undo needed.
 ```
 
 **Rollback at each phase**:
@@ -104,9 +104,9 @@ Phase 3 — CONTRACT (deploy N+2, after validation):
 
 | Strategy | When to use | Rollback |
 |----------|-------------|----------|
-| **URL path versioning** (`/v1/`, `/v2/`) | Breaking changes, public API | Old version still live — revert new version's routing |
+| **URL path versioning** (`/v1/`, `/v2/`) | Breaking changes, public API | Old version still live - revert new version's routing |
 | **Header versioning** (`Accept: vnd.app.v2+json`) | Internal/microservice APIs | Same as URL, but needs gateway config revert |
-| **Backwards-compatible expansion** | Adding fields only | No version change needed — rollback is a code revert |
+| **Backwards-compatible expansion** | Adding fields only | No version change needed - rollback is a code revert |
 
 **Kill-switch for feature flags**:
 
@@ -145,7 +145,7 @@ Gradual rollout with automated gates. Every release should hit **staging → can
 | Canary | 5% | 30 min | Error rate ≤ baseline × 1.1 | Auto-rollback |
 | Ramped | 25% | 2h | Latency p99 ≤ baseline × 1.2 | Auto-rollback |
 | Ramped | 50% | 2h | No alert triggers | Manual approval |
-| Full | 100% | — | All checks pass | Release complete |
+| Full | 100% | - | All checks pass | Release complete |
 
 ### 3.2 Metrics Comparison
 
@@ -171,7 +171,7 @@ Compare **canary** vs **baseline** (previous stable release) on these metrics:
          ├─ 1. Set feature flag OFF (if gated)
          ├─ 2. Route traffic to previous version
          ├─ 3. Send alert to #release channel
-         ├─ 4. Log deployment: CANARY_ROLLBACK — <reason>
+         ├─ 4. Log deployment: CANARY_ROLLBACK - <reason>
          └─ 5. Do NOT auto-retry. Require human investigation.
 ```
 
@@ -184,12 +184,12 @@ After every deployment (including rollbacks), run these verifications.
 ### 4.1 Post-Deploy Smoke Tests
 
 ```text
-□ 1. Health check — GET /actuator/health returns 200
-□ 2. Readiness — GET /actuator/health/readiness returns 200
-□ 3. Core flow — Execute the primary user journey (e.g., create receipt → price comparison)
-□ 4. Auth flow — Token acquisition and validation works
-□ 5. Error handling — 404 on unknown resource returns correct shape
-□ 6. Event flow — If async events are part of the release, verify handler completed
+□ 1. Health check - GET /actuator/health returns 200
+□ 2. Readiness - GET /actuator/health/readiness returns 200
+□ 3. Core flow - Execute the primary user journey (e.g., create receipt → price comparison)
+□ 4. Auth flow - Token acquisition and validation works
+□ 5. Error handling - 404 on unknown resource returns correct shape
+□ 6. Event flow - If async events are part of the release, verify handler completed
 ```
 
 Run via curl or a dedicated smoke-test job in CI. Never skip smoke tests for production deploys.
@@ -232,7 +232,7 @@ Update these in the repository *before* the deploy, not after:
 
 ### Changed
 - Product search now returns paginated results (#145)
-  - Backwards-compatible — `page` and `size` params optional, default 0/20
+  - Backwards-compatible - `page` and `size` params optional, default 0/20
   - See migration guide in `/docs/migrations/product-search-pagination.md`
 
 ### Deprecated
@@ -251,7 +251,7 @@ Update these in the repository *before* the deploy, not after:
 | Component | Rollback command | Data risk |
 |-----------|------------------|-----------|
 | App artifact | `kubectl rollout undo deployment/app` | None (stateless) |
-| Migration v1.4.0 | `flyway undo -schemas=public` | Medium — drops new column, existing data in old column |
+| Migration v1.4.0 | `flyway undo -schemas=public` | Medium - drops new column, existing data in old column |
 | Feature flag `price-compare-v2` | Set to OFF | None |
 ```
 
@@ -274,7 +274,7 @@ Notify these channels at each stage:
   ├──────────────┼─────────────────────────────────────────────┤
   │ T+2h (full)  │ #release: "100% rollout. Smoke tests pass."│
   │              │ #eng: "Code freeze lifted."                 │
-  │              │ #general: "v1.4.0 released — changelog:    │
+  │              │ #general: "v1.4.0 released - changelog:    │
   │              │  link"                                     │
   ├──────────────┼─────────────────────────────────────────────┤
   │ T+24h        │ #release: "Post-deploy monitoring clear.   │
@@ -287,7 +287,7 @@ Notify these channels at each stage:
 
 ---
 
-## 6. Orchestration Integration — COMPLETE State Handoff
+## 6. Orchestration Integration - COMPLETE State Handoff
 
 This skill feeds into the orchestrator orchestrator's final state transition. When all launch steps are done, update the orchestration contract:
 
@@ -296,7 +296,7 @@ This skill feeds into the orchestrator orchestrator's final state transition. Wh
 | Contract field | Value after shipping |
 |---------------|----------------------|
 | `state` | `COMPLETE` |
-| `governance.current_guidance` | `"Release v<x.y.z> deployed and verified — rollback plan defined, post-deploy monitoring active"` |
+| `governance.current_guidance` | `"Release v<x.y.z> deployed and verified - rollback plan defined, post-deploy monitoring active"` |
 | `outputs.agent_reports[]` | Append report containing: deploy timestamp, canary stages passed, smoke test results, rollback status (none/active) |
 | `score.combined` | Must be ≥ 70 (update if final scoring changed) |
 | `score.verdict` | `PASS` |
@@ -314,7 +314,7 @@ This skill feeds into the orchestrator orchestrator's final state transition. Wh
 4. Session save: ctx_session save
 ```
 
-The **learner** agent picks up from COMPLETE — it extracts lessons, gotchas, and patterns from the full release cycle for durable cross-release learning.
+The **learner** agent picks up from COMPLETE - it extracts lessons, gotchas, and patterns from the full release cycle for durable cross-release learning.
 
 ---
 
@@ -322,12 +322,12 @@ The **learner** agent picks up from COMPLETE — it extracts lessons, gotchas, a
 
 | Situation | Action |
 |-----------|--------|
-| Pre-launch env var missing | BLOCK — raise infra ticket |
-| Migration not idempotent | BLOCK — rewrite and re-test |
+| Pre-launch env var missing | BLOCK - raise infra ticket |
+| Migration not idempotent | BLOCK - rewrite and re-test |
 | Canary error rate spikes | Auto-rollback, notify #release |
 | Feature flag works in staging, fails in prod | Disable flag, investigate env diff |
 | Health endpoint failing | Remove from LB, rollback if >3 restarts |
-| Breaking API change without version | BLOCK — add co-existing version |
+| Breaking API change without version | BLOCK - add co-existing version |
 | Post-deploy smoke test fails | Rollback immediately |
 | Stakeholder needs deploy ETA | Post to #release with stage and metrics |
 | Monitoring gap discovered | Add alert, mark as lesson learned |

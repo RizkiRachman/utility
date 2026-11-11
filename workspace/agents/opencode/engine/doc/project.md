@@ -26,9 +26,9 @@
 | **State Machine** | 8 states: `INIT -> PLAN -> PLAN_SCORED -> EXECUTE -> EXECUTE_SCORED -> REVIEW -> REVIEW_SCORED -> COMPLETE` (+ `BLOCKED` escalation) |
 | **Scoring Pipeline** | Three-tier: Rule-based checks (Tier 1) -> LLM-as-Judge (Tier 2) -> Combined Verdict of PASS / RETRY / BLOCKED (Tier 3) |
 | **Scoring Thresholds** | PASS >= 70, RETRY 50-69 (max 3 attempts), BLOCKED < 50 |
-| **15 Agent Types (scrum team)** | Orchestrator/lead (orchestrator), product (product-manager), process (scrum-master), planners (system-analyst, software-architect), implementers (developer, devops-engineer, fixer), reviewers (quality-analyst, security-engineer, learner), support (explorer, librarian, council, observer) |
+| **17 Agent Types (scrum team)** | Orchestrator/lead (orchestrator), product (product-manager), process (scrum-master), planners (system-analyst, software-architect), implementers (developer, devops-engineer, fixer, design-orchestrator), reviewers (quality-analyst, security-engineer, learner), support (explorer, librarian, council, observer), bootstrap entrypoint (build) |
 | **Cross-Model Review** | Executors run on `opencode/big-pickle`; reviewers run on an independent model (`sumopod/deepseek-flash`). Conflicting verdicts → `BLOCKED`, arbitrated by `council` (`rules.json → enforcement.cross_model_review`) |
-| **50 Skill Directories** | Runnable skills including java-developer, system-analyst, writing-plans, spec-driven-development, test-driven-development, brainstorming, qa-expert, security-expert, devops-expert, and more |
+| **45 Skill Directories** | Runnable skills including java-developer, system-analyst, writing-plans, spec-driven-development, test-driven-development, brainstorming, qa-expert, security-expert, devops-expert, and more |
 | **Cross-Session Learning** | Lessons, patterns, and gotchas persisted via `ctx_knowledge` -- survives session restarts and spans sessions |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -61,7 +61,7 @@ The toolkit is organized as a **3-layer framework** of agents, skills, and contr
 
 - **`sandbox/` (session playground)** -- Project-root scratch space, one folder per live session at `sandbox/<session-slug>/`. Probes, clones, and rendered tests go here instead of repo paths or `/tmp`; contents are gitignored and never committed, and only `README.md`, `.gitignore`, and `.gitkeep` are tracked. Promote durable work before COMPLETE. Policy: project-root `sandbox/README.md`; machine-readable: `rules/rules.json` -> `enforcement.sandbox`.
 
-- **Before-Commit Protocol** -- Every session runs: impact verify (`ctx_impact`) -> change detect (`ctx_delta`) -> knowledge persist (`ctx_knowledge remember`) -> `session/state.md` update -> session save (all 5 systems). `session/` and `.session/` are LOCAL-ONLY runtime state — never commit or push them.
+- **Before-Commit Protocol** -- Every session runs: impact verify (`ctx_impact`) -> change detect (`ctx_delta`) -> knowledge persist (`ctx_knowledge remember`) -> `session/state.md` update -> session save (all 5 systems). `session/` and `.session/` are LOCAL-ONLY runtime state - never commit or push them.
 
 - **Doubt-Driven Development (DDD)** -- Non-trivial decisions get a fresh-context adversarial review before they stand. Used for correctness-critical, high-stakes, or unfamiliar-code decisions.
 

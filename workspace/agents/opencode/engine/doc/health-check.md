@@ -20,10 +20,10 @@ Each lens checks one dimension of system health. Results are weighted into a 0-1
 | # | Lens | Weight | What It Checks |
 |---|------|--------|---------------|
 | 1 | **Contract Integrity** | 15% | `scripts/validate-contract.sh --score` passes on template + live contract |
-| 2 | **Knowledge vs File Drift** | 15% | `scripts/drift-detect.sh` — lean-ctx knowledge ↔ session file consistency |
-| 3 | **Script Syntax** | 15% | `bash -n` on all `scripts/*.sh` — no syntax errors |
+| 2 | **Knowledge vs File Drift** | 15% | `scripts/drift-detect.sh` - lean-ctx knowledge ↔ session file consistency |
+| 3 | **Script Syntax** | 15% | `bash -n` on all `scripts/*.sh` - no syntax errors |
 | 4 | **Agent Doc References** | 15% | Do `agents/*.md` reference scripts that exist? Any dead references? |
-| 5 | **Knowledge Persistence** | 15% | `scripts/verify-knowledge.sh` — coverage of decisions, lessons, gotchas |
+| 5 | **Knowledge Persistence** | 15% | `scripts/verify-knowledge.sh` - coverage of decisions, lessons, gotchas |
 | 6 | **Session State Integrity** | 10% | `session/contract.json` + `session/state.md` present and well-formed |
 | 7 | **Score Trend** | 15% | Compare today's score against the `session/health-record.md` baseline |
 
@@ -34,9 +34,9 @@ Each lens checks one dimension of system health. Results are weighted into a 0-1
 ```
 Total = weighted sum of all 7 lens scores
 
-≥ 90  → ✅ HEALTHY — system is sound
-70-89 → ⚠️ WARNING — issues to review
-< 70  → 🔴 CRITICAL — immediate attention needed
+≥ 90  → ✅ HEALTHY - system is sound
+70-89 → ⚠️ WARNING - issues to review
+< 70  → 🔴 CRITICAL - immediate attention needed
 ```
 
 ### Trend Detection
@@ -52,7 +52,7 @@ Compare today's score against the last 3 entries in `session/health-record.md`:
 
 ---
 
-## 3. Implementation — Each Lens in Detail
+## 3. Implementation - Each Lens in Detail
 
 ### Lens 1: Contract Integrity [15pts]
 
@@ -176,7 +176,7 @@ Copy and paste this entire block to your AI agent for a daily health check:
 > ## Protocol
 >
 > 1. **Read context**: Load `doc/health-check.md` for the full protocol. Load `session/health-record.md` for trend history.
-> 2. **Run all 7 lenses** against the live engine (read-only — no --fix flags):
+> 2. **Run all 7 lenses** against the live engine (read-only - no --fix flags):
 >    - Lens 1: `scripts/validate-contract.sh --file contract/contract.template.json --score`
 >    - Lens 2: `scripts/drift-detect.sh --session session --verbose`
 >    - Lens 3: `bash -n` on all `scripts/*.sh`
@@ -200,8 +200,8 @@ Copy and paste this entire block to your AI agent for a daily health check:
 >    Columns: Date | Score | Verdict | Trend | Issues / Notes
 >
 > ## Key Constraints
-> - Read-only unless persisting the result record — do NOT modify scripts or contracts
-> - If `drift-detect.sh` fails, do NOT auto-fix — just flag it
+> - Read-only unless persisting the result record - do NOT modify scripts or contracts
+> - If `drift-detect.sh` fails, do NOT auto-fix - just flag it
 > - If any script is missing, note it but continue with remaining checks
 > - If score < 80 OR trend is declining: propose a fix plan
 > - If score >= 90 with stable/improving trend: confirm health, suggest 1 optimization
@@ -221,9 +221,9 @@ Stored in `session/health-record.md`. Append-only chronological table:
 
 | Date | Score | Verdict | Trend | Issues / Notes |
 |------|-------|---------|-------|---------------|
-| 2026-06-18 | 94 | ✅ HEALTHY | — (baseline) | No issues |
+| 2026-06-18 | 94 | ✅ HEALTHY | - (baseline) | No issues |
 | 2026-06-19 | 92 | ✅ HEALTHY | → stable | minor drift |
-| 2026-06-20 | 88 | ⚠️ WARNING | ↘ declining | validate-contract BLOCKED on session contract — needs investigation |
+| 2026-06-20 | 88 | ⚠️ WARNING | ↘ declining | validate-contract BLOCKED on session contract - needs investigation |
 ```
 
 ---

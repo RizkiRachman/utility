@@ -1,6 +1,6 @@
 ---
 name: release-plan
-description: End-to-end release process — unit testing, quality gates (PMD, SpotBugs, Spotless, ArchUnit), PR templates, commit conventions, documentation, and token optimization
+description: End-to-end release process  -  unit testing, quality gates (PMD, SpotBugs, Spotless, ArchUnit), PR templates, commit conventions, documentation, and token optimization
 license: MIT
 compatibility: opencode
 tags:
@@ -23,7 +23,7 @@ triggers:
   - "changelog"
 ---
 
-# Release Plan — Goods Price Comparison Service
+# Release Plan  -  Goods Price Comparison Service
 
 End-to-end workflow for shipping a clean, verified release.
 
@@ -51,19 +51,19 @@ End-to-end workflow for shipping a clean, verified release.
 
 **Order of Operations:**
 
-1. Port interface — `*InPort`, `*RepositoryPort`, `*EventOutPort`
+1. Port interface  -  `*InPort`, `*RepositoryPort`, `*EventOutPort`
 
-2. Domain service — implements `*InPort`, pure Java
+2. Domain service  -  implements `*InPort`, pure Java
 
-3. Mapper — `*DtoMapper` (domain ↔ API), `*Mapper` (domain ↔ entity)
+3. Mapper  -  `*DtoMapper` (domain ↔ API), `*Mapper` (domain ↔ entity)
 
-4. Adapter — web, persistence, event orchestration
+4. Adapter  -  web, persistence, event orchestration
 
-5. Constants — extract magic strings to `*Constants` or enums
+5. Constants  -  extract magic strings to `*Constants` or enums
 
-6. Events — domain service publishes via `*EventOutPort`, handler uses `@Async @TransactionalEventListener(AFTER_COMMIT)`
+6. Events  -  domain service publishes via `*EventOutPort`, handler uses `@Async @TransactionalEventListener(AFTER_COMMIT)`
 
-7. Tests — unit tests for domain service, adapter tests for infrastructure
+7. Tests  -  unit tests for domain service, adapter tests for infrastructure
 
 ---
 
@@ -144,7 +144,7 @@ Use the **Conventional Commits** format for all commits. The project CHANGELOG i
 ```
 <type>(<scope>): <brief description>
 
-<optional body — explain what problem and why this approach>
+<optional body  -  explain what problem and why this approach>
 ```
 
 **Types used in this project:**
@@ -157,7 +157,7 @@ Use the **Conventional Commits** format for all commits. The project CHANGELOG i
 | `test` | Adding or updating tests | (excluded from changelog) |
 | `docs` | Documentation only | Changed |
 | `style` | Formatting, spotless (no behavior change) | (excluded) |
-| `chore` | Tooling, dependencies, config | (excluded — PR title documents grouped changes) |
+| `chore` | Tooling, dependencies, config | (excluded  -  PR title documents grouped changes) |
 
 
 | Scope | Example |
@@ -191,7 +191,7 @@ docs: update README, CHANGELOG, developer guide, and architecture docs (#148)
 refactor(test): extract ServiceLayerNotFoundExceptionTest interface
 
 New test interface with @Test default method for testing service-level
-NotFoundException paths — 5 service tests (Price, BillSplit, Receipt,
+NotFoundException paths  -  5 service tests (Price, BillSplit, Receipt,
 ReceiptApproval, Product) now implement the interface, eliminating 5
 duplicated test methods.
 Net: -13 lines. 1024 tests/0 failures.
@@ -218,15 +218,15 @@ Before `v1.0.0`, use `0.<MINOR>.<PATCH>`:
 - **0.y.z** = treat `y` as MAJOR (breaking changes may happen at any minor bump)
 - CHANGELOG [0.1.0] corresponds to project initialization
 - Once API surface stabilizes (all 8 service domains have stable contracts), tag `v1.0.0`
-- Consumers are warned that `0.x` means things can break — document migration notes per release
+- Consumers are warned that `0.x` means things can break  -  document migration notes per release
 
 ### How to Communicate Version Changes
 
-1. **CHANGELOG.md** — Update the `[Unreleased]` section with the new version header once ready:
+1. **CHANGELOG.md**  -  Update the `[Unreleased]` section with the new version header once ready:
    ```markdown
    ## [1.0.0] - 2026-06-16
    ```
-2. **Migration notes** — For MAJOR bumps, add a migration section at the top of the changelog:
+2. **Migration notes**  -  For MAJOR bumps, add a migration section at the top of the changelog:
    ```markdown
    ### Migration from 0.x to 1.0.0
    - `GET /v1/products` now returns paginated `ListResponseData` instead of raw array
@@ -234,12 +234,12 @@ Before `v1.0.0`, use `0.<MINOR>.<PATCH>`:
 3. **Tag the release**:
    ```bash
    ```
-4. **GitHub Release** — Create with the changelog entry as description.
+4. **GitHub Release**  -  Create with the changelog entry as description.
 
 ### When to Bump During Development
 
 - **Before PR merge**: Bump version in `pom.xml` and CHANGELOG
-- **Multiple PRs in flight**: Each PR bumps independently — resolve merge conflicts in `pom.xml` at merge time
+- **Multiple PRs in flight**: Each PR bumps independently  -  resolve merge conflicts in `pom.xml` at merge time
 - **Release cadence**: Batch PATCH-level fixes into a single weekly release; MINOR features per-feature as ready
 
 ---
@@ -255,12 +255,12 @@ spring.flyway.locations=filesystem:db/migration/tables,\
                          filesystem:db/migration/data
 ```
 
-Flyway is **disabled at runtime** — run migrations explicitly via the Maven profile:
+Flyway is **disabled at runtime**  -  run migrations explicitly via the Maven profile:
 ```bash
 mvn flyway:migrate -Pflyway
 ```
 
-It is also **disabled in tests** — Hibernate handles H2 schema via `ddl-auto=create-drop`.
+It is also **disabled in tests**  -  Hibernate handles H2 schema via `ddl-auto=create-drop`.
 
 ### Migration Directory Structure
 
@@ -289,7 +289,7 @@ V<number>__<descriptive_snake_case_name>.sql
 | Number | Sequential integer, no gaps | Never reuse a number |
 | Separator | Double underscore `__` | `V1__create_stores_table.sql` |
 | Name | Snake case, describes the change | `add_image_data_column_to_receipts`, `add_missing_indexes` |
-| Subdirectory | `tables/`, `alter/`, `data/` for organization | — |
+| Subdirectory | `tables/`, `alter/`, `data/` for organization |  -  |
 
 **Migration naming patterns from actual project:**
 
@@ -323,23 +323,23 @@ These can be applied without downtime and don't break existing code:
 
 These require coordinated application + database migration:
 
-- `DROP COLUMN` — application reads fail if code still references it
-- `ALTER COLUMN ... NOT NULL` — existing rows must be backfilled first
-- `ALTER COLUMN ... TYPE` — may fail or truncate data
-- `DROP TABLE` — application queries crash
-- `RENAME COLUMN` or `RENAME TABLE` — breaks all references in code
-- Long-running `ALTER TABLE` on large tables — acquires `ACCESS EXCLUSIVE` lock, blocks reads/writes
+- `DROP COLUMN`  -  application reads fail if code still references it
+- `ALTER COLUMN ... NOT NULL`  -  existing rows must be backfilled first
+- `ALTER COLUMN ... TYPE`  -  may fail or truncate data
+- `DROP TABLE`  -  application queries crash
+- `RENAME COLUMN` or `RENAME TABLE`  -  breaks all references in code
+- Long-running `ALTER TABLE` on large tables  -  acquires `ACCESS EXCLUSIVE` lock, blocks reads/writes
 
 ### Rollback Strategy
 
 Flyway does **not support automatic rollback** of versioned migrations. Follow these practices:
 
-1. **Each migration must be forward-only and additive when possible** — never `DROP` or destructive `ALTER` without a separate plan
+1. **Each migration must be forward-only and additive when possible**  -  never `DROP` or destructive `ALTER` without a separate plan
 2. **For breaking changes, deploy in phases:**
    - Phase 1: Add new columns/tables (backward-compatible)
    - Phase 2: Deploy application code that uses the new schema
    - Phase 3: Remove old columns (separate migration, separate deployment)
-3. **Long-running migrations** (large table alters, data backfills): Execute manually, outside the Flyway run, to avoid locking. The project has precedent — deleted `V19` and `V21` from the migration chain and documented the manual process instead.
+3. **Long-running migrations** (large table alters, data backfills): Execute manually, outside the Flyway run, to avoid locking. The project has precedent  -  deleted `V19` and `V21` from the migration chain and documented the manual process instead.
 4. **To undo a migration in dev**: `mvn flyway:undo` (requires Flyway Teams/Enterprise) or manually write a compensating V{next} migration that reverses the change.
 5. **Always test migrations against a copy of production data** before running in production.
 
@@ -371,15 +371,15 @@ Flyway does **not support automatic rollback** of versioned migrations. Follow t
 
 ## Quality Checklist
 
-- [ ] `mvn spotless:apply` — formatting clean
+- [ ] `mvn spotless:apply`  -  formatting clean
 
-- [ ] `mvn test` — all tests pass
+- [ ] `mvn test`  -  all tests pass
 
-- [ ] `mvn verify` — SpotBugs + PMD CPD pass
+- [ ] `mvn verify`  -  SpotBugs + PMD CPD pass
 
-- [ ] `mvn verify -P security-check` — OWASP passes
+- [ ] `mvn verify -P security-check`  -  OWASP passes
 
-- [ ] `./scripts/check-conventions.sh` — conventions pass
+- [ ] `./scripts/check-conventions.sh`  -  conventions pass
 
 - [ ] Smoke tests pass
 
@@ -448,7 +448,7 @@ When using this skill:
 
 - Use `lean-ctx ctx_edit` for edits needing context persistence
 
-- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool — it's denied in opencode.json)
+- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool  -  it's denied in opencode.json)
 
 - After completing work, persist any new patterns/gotchas discovered: `lean-ctx ctx_knowledge remember category <cat> key <key> value <value>`
 

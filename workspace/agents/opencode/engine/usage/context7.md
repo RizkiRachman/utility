@@ -3,7 +3,7 @@
 
 [![Context7 Plugin][context7-shield]][context7-url]
 
-> **Repository**: [github.com/upstash/context7](https://github.com/upstash/context7) — up-to-date library docs and code examples for AI agents
+> **Repository**: [github.com/upstash/context7](https://github.com/upstash/context7)  -  up-to-date library docs and code examples for AI agents
 > **MCP**: `@upstash/context7-mcp` in opencode.json
 
 ## Tools

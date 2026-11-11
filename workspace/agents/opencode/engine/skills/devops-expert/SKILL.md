@@ -1,6 +1,6 @@
 ---
 name: devops-expert
-description: DevOps — CI/CD pipelines, infrastructure as code, containerization, monitoring, and deployment strategies
+description: DevOps  -  CI/CD pipelines, infrastructure as code, containerization, monitoring, and deployment strategies
 license: MIT
 compatibility: opencode
 tags:
@@ -60,7 +60,7 @@ Quality gates order: formatting → architecture → static analysis → convent
 
 **Database Migration Rollback:**
 - Every migration must have a reversible `down` script. Test `migrate up` + `migrate down` in CI before deploy.
-- Deploy app code **before** running irreversible migrations (e.g., column drops, table renames) — or use expand-contract pattern:
+- Deploy app code **before** running irreversible migrations (e.g., column drops, table renames)  -  or use expand-contract pattern:
   1. **Expand**: Add new column/table (app reads both old and new)
   2. **Migrate**: Backfill data, switch app to read from new
   3. **Contract**: Remove old column/table in a later deploy
@@ -68,13 +68,13 @@ Quality gates order: formatting → architecture → static analysis → convent
 - Flyway: `mvn flyway:undo` for in-place rollback (requires Flyway Teams or manual undo scripts). Prefer creating a forward fix rather than undoing a migration in production.
 
 **API Versioning for Safe Rollback:**
-- Prefer URL-based versioning (`/api/v2/products`) or header-based (`Accept: application/vnd.app-v2+json`) — never break existing clients on version bump.
+- Prefer URL-based versioning (`/api/v2/products`) or header-based (`Accept: application/vnd.app-v2+json`)  -  never break existing clients on version bump.
 - Support at least two concurrent API versions during rollback windows. Deprecate old versions only after confirming rollback is no longer needed (typically 2-3 deploy cycles).
 - Backward-compatible changes (add field, add endpoint) never require a version bump. Breaking changes (rename field, change type, remove endpoint) always do.
 
 **Feature Flags:**
 - Decouple deploy from release. Every new feature is wrapped in a flag (boolean toggle), defaulting to `off` for production.
-- Flags evaluated at runtime — enables instant kill-switch without redeploy.
+- Flags evaluated at runtime  -  enables instant kill-switch without redeploy.
 - Use a lightweight flags system (launchdarkly, unleash, or a simple `@Value` + `@ConditionalOnProperty` in Spring).
 - Regularly audit and purge stale flags to avoid flag debt.
 
@@ -102,10 +102,10 @@ Quality gates order: formatting → architecture → static analysis → convent
 
 ### What to Monitor (The Four Golden Signals)
 
-1. **Latency** — Time to serve a request. Track p50, p95, p99 separately. Alert when p95 exceeds SLO baseline (e.g., >500ms for API, >2s for batch).
-2. **Traffic** — Request rate (RPS), concurrent connections, throughput. Correlate with deploys and marketing events.
-3. **Errors** — HTTP 5xx rate, business exception rate, dead-letter queue depth. Alert on error rate >1% over 5-minute window (adjust threshold per endpoint criticality).
-4. **Saturation** — CPU, memory, disk IO, connection pool usage, DB active connections. Alert at 80% usage to leave headroom.
+1. **Latency**  -  Time to serve a request. Track p50, p95, p99 separately. Alert when p95 exceeds SLO baseline (e.g., >500ms for API, >2s for batch).
+2. **Traffic**  -  Request rate (RPS), concurrent connections, throughput. Correlate with deploys and marketing events.
+3. **Errors**  -  HTTP 5xx rate, business exception rate, dead-letter queue depth. Alert on error rate >1% over 5-minute window (adjust threshold per endpoint criticality).
+4. **Saturation**  -  CPU, memory, disk IO, connection pool usage, DB active connections. Alert at 80% usage to leave headroom.
 
 ### JVM-Specific Metrics (Spring Boot + Micrometer)
 
@@ -127,9 +127,9 @@ Quality gates order: formatting → architecture → static analysis → convent
 
 Maintain three dashboard tiers:
 
-1. **Executive Dashboard** — Overall health, uptime, error budget, RPS, p99 latency. Big-picture for non-technical stakeholders.
-2. **Service Dashboard** — Per-service: request rate, error rate, latency heatmaps, DB query performance, JVM memory. One dashboard per bounded context (receipt, price, product, etc.).
-3. **Troubleshooting Dashboard** — Raw logs view, trace search, recent deployments, recent alerts, DQL depth. Used during incident response.
+1. **Executive Dashboard**  -  Overall health, uptime, error budget, RPS, p99 latency. Big-picture for non-technical stakeholders.
+2. **Service Dashboard**  -  Per-service: request rate, error rate, latency heatmaps, DB query performance, JVM memory. One dashboard per bounded context (receipt, price, product, etc.).
+3. **Troubleshooting Dashboard**  -  Raw logs view, trace search, recent deployments, recent alerts, DQL depth. Used during incident response.
 
 Every dashboard should be one-click accessible from the on-call runbook.
 
@@ -159,7 +159,7 @@ Every dashboard should be one-click accessible from the on-call runbook.
 
 **Feature Flags (Decouple Deploy from Release):**
 - Deploy code dark (flag off), enable via config UI or config change at any time.
-- Rollback: flip flag off — no code change needed.
+- Rollback: flip flag off  -  no code change needed.
 - Lever: A/B test, staged rollout, instant kill-switch, per-tenant enablement.
 - Trade-off: flag management overhead, stale flag cleanup discipline required.
 
@@ -186,7 +186,7 @@ Every dashboard should be one-click accessible from the on-call runbook.
 
 - Secrets never in code, env vars, or config repos. Use a vault (HashiCorp Vault, AWS Secrets Manager, or Spring Cloud Config with encryption).
 
-- TLS everywhere — including inter-service communication inside the cluster (mTLS via service mesh or cert-manager).
+- TLS everywhere  -  including inter-service communication inside the cluster (mTLS via service mesh or cert-manager).
 
 - Regular token/credential rotation. Audit access logs for anomalies.
 
@@ -203,12 +203,12 @@ Every dashboard should be one-click accessible from the on-call runbook.
 
 ### Incident Response Steps
 
-1. **Detect** — Alert fires (or user reports issue). First responder acknowledges within SLA.
-2. **Triage** — Classify severity. Determine if incident commander needs to be paged. For SEV-1/SEV-2, declare incident in the communication channel (#incidents Slack channel or on-call tool).
-3. **Mitigate** — Stop the bleed. Rollback, feature flag off, scale up, block bad traffic. Fixing root cause comes **after** the service is stable.
-4. **Investigate** — Once mitigated, find root cause. Check: recent deploy (revert if suspect), DB migration (rollback if recent), upstream dependency health, traffic spike, config change.
-5. **Resolve** — Apply permanent fix, verify via monitoring, confirm with reporter.
-6. **Postmortem** — Within 48 hours, write a blameless postmortem covering:
+1. **Detect**  -  Alert fires (or user reports issue). First responder acknowledges within SLA.
+2. **Triage**  -  Classify severity. Determine if incident commander needs to be paged. For SEV-1/SEV-2, declare incident in the communication channel (#incidents Slack channel or on-call tool).
+3. **Mitigate**  -  Stop the bleed. Rollback, feature flag off, scale up, block bad traffic. Fixing root cause comes **after** the service is stable.
+4. **Investigate**  -  Once mitigated, find root cause. Check: recent deploy (revert if suspect), DB migration (rollback if recent), upstream dependency health, traffic spike, config change.
+5. **Resolve**  -  Apply permanent fix, verify via monitoring, confirm with reporter.
+6. **Postmortem**  -  Within 48 hours, write a blameless postmortem covering:
    - Timeline (all timestamps in UTC)
    - Detection + mitigation + resolution actions taken
    - Root cause analysis (5 Whys technique)
@@ -219,16 +219,16 @@ Every dashboard should be one-click accessible from the on-call runbook.
 
 ### Communication During Incidents
 
-- One incident commander coordinates — they decide who does what. Everyone else executes.
+- One incident commander coordinates  -  they decide who does what. Everyone else executes.
 - Status updates every 30 minutes (or more often) in the incident channel with: `What changed?`, `Current status?`, `Next action?`.
-- External communication (status page, customer emails) is the incident commander's responsibility — engineers focus on technical work.
+- External communication (status page, customer emails) is the incident commander's responsibility  -  engineers focus on technical work.
 - No finger-pointing in real-time. Blameless culture. The only bad response is silence.
 
 ### Runbook Best Practices
 
 - Every service or component has a runbook in the repo at `docs/runbooks/<service-name>.md`.
 - Runbook must contain: description, health check endpoints, startup order/dependencies, common failure modes + fix steps, deploy instructions, rollback instructions, key metrics/dashboards/alert links, and on-call contact/escalation path.
-- Test runbook during game days — simulate a real incident and have the on-call engineer follow the runbook without prior knowledge.
+- Test runbook during game days  -  simulate a real incident and have the on-call engineer follow the runbook without prior knowledge.
 
 ---
 
@@ -246,7 +246,7 @@ When using this skill:
 
 - Use `lean-ctx ctx_edit` for edits needing context persistence
 
-- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool — it's denied in opencode.json)
+- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool  -  it's denied in opencode.json)
 
 - After completing work, persist any new patterns/gotchas discovered: `lean-ctx ctx_knowledge remember category <cat> key <key> value <value>`
 

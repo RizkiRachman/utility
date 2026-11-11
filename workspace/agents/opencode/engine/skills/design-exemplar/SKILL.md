@@ -1,7 +1,7 @@
 ---
 name: design-exemplar
 description: >-
-  Reference library of 84 DESIGN.md files extracted from real production websites — Linear, Stripe,
+  Reference library of 84 DESIGN.md files extracted from real production websites  -  Linear, Stripe,
   Vercel, Apple, Notion, Cursor, Claude, Figma and more. Use when the user references a known brand
   aesthetic ("make it look like X"), wants exemplar-driven design grounded in a proven design
   language, or needs a real design system as the starting point for a new UI. Each DESIGN.md is a
@@ -10,33 +10,33 @@ description: >-
   mandatory 4-layer UI pipeline (Exemplar > Generator > Taste > Gate).
 ---
 
-# design-exemplar — Exemplar Layer of the UI Pipeline
+# design-exemplar  -  Exemplar Layer of the UI Pipeline
 
 ## What is DESIGN.md?
 
 DESIGN.md is a Google Stitch concept: a **plain-markdown design system document** that AI agents
-read natively — no parsing, no tooling, just markdown. The relationship:
+read natively  -  no parsing, no tooling, just markdown. The relationship:
 
 - `AGENTS.md` = how to **build** (conventions, workflow, tooling rules)
 - `DESIGN.md` = how to **look** (visual language, palette, type, components)
 
-Each file was extracted from a real, publicly deployed website — production CSS distilled into an
+Each file was extracted from a real, publicly deployed website  -  production CSS distilled into an
 agent-readable design language. Handing a DESIGN.md to an agent is equivalent to handing it the
 actual design system of that brand.
 
 ## The 9 sections every DESIGN.md contains
 
-1. **Visual theme** — overall mood, personality, aesthetic direction
-2. **Color palette + roles** — full palette with semantic roles (surface, primary, accent, danger…)
-3. **Typography rules** — typefaces, scale, weights, line-height, usage per element
-4. **Component stylings** — buttons, inputs, cards, nav, modals, tables, etc.
-5. **Layout principles** — grid, spacing rhythm, container widths, section structure
-6. **Depth & elevation** — shadows, borders, blur, layering rules
-7. **Do's & don'ts** — the brand's explicit design prohibitions and requirements
-8. **Responsive behavior** — breakpoints, mobile adaptations, density changes
-9. **Agent prompt guide** — ready-made instructions for AI agents consuming the design
+1. **Visual theme**  -  overall mood, personality, aesthetic direction
+2. **Color palette + roles**  -  full palette with semantic roles (surface, primary, accent, danger…)
+3. **Typography rules**  -  typefaces, scale, weights, line-height, usage per element
+4. **Component stylings**  -  buttons, inputs, cards, nav, modals, tables, etc.
+5. **Layout principles**  -  grid, spacing rhythm, container widths, section structure
+6. **Depth & elevation**  -  shadows, borders, blur, layering rules
+7. **Do's & don'ts**  -  the brand's explicit design prohibitions and requirements
+8. **Responsive behavior**  -  breakpoints, mobile adaptations, density changes
+9. **Agent prompt guide**  -  ready-made instructions for AI agents consuming the design
 
-Each entry ships alongside `preview.html` / `preview-dark.html` — rendered references of the design
+Each entry ships alongside `preview.html` / `preview-dark.html`  -  rendered references of the design
 in light and dark modes.
 
 ## Brand index highlights
@@ -65,7 +65,7 @@ Full index: the [GitHub repo README](https://github.com/VoltAgent/awesome-design
 
 - **Never mix** exemplar + generated design system on the same page. Pick one source of truth.
 - **Cite the source brand** in the final summary (e.g. "design based on the Linear DESIGN.md").
-- The taste-skill (`design-taste-frontend`) should **push beyond** the copied language — use the
+- The taste-skill (`design-taste-frontend`) should **push beyond** the copied language  -  use the
   exemplar as grounding, not a ceiling, to avoid derivative output.
 - This skill is the **Exemplar layer** of the mandatory 4-layer UI pipeline:
   **Exemplar (design-exemplar) > Generator (ui-ux-pro-max) > Taste (design-taste-frontend) > Gate

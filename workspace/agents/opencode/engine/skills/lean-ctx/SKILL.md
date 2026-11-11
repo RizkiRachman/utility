@@ -3,7 +3,7 @@ name: lean-ctx
 description: Use LeanCTX Context Gateway tools to select task-relevant code context, apply supported controls, reuse local knowledge and inspect recorded evidence. Use when lean-ctx MCP tools (ctx_*) are available or file, search or command output needs a focused view.
 ---
 
-# LeanCTX — Context Gateway for AI Systems
+# LeanCTX  -  Context Gateway for AI Systems
 
 Control what your AI can see. LeanCTX Engine provides local context selection,
 supported access and content controls, and evidence of observed context operations
@@ -24,7 +24,7 @@ output, focused search, recovery to exact source. Two rules beat every detail:
 
 | You want to… | Call |
 |---|---|
-| Understand how something works (unknown location) | `ctx_compose(task)` — ranked files + source in one call; use it FIRST instead of search→read→read |
+| Understand how something works (unknown location) | `ctx_compose(task)`  -  ranked files + source in one call; use it FIRST instead of search→read→read |
 | Find the exact definition of a symbol | `ctx_search(action="symbol", name=…)` |
 | Find code by meaning | `ctx_search(action="semantic", query=…)` |
 | Find a text/regex pattern | `ctx_search(pattern=…, path=…)` |
@@ -32,7 +32,7 @@ output, focused search, recovery to exact source. Two rules beat every detail:
 | Read a file you will edit | `ctx_read(path, mode="anchored")` → edit with the host's native edit tool, or `ctx_call(name="ctx_patch", arguments={…})` |
 | Read a file only for context | `ctx_read(path, mode="signatures"|"map")`; a range: `mode="lines:N-M"` |
 | Re-check a file after editing | `ctx_read(path, mode="diff")` |
-| Run a command (build, test, git, …) | `ctx_shell(command)` — output is compressed |
+| Run a command (build, test, git, …) | `ctx_shell(command)`  -  output is compressed |
 | List files / directory shape | `ctx_glob(pattern)` / `ctx_tree(path, depth)` |
 | Remember across sessions | `ctx_session(action="finding"|"decision"|"task", value=…)`; durable project facts: `ctx_call(name="ctx_knowledge", arguments={"action": "remember", …})` |
 
@@ -53,7 +53,7 @@ small core) is still callable: `ctx_call(name="ctx_knowledge", arguments={…})`
 
 - Prefer the host's own background execution that notifies on completion
   (Claude Code: `Bash` with `run_in_background`, or `Monitor`). Start it, then
-  continue other work or end the turn — you will be told when it finishes.
+  continue other work or end the turn  -  you will be told when it finishes.
 - `ctx_shell(run_in_background=true)` jobs do not notify by themselves. Check
   a job at most once when you actually need its result; never `sleep` in a loop.
 

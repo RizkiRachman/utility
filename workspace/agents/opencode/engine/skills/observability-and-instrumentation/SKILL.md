@@ -7,7 +7,7 @@ description: Logging, metrics, tracing, alerting, and SLI/SLO observability patt
 
 ## Overview
 
-Observability is how you understand what your system is doing without shipping new code to find out. This project has **structured JSON logging** (LogstashEncoder), **Micrometer + Prometheus** metrics, and **MDC correlation IDs** already wired. The gap is **distributed tracing** — spans are not yet instrumented, and `@Async` executors do not propagate MDC context.
+Observability is how you understand what your system is doing without shipping new code to find out. This project has **structured JSON logging** (LogstashEncoder), **Micrometer + Prometheus** metrics, and **MDC correlation IDs** already wired. The gap is **distributed tracing**  -  spans are not yet instrumented, and `@Async` executors do not propagate MDC context.
 
 This skill covers all three pillars, the SLI/SLO framework that connects them to business value, and the project-specific tooling you have today.
 
@@ -92,7 +92,7 @@ The project uses **LogstashEncoder** for JSON structured logging. Every log line
 **Already configured** (`logback-spring.xml`):
 - Console + Rolling file appenders (500MB/file, 30 days, 10GB cap)
 - MDC fields: `correlationId`, `traceId`, `spanId` (ready for tracing)
-- `traceId`/`spanId` are **plumbed but empty** — tracing instrumentation not yet active
+- `traceId`/`spanId` are **plumbed but empty**  -  tracing instrumentation not yet active
 
 ### Log Level Guide
 
@@ -107,16 +107,16 @@ The project uses **LogstashEncoder** for JSON structured logging. Every log line
 ### Logging Conventions (from `@Slf4j` usage)
 
 ```java
-// GOOD — parameters, not string concatenation
+// GOOD  -  parameters, not string concatenation
 log.info("Product created: {} (id: {})", saved.getName(), saved.getId());
 
-// GOOD — pass the full exception (not .getMessage())
+// GOOD  -  pass the full exception (not .getMessage())
 log.error("Failed to process receipt {}: {}", receiptId, event, exception);
 
-// GOOD — WARN for recoverable, not ERROR
+// GOOD  -  WARN for recoverable, not ERROR
 log.warn("Cache miss for productId={}, falling back to DB", productId);
 
-// BAD — concatenation creates garbage, skips parameterized check
+// BAD  -  concatenation creates garbage, skips parameterized check
 log.info("Price updated: " + id);  // ← Don't do this
 ```
 
@@ -162,7 +162,7 @@ Without this, correlation IDs break across `@Async("receiptProcessorExecutor")`,
 
 - `micrometer-registry-prometheus` on classpath
 - `/actuator/prometheus` endpoint exposed
-- JVM metrics: memory, threads, GC, classes loaded — auto-instrumented by Micrometer
+- JVM metrics: memory, threads, GC, classes loaded  -  auto-instrumented by Micrometer
 
 ### Counters vs Histograms
 
@@ -179,10 +179,10 @@ Without this, correlation IDs break across `@Async("receiptProcessorExecutor")`,
 // In any @Service or @Component:
 private final MeterRegistry meterRegistry;
 
-// Counter — count occurrences
+// Counter  -  count occurrences
 meterRegistry.counter("price.calculation.attempts", "storeId", storeId).increment();
 
-// Timer — measure latency
+// Timer  -  measure latency
 var sample = Timer.start(meterRegistry);
 try {
     return doExpensiveCalculation(input);
@@ -193,7 +193,7 @@ try {
         .register(meterRegistry));
 }
 
-// Gauge — expose current queue depth
+// Gauge  -  expose current queue depth
 meterRegistry.gauge("receipt.processing.queue.depth", tags, queue, Collection::size);
 ```
 
@@ -211,10 +211,10 @@ meterRegistry.gauge("receipt.processing.queue.depth", tags, queue, Collection::s
 ### Custom Metrics Plan (Suggested)
 
 ```
-llm_extraction_attempts_total     — counter, tags=[provider, model, success]
-llm_extraction_duration_seconds   — timer, publishPercentiles=[0.5, 0.95, 0.99]
-receipt_processing_duration       — timer (from event received → price calc complete)
-price_cache_hit_ratio             — gauge (hitCount / (hitCount + missCount))
+llm_extraction_attempts_total      -  counter, tags=[provider, model, success]
+llm_extraction_duration_seconds    -  timer, publishPercentiles=[0.5, 0.95, 0.99]
+receipt_processing_duration        -  timer (from event received → price calc complete)
+price_cache_hit_ratio              -  gauge (hitCount / (hitCount + missCount))
 ```
 
 ---
@@ -266,7 +266,7 @@ public class ObservationConfig {
 When `@Observed` wraps an `@Async` method, the trace propagates through the executor only if:
 
 1. The `TaskExecutor` has a `TaskDecorator` that propagates the observation context (same MDC pattern above)
-2. The `ObservationRegistry` is **thread-scoped** (default) — must be passed via decorator
+2. The `ObservationRegistry` is **thread-scoped** (default)  -  must be passed via decorator
 
 ### Tracing Across HTTP Calls (RestTemplate)
 
@@ -293,19 +293,19 @@ restTemplate.getForObject(url, Response.class);
 ### When to Alert
 
 ```
-CRITICAL    — pagerduty/PagerDuty alert, wake someone up
+CRITICAL     -  pagerduty/PagerDuty alert, wake someone up
               • Error rate > 5% for 5 minutes (gateway errors)
               • p99 latency > 2s for 10 minutes
               • Receipt processing backlog > 1000 unprocessed
               • Application down (liveness probe fails)
 
-WARNING     — Slack/email, next-business-day review
+WARNING      -  Slack/email, next-business-day review
               • Error rate > 1% for 15 minutes
               • p99 latency > 1s for 30 minutes
               • Pool exhausted (HikariCP connections = max)
               • Budget burned > 70% in a week
 
-INFO        — Dashboard, no notification
+INFO         -  Dashboard, no notification
               • Deploy succeeded
               • Config change detected
               • Batch job completed
@@ -344,7 +344,7 @@ ESCALATION: If unresolved after 15 minutes, escalate to senior engineer.
 
 ## Tooling: Observability via MCP Tools
 
-### Postgres MCP — Query Performance
+### Postgres MCP  -  Query Performance
 
 When metrics show slow DB queries, drill into the database directly:
 
@@ -362,7 +362,7 @@ When metrics show slow DB queries, drill into the database directly:
 {"name": "postgres_pg_health", "arguments": {}}
 ```
 
-### lean-ctx — Flow Tracing for Performance
+### lean-ctx  -  Flow Tracing for Performance
 
 When investigating a slow execution flow, trace it end-to-end:
 
@@ -383,7 +383,7 @@ When investigating a slow execution flow, trace it end-to-end:
 # Find all error logging patterns in the price domain
 lean-ctx ctx_search --pattern "log\.error.*[Pp]rice" --ext ".java" --path src/main
 
-# Find MDC usage — where correlation IDs are propagated
+# Find MDC usage  -  where correlation IDs are propagated
 lean-ctx ctx_search --pattern "MDC\.(get|put|setContextMap)" --ext ".java"
 
 # Find all @Observed usage (will be empty until tracing is added)
@@ -421,4 +421,4 @@ When adding observability to a component:
 - **`systematic-debugging`**: Uses observability data (pillars section) as the first step in the scientific debugging loop. The "Observability section" in that skill aligns directly with this one.
 - **`qa-expert`**: SLO burn rate is a quality metric. Validate SLO targets during code review.
 - **`lean-ctx-debugging`**: Trace execution flows to find where instrumentation is missing.
-- **`security-expert`**: Ensure no sensitive data in log fields (passwords, tokens, PII) — redact in WARN/ERROR too.
+- **`security-expert`**: Ensure no sensitive data in log fields (passwords, tokens, PII)  -  redact in WARN/ERROR too.

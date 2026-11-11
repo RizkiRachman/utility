@@ -1,6 +1,6 @@
 <!-- omit from toc -->
 
-# Part A — Fundamentals: State Machine & Contract Envelope
+# Part A - Fundamentals: State Machine & Contract Envelope
 
 > See [doc/workflow/README.md](../workflow/README.md) for index.
 
@@ -11,7 +11,7 @@ This part covers the core orchestration mechanics: state machine transitions, co
 ```
 INIT → PLAN → PLAN_SCORED → EXECUTE → EXECUTE_SCORED → REVIEW → REVIEW_SCORED → COMPLETE
    ↘ (any phase) ↘                                        ↙ (any phase) ↙
-                     BLOCKED — score < 50 or retry ≥ 3, escalated to user
+                     BLOCKED - score < 50 or retry ≥ 3, escalated to user
 ```
 
 ### Transitions
@@ -31,7 +31,7 @@ Source of truth: `rules/rules.json` §state_machine.transitions.
 
 ## A2. Contract Envelope Structure
 
-The envelope is stored in lean-ctx knowledge as `orchestration-contract`. File: `contract/contract.template.json`. Full schema at `contract/contract.schema.json`.
+The envelope is stored in lean-ctx knowledge under task-namespaced keys `orchestration-contract:<task_id>`. File: `contract/contract.template.json`. Full schema at `contract/contract.schema.json`.
 
 ```json
 {
@@ -91,7 +91,7 @@ The envelope is stored in lean-ctx knowledge as `orchestration-contract`. File: 
 
 The contract is the single source of truth. Every delegation starts by reading the contract (lean-ctx ctx_knowledge recall). Every delegation ends by writing back (lean-ctx ctx_knowledge remember). This read→activity→write cycle is mandatory for every phase.
 
-**Pre-flight enforcement**: Before any work begins, the delegating agent (orchestrator) loads the contract via `lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"`. If found → extract decisions.*, governance.*, retry.issues[]. If not found → create fresh from contract.template.json. This ensures crash recovery and cross-session resumption.
+**Pre-flight enforcement**: Before any work begins, the delegating agent (orchestrator) loads the contract via `lean-ctx ctx_knowledge recall --key "orchestration-contract:<task_id>" --mode "exact"` (resolve `<task_id>` from `session.task_id` in `session/contract.json` first). If found → extract decisions.*, governance.*, retry.issues[]. If not found → create fresh from contract.template.json. This ensures crash recovery and cross-session resumption.
 
 | Phase | Reads from Contract | Activity | Writes to Contract | Delegated To |
 |---|---|---|---|---|

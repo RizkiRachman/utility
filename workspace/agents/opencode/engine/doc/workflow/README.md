@@ -7,7 +7,7 @@
 
 The orchestration contract is the shared JSON envelope that tracks every task from start to finish. This directory splits the full workflow reference into 5 focused documents.
 
-**Read first: [01-fundamentals.md](./01-fundamentals.md)** — State machine, contract envelope, and the mandatory read→activity→write protocol.
+**Read first: [01-fundamentals.md](./01-fundamentals.md)** - State machine, contract envelope, and the mandatory read→activity→write protocol.
 
 ## Quick Reference: Contract Read/Write Protocol
 
@@ -28,7 +28,7 @@ The orchestration contract is the shared JSON envelope that tracks every task fr
 |------|---------|-------------|
 | [01-fundamentals.md](./01-fundamentals.md) | State machine, contract envelope, R/W protocol | Every session start |
 | [02-lifecycle.md](./02-lifecycle.md) | Phase walkthrough, gates, BLOCKED | During planning/execution |
-| [03-agents.md](./03-agents.md) | 15-agent integration matrix, tools, skills | Before delegation |
+| [03-agents.md](./03-agents.md) | 17-agent integration matrix, tools, skills | Before delegation |
 | [04-scoring.md](./04-scoring.md) | 3-tier scoring, validation gates, governance | During scoring/review |
 | [05-operations.md](./05-operations.md) | Post-flight, session lifecycle, scripts | Before commit/save |
 

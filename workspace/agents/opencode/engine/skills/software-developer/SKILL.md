@@ -30,7 +30,7 @@ triggers:
 
 - Favor clarity over cleverness
 
-- Every abstraction has a cost — justify it
+- Every abstraction has a cost  -  justify it
 
 - Prefer composition over inheritance
 
@@ -82,11 +82,11 @@ triggers:
 
 ### Constants (from `common/constant/`)
 
-- `ErrorCodes` — error identifiers for all exceptions
+- `ErrorCodes`  -  error identifiers for all exceptions
 
-- `AppConstants` — string, numeric, and date constants
+- `AppConstants`  -  string, numeric, and date constants
 
-- `ErrorMessageConstants` — message templates (never hardcode error messages)
+- `ErrorMessageConstants`  -  message templates (never hardcode error messages)
 
 ### Response Helpers
 
@@ -96,7 +96,7 @@ triggers:
 
 ### Events
 
-- Domain services publish via `*EventOutPort` — never fire events outside a transaction
+- Domain services publish via `*EventOutPort`  -  never fire events outside a transaction
 
 - Handlers are `@Async @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)`
 
@@ -122,15 +122,15 @@ abstraction. This is the **primary documentation approach** for all significant 
   or modifying the database topology. Updated per major release.
 - **C3 Component**: Before implementing a new feature in an existing domain (e.g., adding receipt OCR
   to the receipt service). Updated when port interfaces or domain services change.
-- **C4 Code**: Continuously — ArchUnit tests ARE live C4 diagrams. Write ArchUnit rules to enforce
+- **C4 Code**: Continuously  -  ArchUnit tests ARE live C4 diagrams. Write ArchUnit rules to enforce
   package structure, layer dependencies, and naming conventions.
 
 ### Hexagonal → C4 Mapping
 
 ```
-C1 — Context:    User → Goods Price Comparison System → External APIs (OCR, LLM, pricing feeds)
-C2 — Container:  Web App → REST API → Database → Event Bus → LLM Service
-C3 — Component:  Each of 8 domains (receipt, price, product, store, llm, shopping, alert, system):
+C1  -  Context:    User → Goods Price Comparison System → External APIs (OCR, LLM, pricing feeds)
+C2  -  Container:  Web App → REST API → Database → Event Bus → LLM Service
+C3  -  Component:  Each of 8 domains (receipt, price, product, store, llm, shopping, alert, system):
 
                  ┌──────────────────────────────────────┐
                  │  application/ (pure Java)             │
@@ -146,12 +146,12 @@ C3 — Component:  Each of 8 domains (receipt, price, product, store, llm, shopp
                  │  └── adapter/event/  (pub/sub)         │
                  └──────────────────────────────────────┘
 
-C4 — Code:       ArchUnit rules at test/java/**/architecture/*Test.java
+C4  -  Code:       ArchUnit rules at test/java/**/architecture/*Test.java
 ```
 
 ### Docs-as-Code Approach for Diagrams
 
-- Store diagrams as PlantUML (`.puml`) in `docs/diagrams/` — version-controlled alongside code
+- Store diagrams as PlantUML (`.puml`) in `docs/diagrams/`  -  version-controlled alongside code
 - Generate PNG/SVG on commit via CI pipeline or pre-commit hook
 - Reference diagram files from architecture docs using relative paths
 - ArchUnit tests serve as **executable C4 documentation**: changing a package structure
@@ -161,7 +161,7 @@ C4 — Code:       ArchUnit rules at test/java/**/architecture/*Test.java
 
 1. **PR gate**: If a PR changes port interfaces or adds a new adapter, reviewer checks that
    the corresponding C3 component diagram is updated
-2. **Automated check**: `mvn verify` includes ArchUnit — layer violations always fail the build
+2. **Automated check**: `mvn verify` includes ArchUnit  -  layer violations always fail the build
 3. **Scheduled review**: Re-generate all diagrams quarterly to catch drift
 
 ---
@@ -194,7 +194,7 @@ Use ADRs for any **significant, irreversible, or costly** decision:
 | Choosing a technology or framework | "Use Spring Boot 3.4 with virtual threads" |
 | Changing system topology | "Migrate from synchronous REST to event-driven between services" |
 | Adding a new service domain | "Introduce alert domain for threshold monitoring" |
-| Reversing a previous decision | "ADR 0012: Supersede ADR 0007 — replace manual OCR with LLM-based extraction" |
+| Reversing a previous decision | "ADR 0012: Supersede ADR 0007  -  replace manual OCR with LLM-based extraction" |
 | Introducing a new pattern | "Use Strangler Fig for incremental LLM migration" |
 
 ADR template (at `docs/adr/0000-template.md`):
@@ -292,7 +292,7 @@ Pro: Easy to A/B test, per-route metrics
 Con: URL versioning pollution, controller grows
 ```
 
-**Domain-based**: Strangulate at the service boundary — old and new domain services coexist,
+**Domain-based**: Strangulate at the service boundary  -  old and new domain services coexist,
 routed by configuration flags or feature toggles.
 
 ```
@@ -317,14 +317,14 @@ When strangulation involves data changes, synchronize data and code migration in
 During strangulation phases 1-2, write to both old and new columns; in phase 3, drop old columns.
 
 **Critical rule**: Never migrate code and data simultaneously in a single deployment.
-Always phase them — code first (dual-write), then data migration, then code cleanup.
+Always phase them  -  code first (dual-write), then data migration, then code cleanup.
 
 ---
 
 ## Technical Debt Quadrants
 
 Use Martin Fowler's quadrant model to classify and prioritize technical debt. Not all debt
-is bad — some is strategic. The key is knowing which quadrant it falls into.
+is bad  -  some is strategic. The key is knowing which quadrant it falls into.
 
 ### The Four Quadrants
 
@@ -355,10 +355,10 @@ is bad — some is strategic. The key is knowing which quadrant it falls into.
 
 | Symptom | Typical Quadrant | Action |
 |---------|-----------------|--------|
-| SpotBugs HIGH priority finding | Q1 (reckless/deliberate — someone knew) | Fix immediately — build gate fails |
+| SpotBugs HIGH priority finding | Q1 (reckless/deliberate  -  someone knew) | Fix immediately  -  build gate fails |
 | SpotBugs NORMAL/LOW finding | Q2 (inadvertent) or Q4 (learning) | Triage: fix if in changed code, log issue otherwise |
 | Missing ArchUnit test for new package | Q2 (didn't know about the rule) | Add the test, update AGENTS.md reference |
-| Duplicate code (PMD CPD violation) | Q1 or Q4 — depends on intent | Extract shared utility in `common/util/` |
+| Duplicate code (PMD CPD violation) | Q1 or Q4  -  depends on intent | Extract shared utility in `common/util/` |
 | Null not handled in domain service | Q4 (discovered during review) | Add `ValidationUtils.requireNonNull()` guard |
 | `@ManyToOne` annotation found (violates rules) | Q2 (didn't know ArchUnit rule #4) | Remove annotation, use primitive FK. Add ArchUnit test |
 | Hardcoded error message instead of `ErrorMessageConstants` | Q2 or Q1 | Extract to constants. Add to ErrorMessageConstants |
@@ -408,12 +408,12 @@ mvn test                     # Check tests + ArchUnit + JaCoCo
 mvn spotbugs:check           # Check SpotBugs violations
 mvn pmd:check pmd:cpd        # Check PMD + CPD violations
 
-# If SpotBugs HIGH is found, fix it — don't commit debt you'll regret.
+# If SpotBugs HIGH is found, fix it  -  don't commit debt you'll regret.
 ```
 
 **Debt tracking** in code:
 ```java
-// Q3 strategic debt — tracked in ADR-0015
+// Q3 strategic debt  -  tracked in ADR-0015
 // TODO: Remove this class after LLM migration phase 3 (target: Q3 2026)
 @Deprecated
 public class LegacyReceiptProcessor { ... }
@@ -423,7 +423,7 @@ Use `lean-ctx ctx_knowledge remember` to persist frequently encountered debt pat
 
 ```bash
 # After finding a recurring debt pattern:
-lean-ctx ctx_knowledge remember category gotchas key "archunit/many-to-one-reappears" value "Devs keep adding @ManyToOne. Reminder: rule #4 — FKs are primitives, never JPA relationships." severity warning
+lean-ctx ctx_knowledge remember category gotchas key "archunit/many-to-one-reappears" value "Devs keep adding @ManyToOne. Reminder: rule #4  -  FKs are primitives, never JPA relationships." severity warning
 ```
 
 ## Token Optimization
@@ -440,7 +440,7 @@ When using this skill:
 
 - Use `lean-ctx ctx_edit` for edits needing context persistence
 
-- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool — it's denied in opencode.json)
+- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool  -  it's denied in opencode.json)
 
 - After completing work, persist any new patterns/gotchas discovered: `lean-ctx ctx_knowledge remember category <cat> key <key> value <value>`
 

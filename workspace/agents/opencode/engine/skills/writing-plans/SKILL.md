@@ -3,7 +3,7 @@ name: writing-plans
 description: Creates structured, actionable implementation plans from requirements. Plans include dependency graphs, risk assessment, rollback strategy, task sizing, parallelization, and integration with the orchestration contract.
 ---
 
-# Writing Plans — Production-Ready Plan Methodology
+# Writing Plans - Production-Ready Plan Methodology
 
 Creates structured, actionable implementation plans from requirements. Every plan must be executable by a developer subagent without back-and-forth clarification.
 
@@ -15,7 +15,7 @@ Creates structured, actionable implementation plans from requirements. Every pla
 - Orchestrator needs to populate `outputs.plan` in the contract envelope
 - Before any execution phase in the state machine (`PLAN` → `PLAN_SCORED` → `EXECUTE`)
 
-## Plan Format — Required Section Structure
+## Plan Format - Required Section Structure
 
 Every plan MUST include these sections in order:
 
@@ -96,7 +96,7 @@ Task 4: Write ReceiptService unit tests
   Blocks: nothing (leaf task)
 ```
 
-**If a task has no dependencies and nothing depends on it — question whether it belongs in the plan.** Isolated tasks are often scope creep.
+**If a task has no dependencies and nothing depends on it - question whether it belongs in the plan.** Isolated tasks are often scope creep.
 
 ### Cycle Detection
 
@@ -130,7 +130,7 @@ Score each task on two axes:
 | **Cross-domain event coupling** | Service publishes event consumed by another domain | Write contract test for event shape; use `@Async` + `@TransactionalEventListener(AFTER_COMMIT)` |
 | **Schema migration in hot path** | Adding NOT NULL column to large table | Add column as nullable first, backfill, then add NOT NULL |
 | **Third-party API integration** | LLM calls, external price feeds | Add circuit breaker, timeout, and fallback; mock in unit tests |
-| **Shared infrastructure change** | Modifying `common/` package or `config/` | Run `ctx_impact` — HIGH/CRITICAL blast radius means staggered rollout |
+| **Shared infrastructure change** | Modifying `common/` package or `config/` | Run `ctx_impact` - HIGH/CRITICAL blast radius means staggered rollout |
 | **ArchUnit rule violation** | Adding import from `infrastructure/` to `application/` | Pre-review with ArchUnit; cannot merge if rule fails |
 | **New dependency / library** | Adding maven dependency | Check OWASP (`mvn verify -P security-check`); verify it's already in the BOM |
 
@@ -152,7 +152,7 @@ Every task MUST specify how to revert if it fails mid-flight:
 | Change Type | Rollback Strategy | Example |
 |-------------|-------------------|---------|
 | **Schema migration** | Write a **down migration** (`V2__undo.sql`) before applying `V2__change.sql` | "Run V2__undo.sql, then delete the migration file" |
-| **External API change** | Feature flag — toggle back to old implementation | "Set `feature.llm.new-prompt=false`" |
+| **External API change** | Feature flag - toggle back to old implementation | "Set `feature.llm.new-prompt=false`" |
 | **Event handler change** | Deploy new handler as a separate listener; old handler still active | "Stop the new handler via config" |
 
 ### Rollback Section in Plans
@@ -182,21 +182,21 @@ Impact: Receipt price calc will fall back to pre-change values.
 
 | Symptom | Fix |
 |---------|-----|
-| Task has 3+ "depends on" entries | Split — the predecessor chain is too long |
-| Task modifies 8+ files | Split — consider separating interface from implementation |
-| Task spans 3+ layers (port, service, adapter, event) | Split — one task per layer |
-| Task description contains "and also" | Split — that's two tasks |
-| Task can't be verified independently | Split — add a verification step or merge with dependent task |
+| Task has 3+ "depends on" entries | Split - the predecessor chain is too long |
+| Task modifies 8+ files | Split - consider separating interface from implementation |
+| Task spans 3+ layers (port, service, adapter, event) | Split - one task per layer |
+| Task description contains "and also" | Split - that's two tasks |
+| Task can't be verified independently | Split - add a verification step or merge with dependent task |
 
 ### Anti-Pattern: The Integration Sandwich
 
-❌ **Bad**: Task "Implement receipt upload" — involves frontend DTO, controller, service, repository, event, handler, test (14 files, 600 lines). Cannot verify until all pieces exist.
+❌ **Bad**: Task "Implement receipt upload" - involves frontend DTO, controller, service, repository, event, handler, test (14 files, 600 lines). Cannot verify until all pieces exist.
 
 ✅ **Good**: Split into:
-1. Create `ReceiptInPort` + `ReceiptService` (implementation, testable with mocks) — **M**
-2. Create `ReceiptRepositoryPort` + adapter + schema migration — **M**
-3. Create event flow (`EventOutPort` → adapter → handler) — **M**
-4. Wire controller + DTO mapper + integration test — **L**
+1. Create `ReceiptInPort` + `ReceiptService` (implementation, testable with mocks) - **M**
+2. Create `ReceiptRepositoryPort` + adapter + schema migration - **M**
+3. Create event flow (`EventOutPort` → adapter → handler) - **M**
+4. Wire controller + DTO mapper + integration test - **L**
 
 Each task is independently testable.
 
@@ -293,13 +293,13 @@ The plan is persisted as `contract.outputs.plan` in the orchestration envelope:
 ```bash
 lean-ctx ctx_knowledge remember \
   category architecture \
-  key orchestration-contract \
+  key orchestration-contract:<task_id> \
   value '<contract JSON with outputs.plan populated>'
 ```
 
 The executor (developer) loads it at session start:
 ```bash
-lean-ctx ctx_knowledge recall --query "orchestration-contract"
+lean-ctx ctx_knowledge recall --query "orchestration-contract:<task_id>"
 # Extract contract.outputs.plan → execute task breakdown
 ```
 
@@ -307,7 +307,7 @@ lean-ctx ctx_knowledge recall --query "orchestration-contract"
 
 ## 7. Plan Quality Verification
 
-### Quality Checklist — Score Each Item 0 or 1
+### Quality Checklist - Score Each Item 0 or 1
 
 | # | Criterion | How to Verify |
 |---|-----------|---------------|
@@ -317,9 +317,9 @@ lean-ctx ctx_knowledge recall --query "orchestration-contract"
 | 4 | No task is XL (300+ lines) | If XL, split into subtasks |
 | 5 | Every task has a rollback strategy | Per change type (see §3) |
 | 6 | Risks are scored (1-25) | No unlabelled risks |
-| 7 | Acceptance criteria are pass/fail | No "should improve" — must be "returns 200" or "query returns rows" |
+| 7 | Acceptance criteria are pass/fail | No "should improve" - must be "returns 200" or "query returns rows" |
 | 8 | Scope includes exact file paths | Not "the price module" but `price/app/domain/service/PriceService.java` |
-| 9 | Edge cases are documented | Null, empty, concurrent, failure — at minimum |
+| 9 | Edge cases are documented | Null, empty, concurrent, failure - at minimum |
 | 10 | Parallel waves are explicitly listed | Which tasks run in which wave and by which agent |
 
 **Pass threshold**: 8/10. If < 8, revise the plan before submitting for scoring.
@@ -379,21 +379,21 @@ lean-ctx ctx_knowledge recall --query "orchestration-contract"
 | {risk} | {1-5} | {1-5} | {product} | {countermeasure} |
 
 ## Rollback Strategy
-- {Per task or per change type — see §3 of Writing Plans skill}
+- {Per task or per change type - see §3 of Writing Plans skill}
 
 ## Edge Cases
 - {Null/empty input, concurrent writes, failure recovery, idempotency}
 
 ## Parallel Execution Plan
-- **Wave 1**: Task 1 (agent-1), Task 3 (agent-2) — parallel
-- **Wave 2**: Task 2 (agent-1, needs T1), Task 4 (agent-2, needs T3) — parallel
-- **Wave 3**: Task 5 (agent-1, needs T2 + T4) — sequential
+- **Wave 1**: Task 1 (agent-1), Task 3 (agent-2) - parallel
+- **Wave 2**: Task 2 (agent-1, needs T1), Task 4 (agent-2, needs T3) - parallel
+- **Wave 3**: Task 5 (agent-1, needs T2 + T4) - sequential
 
 ## Verification Steps
-1. `mvn compile` — all modules compile
-2. `mvn test` — new + existing tests pass
-3. `mvn spotless:apply` — formatting clean
-4. `ctx_delta()` — only expected files changed
+1. `mvn compile` - all modules compile
+2. `mvn test` - new + existing tests pass
+3. `mvn spotless:apply` - formatting clean
+4. `ctx_delta()` - only expected files changed
 ```
 
 ---
@@ -409,7 +409,7 @@ Add AlertService that checks if a product price drops below a threshold and fire
 ## Acceptance Criteria
 - [ ] AlertService.triggerIfBelowThreshold(productId, threshold) returns AlertResult
 - [ ] AlertEventOutPort.publish(AlertCreatedEvent) is called when threshold met
-- [ ] No prices → returns PassedResult.noAlert() — not an error
+- [ ] No prices → returns PassedResult.noAlert() - not an error
 - [ ] All tests pass; ArchUnit rules pass; spotless:apply clean
 
 ## Dependency Graph

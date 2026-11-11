@@ -7,7 +7,7 @@ description: Develops software by delegating bounded work to specialized subagen
 
 ## Overview
 
-Subagent-Driven Development (SDD) is the discipline of splitting a task into independent units, delegating them to specialized subagents, and reconciling the results. It converts sequential work into parallel work — but **parallelism amplifies both speed and risk**. A sub-agent working on wrong assumptions produces bad output faster.
+Subagent-Driven Development (SDD) is the discipline of splitting a task into independent units, delegating them to specialized subagents, and reconciling the results. It converts sequential work into parallel work  -  but **parallelism amplifies both speed and risk**. A sub-agent working on wrong assumptions produces bad output faster.
 
 This skill covers the full lifecycle: scope splitting → delegation → reconciliation → conflict resolution → quality gates → failure recovery. It is designed for the orchestrator (`@orchestrator`) to delegate to `@fixer`, `@explorer`, `@librarian`, and other subagents.
 
@@ -20,7 +20,7 @@ This skill covers the full lifecycle: scope splitting → delegation → reconci
 | Tasks have no shared state | Excellent candidate |
 | Each unit fits in ≤50 subagent steps | Good candidate |
 | Sequential dependencies exist | Run serial, or merge groups |
-| Files share a common parent class | **Caution** — risk of conflicting edits |
+| Files share a common parent class | **Caution**  -  risk of conflicting edits |
 | One sub-agent's output is input to another | Must be serial (or chain via knowledge) |
 
 **When NOT to use:** One-file changes, simple refactors, tasks with tight coupling between components, or when the orchestrator's overhead exceeds the time saved.
@@ -115,7 +115,7 @@ Process sub-agent outputs one at a time, in dependency order:
 
 ```text
 1. Apply fixer-A's changes (port + service layer)
-2. Run mvn compile — verify no new breakage
+2. Run mvn compile  -  verify no new breakage
 3. Apply fixer-B's changes (mapper + adapter)
 4. Run mvn compile
 5. Apply fixer-C's changes (tests)
@@ -167,10 +167,10 @@ For each pair of sub-agents (A, B):
 | Same file, different methods | Manually merge both hunks |
 | Same method, different logic | Run serial: apply A, verify, tell B the new state, re-delegate |
 | Same file, one adds import | Apply both, run `spotless:apply` |
-| Same constant/value | Verify both match — likely fine |
+| Same constant/value | Verify both match  -  likely fine |
 | Same test file | Assign tests to ONE sub-agent only |
 
-**Never auto-merge conflicting outputs.** Two sub-agents producing contradictory logic means the spec was ambiguous — resolve the ambiguity first.
+**Never auto-merge conflicting outputs.** Two sub-agents producing contradictory logic means the spec was ambiguous  -  resolve the ambiguity first.
 
 ---
 
@@ -244,7 +244,7 @@ The orchestrator must update the orchestration contract after each delegation ro
 
 ### Agent State Contract
 
-Sub-agents (`@fixer`, `@explorer`, `@librarian`) operate as **support agents** with contract state `["*"]` — they can be called from any orchestrator state. They do NOT advance the state machine; only the orchestrator does.
+Sub-agents (`@fixer`, `@explorer`, `@librarian`) operate as **support agents** with contract state `["*"]`  -  they can be called from any orchestrator state. They do NOT advance the state machine; only the orchestrator does.
 
 ---
 

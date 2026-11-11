@@ -4,11 +4,11 @@ Mandatory tool-call discipline for all agents. Every tool call is one full LLM i
 
 ## The Six Rules
 
-1. **Batch rule** — 2+ independent tool calls: one turn, parallel. Serialized independent calls are the most common waste pattern.
-2. **Chain rule** — dependent commands on the same tool: one call chained with `&&` (commit-push-sync-verify is ONE call, not five).
-3. **Gate-first rule** — check policy/security constraints BEFORE composing a command. A blocked command costs a full wasted inference. Never retry-blind; reroute through the sanctioned path (native edit, scratch-file + mv, file-mode interpreters).
-4. **Spawn-tax rule** — subagent prompts carry complete context: requirements, decisions, retry issues, exact file paths, validation steps. A subagent that re-discovers state burns turns the parent already paid for.
-5. **Tier rule** — execution tiers by blast radius x reversibility x ambiguity:
+1. **Batch rule**  -  2+ independent tool calls: one turn, parallel. Serialized independent calls are the most common waste pattern.
+2. **Chain rule**  -  dependent commands on the same tool: one call chained with `&&` (commit-push-sync-verify is ONE call, not five).
+3. **Gate-first rule**  -  check policy/security constraints BEFORE composing a command. A blocked command costs a full wasted inference. Never retry-blind; reroute through the sanctioned path (native edit, scratch-file + mv, file-mode interpreters).
+4. **Spawn-tax rule**  -  subagent prompts carry complete context: requirements, decisions, retry issues, exact file paths, validation steps. A subagent that re-discovers state burns turns the parent already paid for.
+5. **Tier rule**  -  execution tiers by blast radius x reversibility x ambiguity:
 
    | Tier | When | Flow | Budget |
    |---|---|---|---|
@@ -16,7 +16,7 @@ Mandatory tool-call discipline for all agents. Every tool call is one full LLM i
    | T2 Light | 3-10 files or parallelizable | max ONE subagent, full-context prompt, orchestrator verifies | <=20 turns |
    | T3 Full | security-sensitive, ambiguous, multi-service, audit requested | analyst -> developer -> review, all gates | unconstrained |
 
-6. **Verdict rule** — mechanical decisions (score pass/fail, route choice, risk class, retry-or-stop): single-shot no-tools inference on the cheapest capable model. Never a tool-loop turn.
+6. **Verdict rule**  -  mechanical decisions (score pass/fail, route choice, risk class, retry-or-stop): single-shot no-tools inference on the cheapest capable model. Never a tool-loop turn.
 
 ## Retrieval Routing
 

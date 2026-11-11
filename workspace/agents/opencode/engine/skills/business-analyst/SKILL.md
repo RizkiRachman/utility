@@ -1,6 +1,6 @@
 ---
 name: business-analyst
-description: Business analysis — requirements gathering, process modeling, stakeholder communication, and value-driven prioritization
+description: Business analysis  -  requirements gathering, process modeling, stakeholder communication, and value-driven prioritization
 license: MIT
 compatibility: opencode
 tags:
@@ -51,7 +51,7 @@ Frame every tradeoff conversation around the three constraints. Rarely can you m
 
 When requirements are ambiguous, use structured probes:
 
-- **Boundary probe**: "When you say 'recent receipts' — do you mean last 7 days, last 30, or something else?"
+- **Boundary probe**: "When you say 'recent receipts'  -  do you mean last 7 days, last 30, or something else?"
 - **Priority probe**: "If we can only deliver one of those two features, which one should we protect?"
 - **Failure probe**: "What should happen if the OCR service is down? Should receipts queue, or should we show an error?"
 - **Scope probe**: "Does 'all stores' include international locations, or only domestic ones?"
@@ -60,7 +60,7 @@ When requirements are ambiguous, use structured probes:
 ### Validation Patterns
 
 - **Show, don't ask**: Instead of "Is this right?", present a concrete example: "So if I search 'milk' and Store A has it for $4.50 and Store B for $4.99, you'd expect both shown sorted cheapest first. Is that correct?"
-- **Walk the failure path**: "What happens when a store removes a product — should the price history remain, or should the listing disappear?"
+- **Walk the failure path**: "What happens when a store removes a product  -  should the price history remain, or should the listing disappear?"
 - **Quantify the vague**: Replace "fast" with "under 500ms", replace "frequently" with "more than 5x/day".
 
 ## Conflict Resolution
@@ -71,7 +71,7 @@ Use the **Minimum Viable Scope (MVS)** technique:
 
 1. List every requested feature on separate cards
 2. Ask: "If we shipped *only* this card next week, would it deliver user value?"
-3. Separate **must-have** from **nice-to-have** — any feature that doesn't pass the MVS test is deferred
+3. Separate **must-have** from **nice-to-have**  -  any feature that doesn't pass the MVS test is deferred
 4. Deferred items go into a **parking lot** with a documented reason and a trigger condition for re-evaluation
 
 **Example**: A stakeholder wants receipt OCR to auto-suggest store names. The core value is extracting items/prices. Auto-suggestion is deferred with trigger: "after 1000 receipts processed, re-evaluate based on OCR accuracy stats."
@@ -88,7 +88,7 @@ Use **weighted scoring** to depersonalize decisions:
 | Risk reduction | 2 | 1 (2) | 3 (6) |
 | **Total** | | **40** | **48** |
 
-The framework objectifies the decision. If a stakeholder still disagrees, ask: "Which weight or score doesn't reflect reality for you?" — this pinpoints the actual disagreement.
+The framework objectifies the decision. If a stakeholder still disagrees, ask: "Which weight or score doesn't reflect reality for you?"  -  this pinpoints the actual disagreement.
 
 ### Resource Constraints
 
@@ -111,7 +111,7 @@ Plot every requirement on two axes and categorize:
 | **Low Impact, Low Effort** | Do as filler / tech debt | Store address format normalization |
 | **Low Impact, High Effort** | Drop or deprioritize | Custom receipt template designer |
 
-### WSJF (Weighted Shortest Job First) — SAFe-aligned
+### WSJF (Weighted Shortest Job First)  -  SAFe-aligned
 
 ```
 WSJF = (User-Business Value + Time Criticality + Risk Reduction) / Job Size
@@ -119,7 +119,7 @@ WSJF = (User-Business Value + Time Criticality + Risk Reduction) / Job Size
 
 Score each factor 1-10, then divide by estimated effort (story points or ideal days). Highest WSJF is next.
 
-**Project-specific example** — Price Comparison Service:
+**Project-specific example**  -  Price Comparison Service:
 
 | Feature | Value | Criticality | Risk Red'n | Total | Effort (days) | WSJF |
 |---------|-------|-------------|------------|-------|---------------|------|
@@ -134,8 +134,8 @@ Results: sort-by-unit-price first (highest WSJF). Barcode scan would wait despit
 
 Add a **risk reduction multiplier** for features that:
 
-- **Reduce uncertainty**: "We don't know if OCR can handle handwritten receipts — let's prototype that path first"
-- **Unblock downstream**: "Price comparison depends on normalized units — do unit standardization before aggregation"
+- **Reduce uncertainty**: "We don't know if OCR can handle handwritten receipts  -  let's prototype that path first"
+- **Unblock downstream**: "Price comparison depends on normalized units  -  do unit standardization before aggregation"
 - **Prevent rework**: "Get the data model right before building the UI"
 
 Rule: if a feature unblocks 3+ other features, it automatically moves to the top of the backlog regardless of WSJF score.
@@ -199,7 +199,7 @@ When using this skill:
 
 - Use `lean-ctx ctx_edit` for edits needing context persistence
 
-- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool — it's denied in opencode.json)
+- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool  -  it's denied in opencode.json)
 
 - After completing work, persist any new patterns/gotchas discovered: `lean-ctx ctx_knowledge remember category <cat> key <key> value <value>`
 

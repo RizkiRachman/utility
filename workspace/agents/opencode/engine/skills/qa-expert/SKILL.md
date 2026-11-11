@@ -1,6 +1,6 @@
 ---
 name: qa-expert
-description: Quality assurance — test strategy, coverage analysis, bug detection, and regression prevention
+description: Quality assurance  -  test strategy, coverage analysis, bug detection, and regression prevention
 license: MIT
 compatibility: opencode
 tags:
@@ -29,9 +29,9 @@ triggers:
 
 **Unit**: `@ExtendWith(MockitoExtension.class)`, domain services only. Files: `ProductServiceTest`, `PriceServiceTest`, `ReceiptServiceTest`.
 
-**Controller**: `GlobalExceptionHandlerTest` — direct handler invocation, no Spring context.
+**Controller**: `GlobalExceptionHandlerTest`  -  direct handler invocation, no Spring context.
 
-**Architecture**: `HexagonalArchitectureTest` — 7 ArchUnit rules (dependency, JPA, port, naming).
+**Architecture**: `HexagonalArchitectureTest`  -  7 ArchUnit rules (dependency, JPA, port, naming).
 
 ## Testing NotFoundException
 
@@ -59,7 +59,7 @@ assertEquals(ErrorCodes.PRODUCT_NOT_FOUND, response.getBody().get("error"));
 
 - Every find/update/delete path throws `NotFoundException` when entity not found
 
-- Test `verify(repo, never())` after exception — no side effects
+- Test `verify(repo, never())` after exception  -  no side effects
 
 - Repository returning `null` → domain throws, never passes null to caller
 
@@ -67,7 +67,7 @@ assertEquals(ErrorCodes.PRODUCT_NOT_FOUND, response.getBody().get("error"));
 
 - Prefer `PageResponse.of(List.of(domain), 0, 20, 1)` over complex mock chains
 
-- Over-mocked tests are a red flag — test real behavior, not mocks
+- Over-mocked tests are a red flag  -  test real behavior, not mocks
 
 ## Coverage Focus
 
@@ -154,8 +154,8 @@ void priceMappingRoundTrip(
 
 - Place jqwik tests in the existing test directory (`src/test/java/`), in a `*Properties.java` file alongside `*Test.java` classes
 - Add jqwik dependency to `pom.xml` (check current versions; latest is jqwik 1.9.x compatible with JUnit 5)
-- Do NOT use PBT for trivial getter/setter tests — reserve for invariants that would need 20+ example-based tests to cover
-- Run jqwik tests with `mvn test` — they participate in the same Surefire execution
+- Do NOT use PBT for trivial getter/setter tests  -  reserve for invariants that would need 20+ example-based tests to cover
+- Run jqwik tests with `mvn test`  -  they participate in the same Surefire execution
 - Combine with Mockito via `@Provide` methods: generate domain objects, mock repository returns, verify service invariants
 
 ## Mutation Testing Thresholds
@@ -169,16 +169,16 @@ Surviving mutations reveal untested paths, weak assertions, or missing edge case
 | Term | Meaning |
 |------|---------|
 | **Mutation** | Single syntactic change: `>` → `>=`, `true` → `false`, `+` → `-`, `null` → non-null |
-| **Killed** | At least one test fails on the mutated code (good — test caught it) |
-| **Survived** | All tests pass on the mutated code (bad — gap in coverage) |
-| **Mutation Score** | `Killed / (Killed + Survived)` — the % of mutations your tests detect |
+| **Killed** | At least one test fails on the mutated code (good  -  test caught it) |
+| **Survived** | All tests pass on the mutated code (bad  -  gap in coverage) |
+| **Mutation Score** | `Killed / (Killed + Survived)`  -  the % of mutations your tests detect |
 
 ### Why Thresholds Matter
 
 This project enforces **≥80% INSTRUCTION** and **≥80% BRANCH** coverage via JaCoCo
 (configured in `pom.xml` as `<coverage.minimum>0.80</coverage.minimum>` and
 `<coverage.branch.minimum>0.80</coverage.branch.minimum>`). However, coverage
-percentages alone are misleading — 100% line coverage with no assertions kills zero
+percentages alone are misleading  -  100% line coverage with no assertions kills zero
 mutations. Mutation score fills this gap:
 
 | Metric | What It Measures | Blind Spot |
@@ -192,29 +192,29 @@ mutations. Mutation score fills this gap:
 For this project's Java 21 + Spring Boot hexagonal architecture:
 
 1. **Domain services** (e.g., `PriceService.searchByProduct()`) should achieve
-   **≥85% mutation score** — these contain business logic with branching on
+   **≥85% mutation score**  -  these contain business logic with branching on
    `Objects.isNull()`, date ranges, and price calculations. A surviving mutation
    like `Objects.nonNull(startDate)` → `always true` means you missed the
    null-startDate path.
 
-2. **Repository adapters** (e.g., `PriceRepositoryAdapter`) — aim for **≥70%**.
+2. **Repository adapters** (e.g., `PriceRepositoryAdapter`)  -  aim for **≥70%**.
    JPA repository methods delegate to Spring Data, so many mutations in wiring
    (repository field null, wrong method called) are caught by verifying
    interactions with `verify(repo).findByProductId(...)`.
 
-3. **Web adapters / controllers** — aim for **≥75%**. Focus on status code mapping,
+3. **Web adapters / controllers**  -  aim for **≥75%**. Focus on status code mapping,
    error response bodies, and pagination. Test patterns:
    ```java
-   // Weak — doesn't verify response body structure
+   // Weak  -  doesn't verify response body structure
    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
    
-   // Stronger — verifies content
+   // Stronger  -  verifies content
    var body = response.getBody();
    assertThat(body).isNotNull();
    assertThat(body.get("data")).isNotNull();
    ```
 
-4. **GlobalExceptionHandler** — **≥90% mutation score**. Every known exception type
+4. **GlobalExceptionHandler**  -  **≥90% mutation score**. Every known exception type
    (`NotFoundException`, `IllegalArgumentException`, unexpected) needs a test that
    verifies the status code AND the response body structure.
 
@@ -258,26 +258,26 @@ Run with: `mvn org.pitest:pitest-maven:mutationCoverage`
 
 Use mutation reports (`target/pit-reports/`) alongside JaCoCo reports to identify
 weak spots. A module that passes JaCoCo (80%) but scores <60% on mutation is
-**assertion-poor** — add behavior-verifying tests.
+**assertion-poor**  -  add behavior-verifying tests.
 
 ## Collaboration & PR Review Etiquette
 
 Code review in the goods-price-comparison-service project follows a constructive,
-engineering-driven model. Reviews are not gatekeeping — they are knowledge transfer
+engineering-driven model. Reviews are not gatekeeping  -  they are knowledge transfer
 with quality assurance built in.
 
 ### What to Look For (Checklist)
 
 #### Correctness
 - Every `findById()` / `findAll()` throwing `NotFoundException`? (See `NotFoundException.product(id)`)
-- Pagination off-by-one? `PageResponse.of(content, page, size, total)` — verify `first`/`last` flags
+- Pagination off-by-one? `PageResponse.of(content, page, size, total)`  -  verify `first`/`last` flags
 - Event handler effects happen only after `@TransactionalEventListener(AFTER_COMMIT)`?
 - Sorting uses stable comparators? `ProductComparators` tested with equal-priority items?
 
 #### Hexagonal Compliance
-- Does `application/` import anything from `infrastructure/`? (ArchUnit rule 1 — will fail CI)
-- Is the domain model free of JPA annotations? (`@Entity`, `@Table`, `@Column` — rule 2)
-- Are ports returning `Optional<T>` instead of nullable? (Rule 3 — must NOT return `Optional`)
+- Does `application/` import anything from `infrastructure/`? (ArchUnit rule 1  -  will fail CI)
+- Is the domain model free of JPA annotations? (`@Entity`, `@Table`, `@Column`  -  rule 2)
+- Are ports returning `Optional<T>` instead of nullable? (Rule 3  -  must NOT return `Optional`)
 - Are FK columns stored as primitives (`Long`, `UUID`), not `@ManyToOne`/`@OneToMany`? (Rule 4)
 - Are newly added domain services annotated `@Service`? (Rule 5)
 - Are repository adapters annotated `@Component`? (Rule 6)
@@ -299,34 +299,34 @@ with quality assurance built in.
 ### How to Give Feedback
 
 **Good** (actionable, specific):
-> "The `searchByProduct` method in `PriceService` has two branches — one for date range and one without. The test only covers the date-range path. Could you add a test for `startDate=null`, similar to how `StoreServiceTest` handles its null-criteria test?"
+> "The `searchByProduct` method in `PriceService` has two branches  -  one for date range and one without. The test only covers the date-range path. Could you add a test for `startDate=null`, similar to how `StoreServiceTest` handles its null-criteria test?"
 
 **Not helpful** (vague, unactionable):
 > "This needs more tests."
 
 **Better** (knowledge-sharing):
-> "The `PageResponse.of()` static factory handles the math for `first`/`last` flags. I see you're setting these manually — use the factory instead. Here's the pattern used in `StoreServiceTest`."
+> "The `PageResponse.of()` static factory handles the math for `first`/`last` flags. I see you're setting these manually  -  use the factory instead. Here's the pattern used in `StoreServiceTest`."
 
 ### Review Flow
 
-1. **Read the diff first** — understand intent before diving into implementation
-2. **Check ArchUnit** — verify no structural violations introduced (CI runs this, but catch it early)
-3. **Run tests locally**: `mvn verify -pl . -am` — never approve a PR without verifying it compiles and tests pass
-4. **Check coverage impact**: `mvn jacoco:check` — verify new code doesn't drop below 80% INSTRUCTION / 80% BRANCH
-5. **Spotless pass**: Ensure `mvn spotless:apply` was run — Google Java Style is enforced
+1. **Read the diff first**  -  understand intent before diving into implementation
+2. **Check ArchUnit**  -  verify no structural violations introduced (CI runs this, but catch it early)
+3. **Run tests locally**: `mvn verify -pl . -am`  -  never approve a PR without verifying it compiles and tests pass
+4. **Check coverage impact**: `mvn jacoco:check`  -  verify new code doesn't drop below 80% INSTRUCTION / 80% BRANCH
+5. **Spotless pass**: Ensure `mvn spotless:apply` was run  -  Google Java Style is enforced
 6. **Event ordering**: If the PR touches `@TransactionalEventListener` handlers, verify the event flows don't introduce deadlocks or ordering issues across service boundaries
 
 ### When to Block vs. When to Approve
 
 | Situation | Action |
 |-----------|--------|
-| ArchUnit rule violation | **Block** — CI will fail anyway |
-| Missing `NotFoundException` on a find path | **Block** — introduces null risk to callers |
-| Port returns `Optional<T>` | **Block** — violates project convention |
-| Missing test for a new bug fix | **Block** — regression risk |
-| Inefficient but correct code | **Approve with suggestion** — non-blocking improvement |
-| Missing test for a happy path after full error path coverage | **Approve with suggestion** — acceptable trade-off |
-| Minor style (formatting, naming) | **Approve with suggestion** — Spotless handles formatting automatically |
+| ArchUnit rule violation | **Block**  -  CI will fail anyway |
+| Missing `NotFoundException` on a find path | **Block**  -  introduces null risk to callers |
+| Port returns `Optional<T>` | **Block**  -  violates project convention |
+| Missing test for a new bug fix | **Block**  -  regression risk |
+| Inefficient but correct code | **Approve with suggestion**  -  non-blocking improvement |
+| Missing test for a happy path after full error path coverage | **Approve with suggestion**  -  acceptable trade-off |
+| Minor style (formatting, naming) | **Approve with suggestion**  -  Spotless handles formatting automatically |
 
 ---
 
@@ -344,7 +344,7 @@ When using this skill:
 
 - Use `lean-ctx ctx_edit` for edits needing context persistence
 
-- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool — it's denied in opencode.json)
+- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool  -  it's denied in opencode.json)
 
 - After completing work, persist any new patterns/gotchas discovered: `lean-ctx ctx_knowledge remember category <cat> key <key> value <value>`
 

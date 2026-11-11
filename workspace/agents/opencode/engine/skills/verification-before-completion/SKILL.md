@@ -11,7 +11,7 @@ Production-ready verification for the Goods Price Comparison Service. Every item
 
 ## Optimal Verification Order
 
-Run in this sequence. Each step gates the next — fail fast, fix fast.
+Run in this sequence. Each step gates the next  -  fail fast, fix fast.
 
 | # | Check | Est. Time | Gate | Why This Order |
 |---|-------|-----------|------|-----------------|
@@ -26,7 +26,7 @@ Run in this sequence. Each step gates the next — fail fast, fix fast.
 | 9 | Knowledge persistence | 30s | Fail → FLAG | Durable capture of gotchas/patterns |
 | 10 | STATE.md + session save | 20s | Fail → FLAG | Cross-session continuity |
 
-**Rule**: If any step fails, fix before proceeding. Do not skip steps 5-6 to "save time" — that is a false economy.
+**Rule**: If any step fails, fix before proceeding. Do not skip steps 5-6 to "save time"  -  that is a false economy.
 
 ---
 
@@ -39,9 +39,9 @@ Run in this sequence. Each step gates the next — fail fast, fix fast.
 
 **Accept**: Task files + test files for same scope.
 
-**Flag**: File outside `scope.included` touched — document why.
+**Flag**: File outside `scope.included` touched  -  document why.
 
-**Block**: `ci/`, `.github/`, `pom.xml` (unless in scope), port interfaces from other domains, shared infrastructure — modified without authorization.
+**Block**: `ci/`, `.github/`, `pom.xml` (unless in scope), port interfaces from other domains, shared infrastructure  -  modified without authorization.
 
 **False positives**: `pom.xml` changes from Maven plugin auto-entries (rare); Spotless formatting-only diffs.
 
@@ -52,7 +52,7 @@ Run in this sequence. Each step gates the next — fail fast, fix fast.
 
 **False positives**: Ran on wrong module; XML exclusions skipped some files; tabs/spaces not flagged by Spotless.
 
-**Threshold**: PASS = no violations. FLAG = formatting-only changes in untouched files (squash separately). FIX immediately — never commit unformatted code.
+**Threshold**: PASS = no violations. FLAG = formatting-only changes in untouched files (squash separately). FIX immediately  -  never commit unformatted code.
 
 ---
 
@@ -73,15 +73,15 @@ Run in this sequence. Each step gates the next — fail fast, fix fast.
 mvn test    # → Tests run: 42, Failures: 0, Errors: 0, Skipped: 0
 ```
 
-**FLAG**: Tests were skipped (`Skipped: N` where N > 0) — did you intentionally skip or did a `@Disabled` creep in?
-**FLAG**: Flaky tests — a test that fails intermittently. Run 3x. If it fails 1/3, mark as flaky and report it.
-**BLOCK**: Any test failure. No exceptions for "unrelated" failing tests — fix or document before marking complete.
+**FLAG**: Tests were skipped (`Skipped: N` where N > 0)  -  did you intentionally skip or did a `@Disabled` creep in?
+**FLAG**: Flaky tests  -  a test that fails intermittently. Run 3x. If it fails 1/3, mark as flaky and report it.
+**BLOCK**: Any test failure. No exceptions for "unrelated" failing tests  -  fix or document before marking complete.
 
 **Common false positives**:
 - "Tests pass" but you ran the wrong module: `mvn test -pl unrelated-module`
 - "Tests pass" but you forgot `@ActiveProfiles("test")` and tests used production DB
-- H2 tests pass but PostgreSQL-specific behavior differs — note this as a risk
-- Mock-heavy tests pass but integration flow is untested — flag coverage gap
+- H2 tests pass but PostgreSQL-specific behavior differs  -  note this as a risk
+- Mock-heavy tests pass but integration flow is untested  -  flag coverage gap
 
 **Threshold**:
 
@@ -111,9 +111,9 @@ mvn verify    # → BUILD SUCCESS
 
 | Gate | What It Checks | Pass Signal | Common False Positive |
 |------|---------------|-------------|----------------------|
-| **ArchUnit** | Hexagonal layering, port usage, no JPA in domain | 7 rules pass | A rule passes because no code exercises it — add a test that exercises the pattern |
-| **SpotBugs** | Null safety, resource leaks, concurrency bugs | Zero bugs, any severity | Low-priority bugs (e.g., "non-static field in enum") that may be intentional — flag for review |
-| **PMD CPD** | Copy-paste duplication | Duplication < 50 tokens threshold | Legitimate similarity (e.g., generated code, builders) — exclude known patterns |
+| **ArchUnit** | Hexagonal layering, port usage, no JPA in domain | 7 rules pass | A rule passes because no code exercises it  -  add a test that exercises the pattern |
+| **SpotBugs** | Null safety, resource leaks, concurrency bugs | Zero bugs, any severity | Low-priority bugs (e.g., "non-static field in enum") that may be intentional  -  flag for review |
+| **PMD CPD** | Copy-paste duplication | Duplication < 50 tokens threshold | Legitimate similarity (e.g., generated code, builders)  -  exclude known patterns |
 | **Spotless** | Google Java Style | All files compliant | Auto-fix on save may introduce whitespace changes not caught until CI |
 
 **Threshold**:
@@ -141,15 +141,15 @@ ctx_impact({target: "changedSymbol", direction: "upstream"})
 
 | Risk Level | Verdict |
 |-----------|---------|
-| LOW (0-5 total affected symbols) | PASS — proceed |
-| MEDIUM (6-20 symbols or 2+ processes) | FLAG — review affected processes, verify tests cover them |
+| LOW (0-5 total affected symbols) | PASS  -  proceed |
+| MEDIUM (6-20 symbols or 2+ processes) | FLAG  -  review affected processes, verify tests cover them |
 | HIGH (21-50 symbols or cross-module) | FLAG + require human review before merge |
-| CRITICAL (50+ symbols, multiple modules, shared infra) | BLOCK — escalate to orchestrator |
+| CRITICAL (50+ symbols, multiple modules, shared infra) | BLOCK  -  escalate to orchestrator |
 
 **False positives**:
-- Impact shows 100 callers but 95 are in generated code (mappers/lombok) — check `kind` filter
+- Impact shows 100 callers but 95 are in generated code (mappers/lombok)  -  check `kind` filter
 - Cross-module impact from renaming a common utility that only one service actually uses
-- Impact shows changes to test files that don't affect production — these are acceptable but note them
+- Impact shows changes to test files that don't affect production  -  these are acceptable but note them
 
 **Must also run**:
 ```
@@ -163,11 +163,11 @@ ctx_delta()    # Verify expected scope only
 **What pass looks like**: Every new or modified method handles null inputs, empty collections, boundary values, and exception paths.
 
 **Checklist**:
-- Null inputs — does the method NPE on null? If public, it must handle or document.
-- Empty collections — `List.of()` vs `null` vs empty list. Stream operations on empty lists are safe, but `get(0)` is not.
-- Boundary values — ID=0, Long.MAX_VALUE, pagination page=0 vs page=1.
-- Exception paths — does `NotFoundException` from the domain become 404 (not 500) in `GlobalExceptionHandler`?
-- Idempotency — if the operation runs twice, is the second run safe (no duplicate-key errors, no side effects)?
+- Null inputs  -  does the method NPE on null? If public, it must handle or document.
+- Empty collections  -  `List.of()` vs `null` vs empty list. Stream operations on empty lists are safe, but `get(0)` is not.
+- Boundary values  -  ID=0, Long.MAX_VALUE, pagination page=0 vs page=1.
+- Exception paths  -  does `NotFoundException` from the domain become 404 (not 500) in `GlobalExceptionHandler`?
+- Idempotency  -  if the operation runs twice, is the second run safe (no duplicate-key errors, no side effects)?
 
 **Threshold**:
 
@@ -178,7 +178,7 @@ ctx_delta()    # Verify expected scope only
 | Controller returns 500 for expected domain exception | BLOCK |
 | No edge case tests for CRUD operations | FLAG |
 
-**False positive**: Lombok `@Builder` with unset fields — those fields are null by default, not handled. JPA `@Column(nullable=false)` catches nulls at DB level, but domain layer should catch them first.
+**False positive**: Lombok `@Builder` with unset fields  -  those fields are null by default, not handled. JPA `@Column(nullable=false)` catches nulls at DB level, but domain layer should catch them first.
 
 ---
 
@@ -193,12 +193,12 @@ lean-ctx ctx_knowledge remember key "pattern/your-pattern" value "..." category 
 
 | Artifact | Required? | Threshold |
 |----------|-----------|-----------|
-| Gotcha discovered | If one arose | FLAG if not persisted — will cause bugs next session |
-| New convension/pattern | If one emerged | FLAG if not persisted — will be forgotten |
-| Architectural decision | If one was made | FLAG if not persisted — context lost |
+| Gotcha discovered | If one arose | FLAG if not persisted  -  will cause bugs next session |
+| New convension/pattern | If one emerged | FLAG if not persisted  -  will be forgotten |
+| Architectural decision | If one was made | FLAG if not persisted  -  context lost |
 | None (routine work) | Skip | PASS |
 
-**False positive**: "I'll remember it" — you won't. Always persist.
+**False positive**: "I'll remember it"  -  you won't. Always persist.
 
 ---
 
@@ -208,7 +208,7 @@ lean-ctx ctx_knowledge remember key "pattern/your-pattern" value "..." category 
 - PASS = accurately reflects reality
 - BLOCK = contradicts what you just did
 
-**Session save**: `lean-ctx ctx_session save` — mandatory after every task.
+**Session save**: `lean-ctx ctx_session save`  -  mandatory after every task.
 - PASS = saved. No exceptions.
 - OpenCode restarts lose context. This is your safety net.
 
@@ -238,9 +238,9 @@ lean-ctx ctx_knowledge remember key "pattern/your-pattern" value "..." category 
 
 If you are under severe time pressure and MUST trim, this is the non-negotiable minimum:
 
-1. **`mvn verify`** — must pass all 4 gates
-2. **`ctx_delta()`** — verify scope
-3. **`STATE.md` update** — cross-session continuity
-4. **`ctx_session save`** — resumability
+1. **`mvn verify`**  -  must pass all 4 gates
+2. **`ctx_delta()`**  -  verify scope
+3. **`STATE.md` update**  -  cross-session continuity
+4. **`ctx_session save`**  -  resumability
 
 Skip nothing else. If any of these 4 fail, the task is not complete.

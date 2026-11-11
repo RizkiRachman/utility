@@ -1,4 +1,4 @@
-# LLM Judge Prompt — Canonical Source
+# LLM Judge Prompt  -  Canonical Source
 
 This is the canonical judge prompt for Tier 2 LLM-as-Judge scoring.
 Every subagent output MUST be scored using this prompt.

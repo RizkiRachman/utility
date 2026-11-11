@@ -25,15 +25,15 @@ triggers:
 
 ## Core Principles
 
-1. **Search before reading** — `lean-ctx ctx_search` to find, then `lean-ctx ctx_read` only the relevant section
+1. **Search before reading**  -  `lean-ctx ctx_search` to find, then `lean-ctx ctx_read` only the relevant section
 
-2. **Read sections, not files** — use `offset` and `limit` parameters
+2. **Read sections, not files**  -  use `offset` and `limit` parameters
 
-3. **Parallelize independent operations** — batch tool calls when no dependencies
+3. **Parallelize independent operations**  -  batch tool calls when no dependencies
 
-4. **Reuse task context** — pass `task_id` for related work
+4. **Reuse task context**  -  pass `task_id` for related work
 
-5. **Be concise** — summaries, not dumps
+5. **Be concise**  -  summaries, not dumps
 
 ---
 

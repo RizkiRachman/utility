@@ -242,21 +242,21 @@ public class ProductService extends AbstractGenericService<ProductDomain, Long> 
 
     protected GenericRepositoryPort<ProductDomain, Long> getRepository() { return productRepository; }
 
-    // Business methods only — CRUD inherited from parent
+    // Business methods only  -  CRUD inherited from parent
 
 }
 ```
 **Inherited methods:**
 
-- `findById(ID id)` — throws `NotFoundException` when not found (with null guard)
+- `findById(ID id)`  -  throws `NotFoundException` when not found (with null guard)
 
-- `save(T entity)` — persists + logs at debug level
+- `save(T entity)`  -  persists + logs at debug level
 
-- `findAll(PageRequestDto, String search, String status)` — paginated list
+- `findAll(PageRequestDto, String search, String status)`  -  paginated list
 
-- `deleteById(ID id)` — validates existence via `findById()`, then deletes, logs at info level
+- `deleteById(ID id)`  -  validates existence via `findById()`, then deletes, logs at info level
 
-### Inherited deleteById() — Context Check (GOTCHA)
+### Inherited deleteById()  -  Context Check (GOTCHA)
 
 ⚠️ **Do NOT blindly recommend using inherited `deleteById()`.** The inherited method internally calls `findById()` for validation. If the calling context **already has the entity fetched** (e.g., via `findByHash()`, prior `findById()`), the inherited `deleteById()` performs a **redundant database round-trip**. Use `repository.deleteById(id)` directly instead.
 
@@ -264,8 +264,8 @@ public class ProductService extends AbstractGenericService<ProductDomain, Long> 
 
 | Context | Use |
 |---------|-----|
-| Entity NOT loaded in call chain | `this.deleteById(id)` (inherited) — validation useful |
-| Entity IS loaded (verified non-null) | `repository.deleteById(id)` — avoid redundant findById |
+| Entity NOT loaded in call chain | `this.deleteById(id)` (inherited)  -  validation useful |
+| Entity IS loaded (verified non-null) | `repository.deleteById(id)`  -  avoid redundant findById |
 
 ### Annotation Loss on Override Removal (GOTCHA)
 
@@ -295,17 +295,17 @@ case X ->                       // switch expressions
 ```
 ## Writing Order
 
-1. Port interface — `*InPort`, `*RepositoryPort`
+1. Port interface  -  `*InPort`, `*RepositoryPort`
 
-2. Domain service — implements port, uses only domain models
+2. Domain service  -  implements port, uses only domain models
 
-3. Mapper — converts between shapes
+3. Mapper  -  converts between shapes
 
-4. Adapter — orchestration via ports + mappers
+4. Adapter  -  orchestration via ports + mappers
 
-5. Constants — extract magic strings
+5. Constants  -  extract magic strings
 
-6. Events — domain service publishes via `*EventOutPort`
+6. Events  -  domain service publishes via `*EventOutPort`
 
 ## Build Gates
 
@@ -347,17 +347,17 @@ record PageResponse<T>(List<T> content, int page, int size, long totalElements, 
 ```
 ### Constants Files
 
-- `AppConstants` — string/numeric/date constants
+- `AppConstants`  -  string/numeric/date constants
 
-- `ErrorCodes` — error code identifiers
+- `ErrorCodes`  -  error code identifiers
 
-- `ErrorMessageConstants` — message templates
+- `ErrorMessageConstants`  -  message templates
 
-- `EntityConstants` — field names
+- `EntityConstants`  -  field names
 
-- `ParamConstants` — request param names
+- `ParamConstants`  -  request param names
 
-- `SortConstants` — sort direction values
+- `SortConstants`  -  sort direction values
 
 ### Naming Conflicts
 
@@ -463,7 +463,7 @@ When using this skill:
 
 - Use `lean-ctx ctx_edit` for edits needing context persistence
 
-- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool — it's denied in opencode.json)
+- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool  -  it's denied in opencode.json)
 
 - After completing work, persist any new patterns/gotchas discovered: `lean-ctx ctx_knowledge remember category <cat> key <key> value <value>`
 

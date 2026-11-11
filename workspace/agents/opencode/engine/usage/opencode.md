@@ -1,5 +1,5 @@
 <!-- omit from toc -->
-# OpenCode — Usage Guide
+# OpenCode  -  Usage Guide
 
 > **Official docs**: [opencode.ai/docs](https://opencode.ai/docs/)
 
@@ -43,7 +43,7 @@ OpenCode is configured at **`opencode.json`** in the project root. Key configura
 
 ```
 opencode.json            ← Project config (agents, MCP servers, permissions)
-/opt/engine/agent.md     ← instructions[0] — loaded every session
+/opt/engine/agent.md     ← instructions[0]  -  loaded every session
 ~/.config/opencode/{agents,skills,rules,contract,usage,doc} → /opt/engine/*  ← engine symlinks
 ```
 
@@ -67,7 +67,7 @@ Config files are **merged**, not replaced. Later sources override earlier ones f
 | 6 | `OPENCODE_CONFIG_CONTENT` env var | Runtime overrides |
 | 7 (last) | Managed config (`/Library/...`) | Admin-enforced, highest priority |
 
-This project uses **level 4** — `opencode.json` in the project root. Global config at `~/.config/opencode/` is optional for user preferences.
+This project uses **level 4**  -  `opencode.json` in the project root. Global config at `~/.config/opencode/` is optional for user preferences.
 
 ### 2.2 Schema Reference
 
@@ -88,11 +88,11 @@ Key sections in our `opencode.json`:
 TUI-specific settings go in `tui.json` (project or `~/.config/opencode/tui.json`). Not currently configured in this project. Schema: [`opencode.ai/tui.json`](https://opencode.ai/tui.json).
 
 Options include:
-- `theme` — UI theme
-- `keybinds` — keyboard shortcuts
-- `scroll_speed` — scroll rate
-- `mouse` — mouse support
-- `attention` — desktop notifications and sounds
+- `theme`  -  UI theme
+- `keybinds`  -  keyboard shortcuts
+- `scroll_speed`  -  scroll rate
+- `mouse`  -  mouse support
+- `attention`  -  desktop notifications and sounds
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -104,8 +104,8 @@ Options include:
 
 OpenCode has two types:
 
-- **Primary agents** — switched via Tab key. Ours: `orchestrator` (the default).
-- **Subagents** — invoked by primary agents or via `@mention`. Ours: 14 subagents.
+- **Primary agents**  -  switched via Tab key. Ours: `orchestrator` (the default).
+- **Subagents**  -  invoked by primary agents or via `@mention`. Ours: 14 subagents.
 
 ### 3.2 Built-in Agents (not in use)
 
@@ -151,7 +151,7 @@ Key pattern: All agents are read-only at the native tool level (`read`, `edit`, 
 |--------|---------|---------|
 | `mode` | `"primary"` / `"subagent"` | How the agent is invoked |
 | `model` | `"sumopod/deepseek-flash"` | Override model for this agent |
-| `temperature` | `0` — `1.0` | Response determinism |
+| `temperature` | `0`  -  `1.0` | Response determinism |
 | `steps` | `50` | Max agentic iterations before forced text response |
 | `permission` | `{ "edit": "deny" }` | Tool access control |
 | `description` | `"Reviews code..."` | Shown in tool list |
@@ -263,7 +263,7 @@ This means:
 }
 ```
 
-Rules are evaluated by matching — the **last matching rule wins**. Common pattern: put catch-all `"*"` first, specific rules after.
+Rules are evaluated by matching  -  the **last matching rule wins**. Common pattern: put catch-all `"*"` first, specific rules after.
 
 ### 4.5 Permission Precedence
 
@@ -293,7 +293,7 @@ Use `~` or `$HOME` in permission patterns for external directories:
 
 ## 5. Tools
 
-OpenCode's native tools (all `deny` in this project — we use MCP alternatives):
+OpenCode's native tools (all `deny` in this project  -  we use MCP alternatives):
 
 | Tool | What It Does | Our Replacement |
 |------|-------------|-----------------|
@@ -302,13 +302,13 @@ OpenCode's native tools (all `deny` in this project — we use MCP alternatives)
 | `write` | Create/overwrite files | `lean-ctx ctx_edit --create` / `write` |
 | `bash` | Shell commands | `lean-ctx ctx_shell` |
 | `grep` | Regex content search | `lean-ctx ctx_search` |
-| `glob` | File pattern matching | — |
-| `webfetch` | Fetch URLs | — |
+| `glob` | File pattern matching |  -  |
+| `webfetch` | Fetch URLs |  -  |
 | `skill` | Load skill files | Used directly |
 | `todowrite` | Manage task lists | Used directly |
 | `question` | Ask the user | Used directly |
-| `lsp` | LSP code intelligence | — |
-| `apply_patch` | Apply unified diffs | — |
+| `lsp` | LSP code intelligence |  -  |
+| `apply_patch` | Apply unified diffs |  -  |
 
 ### 5.1 Custom Tools
 
@@ -340,7 +340,7 @@ Define in `opencode.json`:
 
 The rules system in OpenCode uses `AGENTS.md` files. In this project:
 
-- **`AGENTS.md`** → symlink to `/opt/engine/agent.md` — the canonical instructions file
+- **`AGENTS.md`** → symlink to `/opt/engine/agent.md`  -  the canonical instructions file
 - **Loaded via `instructions`** in `opencode.json`:
   - `/opt/engine/agent.md` (instructions[0])
 
@@ -401,8 +401,8 @@ Detailed instructions for the agent...
 ```
 
 Rules:
-- `name` — lowercase alphanumeric with single hyphens, 1-64 chars, must match directory name
-- `description` — 1-1024 characters, must be specific enough for agent to choose correctly
+- `name`  -  lowercase alphanumeric with single hyphens, 1-64 chars, must match directory name
+- `description`  -  1-1024 characters, must be specific enough for agent to choose correctly
 - Unknown frontmatter fields are ignored
 
 ### 7.3 Skill Permissions
@@ -499,7 +499,7 @@ This project has 3 MCP servers configured in `opencode.json`:
 | Server | Type | Command | Notes |
 |--------|------|---------|-------|
 | **lean-ctx** | local | `lean-ctx` | `LEAN_CTX_DATA_DIR` set |
-| **context7** | local | `npx @upstash/context7-mcp` | — |
+| **context7** | local | `npx @upstash/context7-mcp` |  -  |
 
 ### 9.2 Compaction
 
@@ -548,7 +548,7 @@ This shows the effective config after merging global + project + env overrides.
 1. Check SKILL.md exists at correct path
 2. Verify frontmatter has `name` and `description`
 3. Ensure name matches directory name (regex: `^[a-z0-9]+(-[a-z0-9]+)*$`)
-4. Check permissions — skills with `deny` are hidden
+4. Check permissions  -  skills with `deny` are hidden
 5. Skill names must be unique across all locations
 
 ### 10.4 Provider Issues

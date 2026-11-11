@@ -14,8 +14,8 @@ This skill codifies the audit and observability patterns that the orchestrator (
 ### Relationship to vercel-labs/skills Ecosystem
 
 Follows the standard packaging convention:
-- `SKILL.md` — instruction file with YAML frontmatter
-- `package.json` — npm metadata for skills.sh publishing
+- `SKILL.md` - instruction file with YAML frontmatter
+- `package.json` - npm metadata for skills.sh publishing
 
 ---
 
@@ -31,7 +31,7 @@ Every state transition **MUST** append an audit entry to `contract.audit_log[]`.
   "prev_state": "PLAN_SCORED",
   "new_state": "EXECUTE",
   "triggered_by": "orchestrator",
-  "transition_reason": "Spec score ≥ 70 — proceeding to execution",
+  "transition_reason": "Spec score ≥ 70 - proceeding to execution",
   "scoring_snapshot": {
     "combined": 82,
     "rules_subtotal": 85,
@@ -58,7 +58,7 @@ Every state transition **MUST** append an audit entry to `contract.audit_log[]`.
   lean-ctx ctx_knowledge remember category architecture key audit-log-archive-<date> value <JSON array of archived entries>
   ```
 - After archiving, trim to 500: `contract.audit_log = contract.audit_log.slice(-500)`
-- **Safety**: If archiving fails (network issue, key collision), retain the full audit_log and retry on the next transition. NEVER trim without confirmation of successful archive — entries are lost otherwise.
+- **Safety**: If archiving fails (network issue, key collision), retain the full audit_log and retry on the next transition. NEVER trim without confirmation of successful archive - entries are lost otherwise.
 
 ### Where to Append
 
@@ -82,7 +82,7 @@ Use lean-ctx to inspect the full transition history:
 
 ```bash
 # Load the current contract
-lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact"
+lean-ctx ctx_knowledge recall --key "orchestration-contract:<task_id>" --mode "exact"
 
 # Query archived audit logs
 lean-ctx ctx_knowledge recall --query "audit-log-archive" --mode "semantic"
@@ -130,10 +130,10 @@ For reporting or analysis:
 
 ```bash
 # Full export
-lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact" | jq '.audit_log'
+lean-ctx ctx_knowledge recall --key "orchestration-contract:<task_id>" --mode "exact" | jq '.audit_log'
 
 # Filter by agent
-lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact" | jq '.audit_log[] | select(.triggered_by == "orchestrator")'
+lean-ctx ctx_knowledge recall --key "orchestration-contract:<task_id>" --mode "exact" | jq '.audit_log[] | select(.triggered_by == "orchestrator")'
 ```
 
 ---
@@ -184,7 +184,7 @@ Produce trend data for orchestrator decision-making:
 
 ```bash
 # Count transitions per state
-lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact" | jq '[.audit_log[].new_state] | group_by(.) | map({state: .[0], count: length})'
+lean-ctx ctx_knowledge recall --key "orchestration-contract:<task_id>" --mode "exact" | jq '[.audit_log[].new_state] | group_by(.) | map({state: .[0], count: length})'
 ```
 
 ### Score-Agent Correlations
@@ -219,8 +219,8 @@ To detect drift between repos:
 
 ```bash
 # Load each repo's contract
-REPO1_CONTRACT=$(cd /path/to/repo1 && lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact")
-REPO2_CONTRACT=$(cd /path/to/repo2 && lean-ctx ctx_knowledge recall --key "orchestration-contract" --mode "exact")
+REPO1_CONTRACT=$(cd /path/to/repo1 && lean-ctx ctx_knowledge recall --key "orchestration-contract:<task_id>" --mode "exact")
+REPO2_CONTRACT=$(cd /path/to/repo2 && lean-ctx ctx_knowledge recall --key "orchestration-contract:<task_id>" --mode "exact")
 
 # Compare versions
 echo $REPO1_CONTRACT | jq '.contract_version'
@@ -398,7 +398,7 @@ The INIT→PLAN transition is the first state change. Since there is no previous
   "prev_state": null,
   "new_state": "PLAN",
   "triggered_by": "orchestrator",
-  "transition_reason": "Session created — delegating to system-analyst",
+  "transition_reason": "Session created - delegating to system-analyst",
   "scoring_snapshot": {}
 }
 ```

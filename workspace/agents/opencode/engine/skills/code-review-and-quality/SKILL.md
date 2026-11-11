@@ -7,9 +7,9 @@ description: Conducts multi-axis code review. Use before merging any change. Use
 
 ## Overview
 
-Multi-dimensional code review with quality gates. Every change gets reviewed before merge — no exceptions. Review covers five axes: correctness, readability, architecture, security, and performance.
+Multi-dimensional code review with quality gates. Every change gets reviewed before merge  -  no exceptions. Review covers five axes: correctness, readability, architecture, security, and performance.
 
-**The approval standard:** Approve a change when it definitely improves overall code health, even if it isn't perfect. Perfect code doesn't exist — the goal is continuous improvement. Don't block a change because it isn't exactly how you would have written it. If it improves the codebase and follows the project's conventions, approve it.
+**The approval standard:** Approve a change when it definitely improves overall code health, even if it isn't perfect. Perfect code doesn't exist  -  the goal is continuous improvement. Don't block a change because it isn't exactly how you would have written it. If it improves the codebase and follows the project's conventions, approve it.
 
 ## When to Use
 
@@ -123,7 +123,7 @@ Small, focused changes are easier to review, faster to merge, and safer to deplo
 ~1000 lines changed  → Too large. Split it.
 
 ```
-**What counts as "one change":** A single self-contained modification that addresses one thing, includes related tests, and keeps the system functional after submission. One part of a feature — not the whole feature.
+**What counts as "one change":** A single self-contained modification that addresses one thing, includes related tests, and keeps the system functional after submission. One part of a feature  -  not the whole feature.
 
 **Splitting strategies when a change is too large:**
 
@@ -136,7 +136,7 @@ Small, focused changes are easier to review, faster to merge, and safer to deplo
 
 **When large changes are acceptable:** Complete file deletions and automated refactoring where the reviewer only needs to verify intent, not every line.
 
-**Separate refactoring from feature work.** A change that refactors existing code and adds new behavior is two changes — submit them separately. Small cleanups (variable renaming) can be included at reviewer discretion.
+**Separate refactoring from feature work.** A change that refactors existing code and adds new behavior is two changes  -  submit them separately. Small cleanups (variable renaming) can be included at reviewer discretion.
 
 ## Change Descriptions
 
@@ -204,9 +204,9 @@ Label every comment with its severity so the author knows what's required vs opt
 |--------|---------|---------------|
 | *(no prefix)* | Required change | Must address before merge |
 | **Critical:** | Blocks merge | Security vulnerability, data loss, broken functionality |
-| **Nit:** | Minor, optional | Author may ignore — formatting, style preferences |
+| **Nit:** | Minor, optional | Author may ignore  -  formatting, style preferences |
 | **Optional:** / **Consider:** | Suggestion | Worth considering but not required |
-| **FYI** | Informational only | No action needed — context for future reference |
+| **FYI** | Informational only | No action needed  -  context for future reference |
 
 This prevents authors from treating all feedback as mandatory and wasting time on optional suggestions.
 
@@ -252,7 +252,7 @@ Model A addresses the feedback
 Human makes the final call
 
 ```
-This catches issues that a single model might miss — different models have different blind spots.
+This catches issues that a single model might miss  -  different models have different blind spots.
 
 **Example prompt for a review agent:**
 
@@ -274,16 +274,16 @@ After any refactoring or implementation change, check for orphaned code:
 
 3. **Ask before deleting:** "Should I remove these now-unused elements: [list]?"
 
-Don't leave dead code lying around — it confuses future readers and agents. But don't silently delete things you're not sure about. When in doubt, ask.
+Don't leave dead code lying around  -  it confuses future readers and agents. But don't silently delete things you're not sure about. When in doubt, ask.
 
 ```text
 DEAD CODE IDENTIFIED:
 
-- formatLegacyDate() in src/utils/date.ts — replaced by formatDate()
+- formatLegacyDate() in src/utils/date.ts  -  replaced by formatDate()
 
-- OldTaskCard component in src/components/ — replaced by TaskCard
+- OldTaskCard component in src/components/  -  replaced by TaskCard
 
-- LEGACY_API_URL constant in src/config.ts — no remaining references
+- LEGACY_API_URL constant in src/config.ts  -  no remaining references
 
 → Safe to remove these?
 
@@ -292,7 +292,7 @@ DEAD CODE IDENTIFIED:
 
 Slow reviews block entire teams. The cost of context-switching to review is less than the waiting cost imposed on others.
 
-- **Respond within one business day** — this is the maximum, not the target
+- **Respond within one business day**  -  this is the maximum, not the target
 
 - **Ideal cadence:** Respond shortly after a review request arrives, unless deep in focused coding. A typical change should complete multiple review rounds in a single day
 
@@ -316,7 +316,7 @@ When resolving review disputes, apply this hierarchy:
 
 ## Honesty in Review
 
-When reviewing code — whether written by you, another agent, or a human:
+When reviewing code  -  whether written by you, another agent, or a human:
 
 - **Don't rubber-stamp.** "LGTM" without evidence of review helps no one.
 
@@ -326,7 +326,7 @@ When reviewing code — whether written by you, another agent, or a human:
 
 - **Push back on approaches with clear problems.** Sycophancy is a failure mode in reviews. If the implementation has issues, say so directly and propose alternatives.
 
-- **Accept override gracefully.** If the author has full context and disagrees, defer to their judgment. Comment on code, not people — reframe personal critiques to focus on the code itself.
+- **Accept override gracefully.** If the author has full context and disagrees, defer to their judgment. Comment on code, not people  -  reframe personal critiques to focus on the code itself.
 
 ## Dependency Discipline
 
@@ -411,9 +411,9 @@ Part of code review is dependency review:
 
 ### Verdict
 
-- [ ] **Approve** — Ready to merge
+- [ ] **Approve**  -  Ready to merge
 
-- [ ] **Request changes** — Issues must be addressed
+- [ ] **Request changes**  -  Issues must be addressed
 
 ```
 ## See Also
@@ -428,7 +428,7 @@ Part of code review is dependency review:
 |---|---|
 | "It works, that's good enough" | Working code that's unreadable, insecure, or architecturally wrong creates debt that compounds. |
 | "I wrote it, so I know it's correct" | Authors are blind to their own assumptions. Every change benefits from another set of eyes. |
-| "We'll clean it up later" | Later never comes. The review is the quality gate — use it. Require cleanup before merge, not after. |
+| "We'll clean it up later" | Later never comes. The review is the quality gate  -  use it. Require cleanup before merge, not after. |
 | "AI-generated code is probably fine" | AI code needs more scrutiny, not less. It's confident and plausible, even when wrong. |
 | "The tests pass, so it's good" | Tests are necessary but not sufficient. They don't catch architecture problems, security issues, or readability concerns. |
 
@@ -446,9 +446,9 @@ Part of code review is dependency review:
 
 - No regression tests with bug fix PRs
 
-- Review comments without severity labels — makes it unclear what's required vs optional
+- Review comments without severity labels  -  makes it unclear what's required vs optional
 
-- Accepting "I'll fix it later" — it never happens
+- Accepting "I'll fix it later"  -  it never happens
 
 ## Verification
 

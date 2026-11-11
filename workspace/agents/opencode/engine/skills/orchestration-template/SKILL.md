@@ -1,9 +1,9 @@
 ---
 name: orchestration-template
-description: MANDATORY on EVERY task start — not just session start. Forces the orchestrator to load the shared orchestration envelope from lean-ctx BEFORE any work begins. If envelope exists → resume state. If not → ask user confirmation, then create fresh. Also use when user says "use orchestration template", "follow template", "resume", "continue", "check state". ALWAYS enforce this skill at the beginning of every task.
+description: MANDATORY on EVERY task start - not just session start. Forces the orchestrator to load the shared orchestration envelope from lean-ctx BEFORE any work begins. If envelope exists → resume state. If not → ask user confirmation, then create fresh. Also use when user says "use orchestration template", "follow template", "resume", "continue", "check state". ALWAYS enforce this skill at the beginning of every task.
 ---
 
-# Orchestration Template — Session Protocol
+# Orchestration Template - Session Protocol
 
 ## When to load
 
@@ -20,10 +20,10 @@ Load this skill **first thing on every session start** and whenever the user say
 ### Step 1: Load the Envelope
 
 ```bash
-lean-ctx ctx_knowledge recall --query "orchestration-contract"
+lean-ctx ctx_knowledge recall --query "orchestration-contract:<task_id>"
 
 ```
-→ Then check session archive: `ls session/` — if exists, load contract.json from there for full resume fidelity
+→ Then check session archive: `ls session/` - if exists, load contract.json from there for full resume fidelity
 
 ### Step 2: Decision Gate
 
@@ -60,7 +60,7 @@ If YES:
 
   5. Proceed with the workflow
 
-  6. First snapshot: `scripts/snapshot-contract.sh` — archive INIT state for resumption
+  6. First snapshot: `scripts/snapshot-contract.sh` - archive INIT state for resumption
 
 If NO:
 
@@ -71,7 +71,7 @@ If NO:
 ```
 ### Step 3: Persist (on every transition)
 
-After ANY delegation or phase change, run the **Save Session Protocol** — saves to ALL systems:
+After ANY delegation or phase change, run the **Save Session Protocol** - saves to ALL systems:
 
 ```bash
 1. Persist envelope: Update state, outputs, score, retry, metrics → `lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value <updated JSON>`
@@ -85,7 +85,7 @@ After ANY delegation or phase change, run the **Save Session Protocol** — save
 
 ```
 
-These 4 steps are the canonical **Save Session Protocol**. Run ALL of them — partial saves lose audit trail and break resumption.
+These 4 steps are the canonical **Save Session Protocol**. Run ALL of them - partial saves lose audit trail and break resumption.
 ### Step 4: Session Resume Detection
 
 When resuming (envelope found with COMPLETE state):
@@ -116,11 +116,11 @@ BLOCKED (any phase) → user intervention → retry with guidance → back to fa
 ```
 ### Transition Rules
 
-- `PLAN_SCORED → EXECUTE` — only if `score.combined ≥ 70`
+- `PLAN_SCORED → EXECUTE` - only if `score.combined ≥ 70`
 
-- `EXECUTE_SCORED → REVIEW` — only if `score.combined ≥ 70`
+- `EXECUTE_SCORED → REVIEW` - only if `score.combined ≥ 70`
 
-- Any phase → `BLOCKED` — if `score.combined < 50` OR `retry.attempt ≥ 3`
+- Any phase → `BLOCKED` - if `score.combined < 50` OR `retry.attempt ≥ 3`
 
 ### Block-On Criteria (validation.block_on)
 
@@ -137,7 +137,7 @@ BLOCKED (any phase) → user intervention → retry with guidance → back to fa
 ## Quick Reference
 
 ```bash
-  lean-ctx ctx_knowledge recall --query "orchestration-contract"
+  lean-ctx ctx_knowledge recall --query "orchestration-contract:<task_id>"
 
   # Save Session Protocol (all 6 steps):
   lean-ctx ctx_knowledge remember key orchestration-contract:<task_id> value "<updated JSON>"

@@ -1,6 +1,6 @@
 ---
 name: system-analyst
-description: System analysis — architecture evaluation, dependency mapping, impact analysis, and technical documentation
+description: System analysis  -  architecture evaluation, dependency mapping, impact analysis, and technical documentation
 license: MIT
 compatibility: opencode
 tags:
@@ -69,7 +69,7 @@ ReceiptService → ReceiptEventOutPort → ReceiptEventAdapter → ApplicationEv
 
 - **Impact**: use `ctx_impact({target, direction: "upstream"})`. Consider schema, API contracts, event format changes.
 
-- **Architecture checks**: dependency direction correct? Components independently testable? No JPA annotations in domain? No `OneToMany`/`JoinColumn` — FK columns are `Long storeId`. Ports return nullable, never `Optional<T>`.
+- **Architecture checks**: dependency direction correct? Components independently testable? No JPA annotations in domain? No `OneToMany`/`JoinColumn`  -  FK columns are `Long storeId`. Ports return nullable, never `Optional<T>`.
 
 - **Document decisions**, not code. Diagrams at orientation level, not implementation detail.
 
@@ -77,12 +77,12 @@ ReceiptService → ReceiptEventOutPort → ReceiptEventAdapter → ApplicationEv
 
 ## Evolutionary Architecture
 
-Architecture is not a static blueprint — it evolves under pressure from new requirements,
+Architecture is not a static blueprint  -  it evolves under pressure from new requirements,
 scale, and learned constraints. This section covers how to **treat architecture as a
 hypothesis** and validate it with automated checks, coupling analysis, and impact
 assessment. All examples are grounded in this project's patterns.
 
-### Fitness Functions — Automated Architecture Governance
+### Fitness Functions  -  Automated Architecture Governance
 
 A **fitness function** is an automated check that measures how close the system is to an
 architectural goal. When the function fails, architecture has drifted and needs
@@ -91,22 +91,22 @@ correction. This project already runs **7 fitness functions** every `mvn test` v
 
 | # | Fitness Function | What It Guards | Architecture Characteristic |
 |---|-----------------|----------------|----------------------------|
-| 1 | `domainMustNotDependOnInfrastructure` | Domain purity — `application/` never imports `infrastructure/` | Modifiability, testability |
+| 1 | `domainMustNotDependOnInfrastructure` | Domain purity  -  `application/` never imports `infrastructure/` | Modifiability, testability |
 | 2 | `domainModelsMustNotHaveJpaAnnotations` | No `@Entity`, `@Table`, `@Column`, `@Id` in `..domain.model..` | Portability, testability |
-| 3 | `portsMustNotReturnOptional` | Ports return nullable (never `Optional<T>`) — `..port..` public methods | API stability, simplicity |
+| 3 | `portsMustNotReturnOptional` | Ports return nullable (never `Optional<T>`)  -  `..port..` public methods | API stability, simplicity |
 | 4 | `entitiesMustNotUseJpaRelationshipAnnotations` | No `@OneToMany`, `@ManyToOne`, `@JoinColumn`, etc. FK as primitives | Modifiability, DB schema freedom |
 | 5 | `layeredArchitectureShouldRespectHexagonalBoundaries` | Domain → Ports → Infrastructure layering; infra may not be accessed | Modifiability |
 | 6 | `domainServicesMustBeAnnotatedWithService` | All `..domain.service..` classes ending in `Service` must be `@Service` | Consistency, DI correctness |
 | 7 | `repositoryAdaptersMustBeAnnotatedWithComponent` | All `RepositoryAdapter` classes must be `@Component` | Consistency, DI correctness |
 
 Additionally, the `ObjectUtils` sealed-methods test acts as a **versioned contract fitness
-function** — it prevents uncontrolled growth of shared utility code.
+function**  -  it prevents uncontrolled growth of shared utility code.
 
 **Pattern for new fitness functions**: When adding a new architectural constraint, write
 it as a JUnit 5 test in `HexagonalArchitectureTest.java` and annotate with `@Test`.
 This keeps governance close to the code, runs in CI, and is visible to all agents.
 
-### Architecture Characteristics — Measurable Properties
+### Architecture Characteristics  -  Measurable Properties
 
 The system optimizes for five key characteristics. Each must be measurable:
 
@@ -166,10 +166,10 @@ boundary is wrong or an abstraction is missing.
 
 | Pattern | Interpretation | Action |
 |---------|---------------|--------|
-| `ReceiptService.java` ↔ `PriceService.java` | Expected — receipt processing triggers price calculation | Ensure event boundary is clear, not shared mutable state |
-| `StoreAdapter.java` ↔ `ProductAdapter.java` | Suspicious — stores and products have different lifecycles | Extract shared logic into `common/` |
-| Any domain model ↔ its JPA entity simultaneously | Expected — model changes often require entity changes | Check mapper is updated |
-| Two event handlers in different domains | Investigate — events should be independent consumers | Consider an orchestrating domain service |
+| `ReceiptService.java` ↔ `PriceService.java` | Expected  -  receipt processing triggers price calculation | Ensure event boundary is clear, not shared mutable state |
+| `StoreAdapter.java` ↔ `ProductAdapter.java` | Suspicious  -  stores and products have different lifecycles | Extract shared logic into `common/` |
+| Any domain model ↔ its JPA entity simultaneously | Expected  -  model changes often require entity changes | Check mapper is updated |
+| Two event handlers in different domains | Investigate  -  events should be independent consumers | Consider an orchestrating domain service |
 
 the same commit frequently, it suggests receipt logic is reaching into store data
 directly instead of going through ports and events.
@@ -283,8 +283,8 @@ verify your change doesn't introduce a hidden coupling.
 | Low | Low | No | None | Proceed (standard change) |
 | Low | Low | No | Additive | Proceed with migration |
 | Medium | Low | No | None | Proceed, add fitness function |
-| High | Any | Yes | Any | **Stop** — redesign boundary first |
-| Any | High | Yes | Breaking | **Stop** — needs architecture review |
+| High | Any | Yes | Any | **Stop**  -  redesign boundary first |
+| Any | High | Yes | Breaking | **Stop**  -  needs architecture review |
 
 **When to escalate**: If the change scores High/Any/Yes/Any or Any/High/Yes/Breaking,
 delegate to `@council` for an architecture review before implementation. The cost of
@@ -306,7 +306,7 @@ When using this skill:
 
 - Use `lean-ctx ctx_edit` for edits needing context persistence
 
-- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool — it's denied in opencode.json)
+- Use `lean-ctx ctx_shell` for all shell commands (NOT the `bash` tool  -  it's denied in opencode.json)
 
 - After completing work, persist any new patterns/gotchas discovered: `lean-ctx ctx_knowledge remember category <cat> key <key> value <value>`
 

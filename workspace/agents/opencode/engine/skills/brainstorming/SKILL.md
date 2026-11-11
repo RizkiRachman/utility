@@ -7,7 +7,7 @@ description: Divergent thinking for exploring solution spaces before converging 
 
 ## Philosophy
 
-A decision is only as good as the alternatives you rejected. Most projects converge too fast — the first viable approach gets implemented, and the second-best (but cheaper, simpler, or more maintainable) option never surfaces. This skill enforces structured divergence before convergence.
+A decision is only as good as the alternatives you rejected. Most projects converge too fast  -  the first viable approach gets implemented, and the second-best (but cheaper, simpler, or more maintainable) option never surfaces. This skill enforces structured divergence before convergence.
 
 The goal is not to generate infinite options. The goal is to **find the best option** by making the space of possible approaches visible and comparable.
 
@@ -38,9 +38,9 @@ COMPARE:     Score each approach against each dimension
 CONVERGE:    Select + document rejected alternatives
 ```
 
-### Step 1: DIVERGE — Generate structurally distinct options
+### Step 1: DIVERGE  -  Generate structurally distinct options
 
-**Rule**: Each option must differ in how it solves the core problem, not just in naming or implementation detail. If two options share the same architectural pattern (e.g., both use an event queue but with different tech), they count as one option — merge them and introduce a third that takes a completely different approach.
+**Rule**: Each option must differ in how it solves the core problem, not just in naming or implementation detail. If two options share the same architectural pattern (e.g., both use an event queue but with different tech), they count as one option  -  merge them and introduce a third that takes a completely different approach.
 
 **Techniques for generating alternatives:**
 
@@ -60,9 +60,9 @@ CONVERGE:    Select + document rejected alternatives
 
 > Option A: In-process cache with TTL (simple, no network hop, restarts lose data)
 > Option B: Distributed cache layer (complex infra, survives restarts, consistency tax)
-> Option C: No cache — optimize the query instead (zero infra, zero staleness, may not be fast enough)
+> Option C: No cache  -  optimize the query instead (zero infra, zero staleness, may not be fast enough)
 
-### Step 2: FRAME — Define evaluation dimensions
+### Step 2: FRAME  -  Define evaluation dimensions
 
 Pros/cons lists hide trade-offs behind vague words like "complex" or "clean." Instead, define **explicit dimensions** and score each approach against every dimension.
 
@@ -85,9 +85,9 @@ Pros/cons lists hide trade-offs behind vague words like "complex" or "clean." In
 - **JPA coupling risk**: Does this approach introduce `@OneToMany` / `@ManyToMany` (forbidden by ArchUnit rule 4)?
 - **Test isolation**: Can this be unit-tested with mocks, or does it require H2 + Flyway?
 
-### Step 3: COMPARE — Score systematically
+### Step 3: COMPARE  -  Score systematically
 
-**Matrix format** (fill column by column, not row by row — this prevents anchoring on your favorite approach):
+**Matrix format** (fill column by column, not row by row  -  this prevents anchoring on your favorite approach):
 
 | Dimension | Option A: Cache in-process | Option B: Distributed cache | Option C: No cache |
 |---|---|---|---|
@@ -101,25 +101,25 @@ Pros/cons lists hide trade-offs behind vague words like "complex" or "clean." In
 
 Lower is better. Option C wins because zero-infra solutions beat caching until the DB is proven the bottleneck.
 
-### Step 4: CONVERGE — Select and document
+### Step 4: CONVERGE  -  Select and document
 
 **Convergence rules**:
 
-1. If one option dominates (equal or better on every dimension), pick it — the matrix did the work.
+1. If one option dominates (equal or better on every dimension), pick it  -  the matrix did the work.
 2. If the top two options are close (≤3 points apart), the **simpler** one wins. Complexity must justify its weight.
 3. If the top options disagree on priority dimensions (e.g., one is fast but fragile, another is slow but safe), the tiebreaker is: **which failure mode can you recover from faster?** Prefer recoverability over peak performance.
-4. If still tied, surface to the user — there's a genuine value judgment an agent cannot make.
+4. If still tied, surface to the user  -  there's a genuine value judgment an agent cannot make.
 
 **After converging, always write**:
 
 ```text
 DECISION: [selected approach]
-REJECTED: [alternative 1] — reason: [dominant dimension where it lost]
-REJECTED: [alternative 2] — reason: [dominant dimension where it lost]
+REJECTED: [alternative 1]  -  reason: [dominant dimension where it lost]
+REJECTED: [alternative 2]  -  reason: [dominant dimension where it lost]
 RATIONALE: [tiebreaker logic, if any]
 ```
 
-This documentation is not overhead — it saves future maintainers from re-arguing rejected alternatives six months later. Save it to `ctx_knowledge` under `decisions/` category.
+This documentation is not overhead  -  it saves future maintainers from re-arguing rejected alternatives six months later. Save it to `ctx_knowledge` under `decisions/` category.
 
 ## Project-Specific Examples
 
@@ -130,9 +130,9 @@ This documentation is not overhead — it saves future maintainers from re-argui
 **Structured brainstorm** (Diverge → Frame → Compare):
 
 **Option A**: Single SQL query with `WHERE item_name ILIKE '%input%' AND store_id = ? AND date BETWEEN ? AND ?`
-**Option B**: Delegate to LLM — send receipt text, ask it to return the best match
-**Option C**: Rule engine — configurable scoring rules (name similarity x weight + date proximity x weight + price accuracy x weight)
-**Option D**: Two-phase — SQL narrows candidates (store + date ±2d), then scoring function picks best
+**Option B**: Delegate to LLM  -  send receipt text, ask it to return the best match
+**Option C**: Rule engine  -  configurable scoring rules (name similarity x weight + date proximity x weight + price accuracy x weight)
+**Option D**: Two-phase  -  SQL narrows candidates (store + date ±2d), then scoring function picks best
 
 **Frame dimensions**: Implementation effort, accuracy, explainability, testability, latency
 
@@ -145,7 +145,7 @@ This documentation is not overhead — it saves future maintainers from re-argui
 | Latency | 1 (sub-ms) | 5 (seconds + API cost) | 2 (compute only) | 1 (one query + in-memory) |
 | **Total** | **7** | **18** | **14** | **6** |
 
-**Winner**: Option D (Two-phase). Best accuracy without LLM opacity, easiest to test, fast. Option A close — would win if accuracy requirements were lower.
+**Winner**: Option D (Two-phase). Best accuracy without LLM opacity, easiest to test, fast. Option A close  -  would win if accuracy requirements were lower.
 
 **Rejected alternatives logged to `decisions/receipt-matching-strategy`**.
 
@@ -155,10 +155,10 @@ This documentation is not overhead — it saves future maintainers from re-argui
 
 **Structured brainstorm**:
 
-**Option A**: Direct service call — price service calls receipt service's REST endpoint
-**Option B**: Spring `ApplicationEvent` + `@TransactionalEventListener(AFTER_COMMIT)` — publish event, receipt handler listens
-**Option C**: Message queue (RabbitMQ / Kafka) — publish to topic, receipt consumer reads
-**Option D**: Polling — receipt service periodically checks for recent price changes
+**Option A**: Direct service call  -  price service calls receipt service's REST endpoint
+**Option B**: Spring `ApplicationEvent` + `@TransactionalEventListener(AFTER_COMMIT)`  -  publish event, receipt handler listens
+**Option C**: Message queue (RabbitMQ / Kafka)  -  publish to topic, receipt consumer reads
+**Option D**: Polling  -  receipt service periodically checks for recent price changes
 
 | Dimension | A: Direct call | B: Spring event | C: Message queue | D: Polling |
 |---|---|---|---|---|
@@ -175,20 +175,20 @@ This documentation is not overhead — it saves future maintainers from re-argui
 
 - **False consensus**: You picked Option A because it was proposed first. Re-read the matrix. If A is your favorite, score B and C first.
 - **Choice-supportive bias**: After picking a winner, you stop evaluating it critically. Force yourself to describe the worst thing about your chosen option.
-- **Hedging into complexity**: "Well, we could use X AND Y AND also add Z." Combination approaches should be rare — they compound complexity. Prefer the simplest single approach that satisfies requirements.
+- **Hedging into complexity**: "Well, we could use X AND Y AND also add Z." Combination approaches should be rare  -  they compound complexity. Prefer the simplest single approach that satisfies requirements.
 - **Premature convergence**: Scoring before generating enough structurally distinct options. If all options share the same architecture (event bus, caching, etc.), diverge more before scoring.
-- **Fake trade-offs**: "Higher accuracy for higher latency" is a real trade-off. "Higher accuracy AND higher complexity" is not a trade-off — it's a cost with no benefit. Don't score options on dimensions where they don't differ meaningfully.
+- **Fake trade-offs**: "Higher accuracy for higher latency" is a real trade-off. "Higher accuracy AND higher complexity" is not a trade-off  -  it's a cost with no benefit. Don't score options on dimensions where they don't differ meaningfully.
 - **Row-by-row scoring**: Filling the matrix row-by-row anchors on the first option. Fill column-by-column so each option is evaluated independently.
 - **Ignoring existing conventions**: A perfectly-scoreable Option C is worthless if it violates ArchUnit rules or project style. Score "convention alignment" explicitly.
 
-## Observability — How to Know It Worked
+## Observability  -  How to Know It Worked
 
 | Signal | Good session | Bad session |
 |---|---|---|
 | Options generated | 3–5 structurally distinct | 1–2 similar variants |
 | Matrix filled | All cells populated | Only pros/cons, no scores |
 | Winner chosen | Clear from matrix or tiebreaker rule | Reached by discussion fatigue |
-| Rejected options documented | Reasons logged, not just names | "We went with A" — no context |
+| Rejected options documented | Reasons logged, not just names | "We went with A"  -  no context |
 | Decision persists | No re-litigation in next session | "Why didn't we consider B?" 2 weeks later |
 | Session uses bounded time | Under 30 min for most decisions | Spun out into open-ended debate |
 

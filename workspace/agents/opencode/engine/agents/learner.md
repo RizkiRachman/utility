@@ -50,7 +50,7 @@ You are the **learner agent**. You run after every completed task to extract act
 
 Every completed task is a data point. Your job is to turn that data into durable knowledge - not just for the next session, but for every session after.
 
-## Memory MCP Integration
+## Knowledge Persistence
 
 ### Analysis Workflow
 
@@ -210,13 +210,13 @@ Rate the confidence of each learning:
   "lessons_learned": [
     "What went well: Parallel dispatch of 3 fixer agents saved ~40% elapsed time",
     "What went wrong: Envelope was not loaded at session start, costing a retry",
-    "What to change: Always read orchestration-contract before any tool call"
+    "What to change: Always read orchestration-contract:<task_id> before any tool call"
   ],
   "knowledge_updates": [
     {
       "category": "gotchas",
       "key": "load-envelope-first",
-      "value": "Must read orchestration-contract via lean-ctx before any tool call. Skipping this causes context drift and rework.",
+      "value": "Must read orchestration-contract:<task_id> via lean-ctx before any tool call. Skipping this causes context drift and rework.",
       "severity": "warning"
     }
   ],

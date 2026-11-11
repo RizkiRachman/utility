@@ -1,11 +1,11 @@
 ---
 name: adaptive-solver
-description: A meta-cognitive reasoning loop for AI agents facing ambiguity, low confidence, or failed approaches. Instead of guessing or stopping, the agent enters a structured loop: detect the gap, inventory available skills, hypothesize the best fit, attempt it, evaluate the result, and retry with the next candidate — all within its own reasoning context.
+description: A meta-cognitive reasoning loop for AI agents facing ambiguity, low confidence, or failed approaches. Instead of guessing or stopping, the agent enters a structured loop: detect the gap, inventory available skills, hypothesize the best fit, attempt it, evaluate the result, and retry with the next candidate  -  all within its own reasoning context.
 ---
 
 # Adaptive Solver
 
-A reasoning framework that turns impasse into a systematic search. When the agent hits a wall — ambiguous input, flagging confidence, or a tool call that returned nothing useful — this skill governs *how* it thinks, pivots, and converges without asking the user.
+A reasoning framework that turns impasse into a systematic search. When the agent hits a wall  -  ambiguous input, flagging confidence, or a tool call that returned nothing useful  -  this skill governs *how* it thinks, pivots, and converges without asking the user.
 
 The adaptive solver is the **in-agent** half of a two-level uncertainty model:
 
@@ -20,17 +20,17 @@ Level 1 (this skill) handles ~90% of cases. Only escalate to Level 2 when the ad
 
 Three distinct trigger conditions. Any one is sufficient:
 
-1. **Ambiguous input** — The user's request has multiple valid interpretations, or key information is missing that changes which approach is correct.
+1. **Ambiguous input**  -  The user's request has multiple valid interpretations, or key information is missing that changes which approach is correct.
 
-2. **Low agent confidence** — The agent has an answer but confidence is below threshold (≤ 3/5 on the rubric below). This includes cases where the agent is pattern-matching rather than reasoning from first principles.
+2. **Low agent confidence**  -  The agent has an answer but confidence is below threshold (≤ 3/5 on the rubric below). This includes cases where the agent is pattern-matching rather than reasoning from first principles.
 
-3. **Failed attempt** — A tool call returned empty or unexpected results, a skill was read but didn't apply cleanly, or the agent's output didn't satisfy the goal when self-checked.
+3. **Failed attempt**  -  A tool call returned empty or unexpected results, a skill was read but didn't apply cleanly, or the agent's output didn't satisfy the goal when self-checked.
 
 **Do not activate for:** Mechanical operations (renaming, formatting, file moves), one-line changes with obvious correctness, pure tooling operations (running tests, listing files), or when the user explicitly asked for speed over verification.
 
 ## The Adaptive Loop
 
-Run this loop in your internal reasoning. Do NOT surface the loop mechanics to the user — only surface final output and confidence.
+Run this loop in your internal reasoning. Do NOT surface the loop mechanics to the user  -  only surface final output and confidence.
 
 ```
 PHASE 1: DETECT
@@ -75,7 +75,7 @@ Score each candidate on two axes:
 
 **Priority Score = Relevance × Feasibility.** Rank top 3 by score. If tied, prefer higher Relevance.
 
-Stop at 3 candidates. The loop gives you 3 retries max — matching one candidate per retry is intentional.
+Stop at 3 candidates. The loop gives you 3 retries max  -  matching one candidate per retry is intentional.
 
 **Gap type → matching heuristic:**
 
@@ -83,7 +83,7 @@ Stop at 3 candidates. The loop gives you 3 retries max — matching one candidat
 |----------|---------------|
 | **Information gap** (missing data) | Tools that retrieve external data (web search, file reading, MCP connectors). If none exist → commit with best-effort and flag the gap. |
 | **Interpretation gap** (multiple valid readings) | Structured decomposition first (see Fallback Strategies §2). Try most likely interpretation, score, retry with next if low. |
-| **Capability gap** (no skill covers the task) | Scan for partial overlap — can a skill handle 70%? Combine two skills? Fall back to first-principles strategy. |
+| **Capability gap** (no skill covers the task) | Scan for partial overlap  -  can a skill handle 70%? Combine two skills? Fall back to first-principles strategy. |
 | **Confidence gap** (can't verify correctness) | Find a verification path. Derive answer from a different angle. Identify the specific assumption lowering confidence. |
 
 ### Phase 3: HYPOTHESIZE
@@ -94,7 +94,7 @@ If no skill in the inventory cleanly matches, pick a first-principles fallback s
 
 ### Phase 4: ATTEMPT
 
-Execute the hypothesis. Keep the attempt scoped — don't over-commit on the first try. Use the skill or strategy as intended.
+Execute the hypothesis. Keep the attempt scoped  -  don't over-commit on the first try. Use the skill or strategy as intended.
 
 ### Phase 5: EVALUATE
 
@@ -134,7 +134,7 @@ Since there is no file I/O for internal state, maintain a **mental ledger** acro
 When the loop exits (either resolved or max retries reached), format the final answer:
 
 ```
-[Answer content here — complete and actionable]
+[Answer content here  -  complete and actionable]
 
 Confidence: ★★★★☆ (4/5)
 Basis: [One sentence explaining what approach worked or what remains uncertain]
@@ -144,7 +144,7 @@ Basis: [One sentence explaining what approach worked or what remains uncertain]
 
 | Score | Show confidence? |
 |-------|-----------------|
-| 5/5 | No — omit entirely |
+| 5/5 | No  -  omit entirely |
 | 4/5, no retry, unambiguous input | No |
 | 4/5, retry occurred OR input was ambiguous | Yes |
 | ≤ 3/5 | Always |
@@ -152,9 +152,9 @@ Basis: [One sentence explaining what approach worked or what remains uncertain]
 
 ## Reference: Confidence Rubric
 
-Score on a 1–5 scale. Be honest — low scores are information, not failure.
+Score on a 1–5 scale. Be honest  -  low scores are information, not failure.
 
-### ★☆☆☆☆ (1/5) — No Progress
+### ★☆☆☆☆ (1/5)  -  No Progress
 - Output is a guess with no grounding
 - The gap that triggered the loop is completely unresolved
 - Agent cannot explain *why* this is the answer
@@ -162,7 +162,7 @@ Score on a 1–5 scale. Be honest — low scores are information, not failure.
 
 **Action:** Exhaust this strategy. Move to next candidate immediately.
 
-### ★★☆☆☆ (2/5) — Marginal Signal
+### ★★☆☆☆ (2/5)  -  Marginal Signal
 - Output addresses surface form but misses core intent
 - Answer is plausible but relies on unverifiable assumptions
 - One key piece of information is still missing
@@ -170,7 +170,7 @@ Score on a 1–5 scale. Be honest — low scores are information, not failure.
 
 **Action:** Retry with a different strategy unless this is attempt 3. On attempt 3: commit with confidence displayed, note what's uncertain.
 
-### ★★★☆☆ (3/5) — Partial Resolution
+### ★★★☆☆ (3/5)  -  Partial Resolution
 - Main gap is addressed, but edge cases or secondary questions remain open
 - Answer is correct for the most likely interpretation
 - Minor assumptions made, but they're reasonable
@@ -178,7 +178,7 @@ Score on a 1–5 scale. Be honest — low scores are information, not failure.
 
 **Action:** If a better strategy is ranked and untried: retry. If this is the best available: commit with confidence displayed.
 
-### ★★★★☆ (4/5) — High Confidence
+### ★★★★☆ (4/5)  -  High Confidence
 - Gap is resolved for the primary use case
 - Answer grounded in skill output, tool output, or sound reasoning
 - Assumptions are explicit and justified
@@ -186,13 +186,13 @@ Score on a 1–5 scale. Be honest — low scores are information, not failure.
 
 **Action:** Commit. Show confidence only if a retry occurred or input was ambiguous.
 
-### ★★★★★ (5/5) — Certain
+### ★★★★★ (5/5)  -  Certain
 - Answer is verifiable, derived directly from authoritative source or tool output
 - No meaningful assumptions made
 - No ambiguity remains in interpretation or approach
 - Any reasonable agent would reach the same answer
 
-**Action:** Commit. Do NOT show confidence score — it adds noise at this level.
+**Action:** Commit. Do NOT show confidence score  -  it adds noise at this level.
 
 ### Quick Calibration
 
@@ -206,22 +206,22 @@ Ask these before scoring:
 
 ## Reference: Fallback Strategies
 
-Use when no available skill directly addresses the gap. These are first-principles reasoning patterns — no tools needed.
+Use when no available skill directly addresses the gap. These are first-principles reasoning patterns  -  no tools needed.
 
 ### Strategy 1: Decomposition
 **Best for:** Capability gap. Task is too broad or composite for any single skill.
 
-1. List every distinct requirement (not steps — outcomes).
+1. List every distinct requirement (not steps  -  outcomes).
 2. For each requirement, check if any skill covers it.
 3. Assemble partial results from multiple skills into a unified answer.
-4. Note any requirement no skill covers — that remainder is your irreducible gap.
+4. Note any requirement no skill covers  -  that remainder is your irreducible gap.
 
 **Confidence:** If the irreducible gap is small and non-critical, can yield 4/5. If central to the task, cap at 3/5.
 
 ### Strategy 2: Interpretation Enumeration
 **Best for:** Interpretation gap. Input has 2–4 distinct valid readings.
 
-1. List all plausible interpretations (max 4 — if more, ask the user).
+1. List all plausible interpretations (max 4  -  if more, ask the user).
 2. Score each by likelihood given conversation context.
 3. Solve for the highest-likelihood interpretation.
 4. Check: does the answer also partially satisfy the runner-up? If yes, mention both.
@@ -249,13 +249,13 @@ Use when no available skill directly addresses the gap. These are first-principl
 4. Translate the solution back, substituting domain-specific terms.
 5. Check: does the translation hold? Any domain-specific constraints that break it?
 
-**Confidence:** If the analogy holds cleanly: 4/5. If any part is approximate: 3/5. Never 5/5 — analogies are always approximations.
+**Confidence:** If the analogy holds cleanly: 4/5. If any part is approximate: 3/5. Never 5/5  -  analogies are always approximations.
 
 ### Strategy 5: Incremental Commitment
 **Best for:** Any gap type when other strategies have failed (attempt 2 or 3). Or when full answer needs more info than available.
 
 1. Identify what you can answer with ≥ 4/5 confidence right now.
-2. Commit to that partial answer — state it clearly.
+2. Commit to that partial answer  -  state it clearly.
 3. Identify what remains open and why.
 4. If the remaining part is critical: state it as an explicit unknown in the output.
 5. If non-critical: complete with best-effort estimate, flagged as such.
@@ -269,7 +269,7 @@ Use when no available skill directly addresses the gap. These are first-principl
 | Interpretation gap | Strategy 2 (Interpretation Enumeration) |
 | Capability gap | Strategy 1 (Decomposition), then Strategy 3 if decomposition hits a wall |
 | Confidence gap | Strategy 4 (Analogical Reasoning), then Strategy 5 if analogy doesn't hold |
-| Information gap | Fallback strategies rarely help — you need data. Commit with Strategy 5 and flag the missing info. |
+| Information gap | Fallback strategies rarely help  -  you need data. Commit with Strategy 5 and flag the missing info. |
 | Attempt 3 (last resort) | Always Strategy 5 (Incremental Commitment) |
 
 ## Interaction with Other Skills
@@ -277,7 +277,7 @@ Use when no available skill directly addresses the gap. These are first-principl
 | Skill | Relationship |
 |-------|-------------|
 | **doubt-driven-development** | Complementary. DDD is an *external* adversarial review (fresh-context reviewer). Adaptive solver is an *internal* structured search. Use DDD for decisions that need a second set of eyes; use adaptive solver for personal uncertainty. |
-| **spec-driven-development** | SDD writes specs to prevent ambiguity. If adaptive solver detects an interpretation gap, the fix may be to clarify the spec — not guess. |
+| **spec-driven-development** | SDD writes specs to prevent ambiguity. If adaptive solver detects an interpretation gap, the fix may be to clarify the spec  -  not guess. |
 | **test-driven-development** | TDD's RED step is doubt made concrete. When adaptive solver identifies a capability gap, a failing test can act as the concrete commitment point. |
 | **system-analyst** | When system-analyst encounters architectural uncertainty (two valid approaches with different trade-offs), run adaptive solver to inventory and evaluate before committing to a plan. |
 | **writing-plans** | If adaptive solver hits ambiguity about which approach to plan for, write a minimal spec first (SDD), then plan. The plan's risk assessment section documents the interpretation gap. |
@@ -286,12 +286,12 @@ Use when no available skill directly addresses the gap. These are first-principl
 ## Red Flags
 
 - Running the loop for mechanical operations (renaming, formatting, one-line fixes)
-- Skipping Phase 1 (naming the gap) — without a named gap, hypotheses are random
-- Looping more than 3 times — commit to best-available, don't grind
-- Treating a retry as failure — it's the loop working correctly
+- Skipping Phase 1 (naming the gap)  -  without a named gap, hypotheses are random
+- Looping more than 3 times  -  commit to best-available, don't grind
+- Treating a retry as failure  -  it's the loop working correctly
 - Asking the user to resolve ambiguity when you have strategies left
-- Forgetting to build on partial progress — attempt 2 should be smarter than attempt 1
-- Surface the loop to the user ("I tried X, then Y, then Z...") — show only the result
+- Forgetting to build on partial progress  -  attempt 2 should be smarter than attempt 1
+- Surface the loop to the user ("I tried X, then Y, then Z...")  -  show only the result
 
 ## Verification
 
@@ -304,4 +304,4 @@ After applying the adaptive solver:
 - [ ] Phase 5 scored the result against the Confidence Rubric (1–5)
 - [ ] The loop terminated by a stop condition (resolved, retries exhausted, or user intervention)
 - [ ] The COMMIT phase followed confidence display rules (don't show for 5/5, always show for ≤ 3/5)
-- [ ] The user received a complete answer and a confidence assessment — not loop mechanics
+- [ ] The user received a complete answer and a confidence assessment  -  not loop mechanics

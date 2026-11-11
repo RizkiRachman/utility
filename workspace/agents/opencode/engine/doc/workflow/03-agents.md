@@ -1,6 +1,6 @@
 <!-- omit from toc -->
 
-# Part C — Agent Integration Matrix
+# Part C - Agent Integration Matrix
 
 > See [doc/workflow/README.md](../workflow/README.md) for index.
 
@@ -10,7 +10,7 @@ This part maps all 17 agents (scrum team) to their contract states, MCPs, and sk
 
 | Agent | Contract States | Key MCPs | Skills to Load | Usage Pattern |
 |---|---|---|---|---|
-| **orchestrator** | all states | lean-ctx, context7 | (orchestrator — agent.md) | delegate → score → persist |
+| **orchestrator** | all states | lean-ctx, context7 | (orchestrator - agent.md) | delegate → score → persist |
 | **build** | primary (bootstrap) | none | (none) | restricted entrypoint → delegates to orchestrator |
 | **design-orchestrator** | all states | lean-ctx, context7 | design-exemplar, ui-ux-pro-max, design-taste-frontend, impeccable | plan UI → enforce 4-layer pipeline → gate |
 | **product-manager** | INIT, PLAN | lean-ctx, context7 | business-analyst, brainstorming, writing-plans | intent → GWT criteria → scope |
@@ -30,22 +30,22 @@ This part maps all 17 agents (scrum team) to their contract states, MCPs, and sk
 
 ## C2. Agent Profiles
 
-- **orchestrator**: Orchestrator — delegates, scores, drives state machine. Highest privilege: read/write all contract fields.
-- **design-orchestrator**: UI/UX specialist orchestrator — enforces the 4-layer design pipeline (Exemplar > Generator > Taste > Gate) for all UI work. Read/write within design scope.
-- **product-manager**: Requirements owner — turns intent into testable GWT acceptance criteria and declares scope/non-goals. Read-only, reviewer model.
-- **scrum-master**: Process owner — audits transitions, enforces gates and DoD, unblocks BLOCKED, drives retros. Read-only, reviewer model.
-- **system-analyst**: Planner — analyzes, traces, produces specs/plans. Read-only: never writes code.
-- **software-architect**: Architecture advisor and independent design reviewer — tradeoffs, system-level debugging, YAGNI. Read-only, reviewer model.
-- **developer**: Builder — implements plan step by step, writes tests alongside code. Full write access.
-- **devops-engineer**: Delivery specialist — CI/CD, containerization, deploy, migrations, observability, rollback. Read/write.
-- **fixer**: Bounded fixer — fast, scoped edits for well-defined bugs. Minimal context, fast turnaround.
-- **quality-analyst**: Reviewer — code quality, performance, DB, DevOps operability across 5 axes. Read-only, reviewer model.
-- **security-engineer**: Security reviewer — threat model, vulns, secrets, trust boundaries. Cross-model reviewer, read-only.
-- **explorer**: Codebase explorer — queries lean-ctx to understand unfamiliar code. Read-only.
-- **librarian**: External researcher — context7 docs lookup, library research. Read-only.
-- **council**: Consensus engine — multi-LLM deliberation and cross-model arbitration for high-stakes decisions. Read-only.
-- **observer**: Visual analyst — images, PDFs, diagrams. Read-only.
-- **learner**: Post-exec retro — extracts lessons, persists knowledge_updates[]. Read-only.
+- **orchestrator**: Orchestrator - delegates, scores, drives state machine. Highest privilege: read/write all contract fields.
+- **design-orchestrator**: UI/UX specialist orchestrator - enforces the 4-layer design pipeline (Exemplar > Generator > Taste > Gate) for all UI work. Read/write within design scope.
+- **product-manager**: Requirements owner - turns intent into testable GWT acceptance criteria and declares scope/non-goals. Read-only, reviewer model.
+- **scrum-master**: Process owner - audits transitions, enforces gates and DoD, unblocks BLOCKED, drives retros. Read-only, reviewer model.
+- **system-analyst**: Planner - analyzes, traces, produces specs/plans. Read-only: never writes code.
+- **software-architect**: Architecture advisor and independent design reviewer - tradeoffs, system-level debugging, YAGNI. Read-only, reviewer model.
+- **developer**: Builder - implements plan step by step, writes tests alongside code. Full write access.
+- **devops-engineer**: Delivery specialist - CI/CD, containerization, deploy, migrations, observability, rollback. Read/write.
+- **fixer**: Bounded fixer - fast, scoped edits for well-defined bugs. Minimal context, fast turnaround.
+- **quality-analyst**: Reviewer - code quality, performance, DB, DevOps operability across 5 axes. Read-only, reviewer model.
+- **security-engineer**: Security reviewer - threat model, vulns, secrets, trust boundaries. Cross-model reviewer, read-only.
+- **explorer**: Codebase explorer - queries lean-ctx to understand unfamiliar code. Read-only.
+- **librarian**: External researcher - context7 docs lookup, library research. Read-only.
+- **council**: Consensus engine - multi-LLM deliberation and cross-model arbitration for high-stakes decisions. Read-only.
+- **observer**: Visual analyst - images, PDFs, diagrams. Read-only.
+- **learner**: Post-exec retro - extracts lessons, persists knowledge_updates[]. Read-only.
 
 ## C3. Toolkit Data Flow
 
@@ -57,16 +57,16 @@ This part maps all 17 agents (scrum team) to their contract states, MCPs, and sk
 2. orchestrator creates contract envelope
        │  (session/contract.json → lean-ctx knowledge)
        ▼
-3. Envelope stored: lean-ctx ctx_knowledge remember key="orchestration-contract"
+3. Envelope stored: lean-ctx ctx_knowledge remember key="orchestration-contract:<task_id>"
        │
 4. orchestrator delegates: task({subagent_type: "system-analyst", prompt: "..."})
        │
-5. Subagent reads envelope: lean-ctx ctx_knowledge recall --query "orchestration-contract"
+5. Subagent reads envelope: lean-ctx ctx_knowledge recall --query "orchestration-contract:<task_id>"
        │
 6. Subagent uses usage/<tool>.md for tool guidance
    Subagent loads skills/<name>/SKILL.md for skill instructions
        │
-7. Subagent returns result (output structure depends on phase — plan, code, or report)
+7. Subagent returns result (output structure depends on phase - plan, code, or report)
        │
 8. orchestrator scores → updates envelope → persists → delegates next agent
        │
@@ -74,7 +74,7 @@ This part maps all 17 agents (scrum team) to their contract states, MCPs, and sk
 ```
 
 **Step detail**:
-- **Step 2-3**: The envelope is persisted as a JSON object under `lean-ctx ctx_knowledge` key `orchestration-contract`. It includes state, session metadata, requirements, decisions, scoring, retry info, outputs, and metrics.
+- **Step 2-3**: The envelope is persisted as a JSON object under `lean-ctx ctx_knowledge` key `orchestration-contract:<task_id>` (resolve `<task_id>` from `session.task_id` in `session/contract.json` first). It includes state, session metadata, requirements, decisions, scoring, retry info, outputs, and metrics.
 - **Step 4-5**: Delegation uses OpenCode's subagent task mechanism. The subagent loads the envelope at session start (pre-flight protocol in all agent instruction files).
 - **Step 8-9**: The orchestrator runs the scoring pipeline after every delegation. If PASS, advances state. If RETRY, re-delegates with issues. If BLOCKED, escalates to user.
 
@@ -106,12 +106,12 @@ The pipeline shows the hierarchy: `agent.md` is loaded by every agent at session
 ### Folder → Workflow Mapping
 
 ```
-├── agent.md                → Instructions[0] — loaded by EVERY agent at session start
+├── agent.md                → Instructions[0] - loaded by EVERY agent at session start
 ├── agents/                 → Agent definitions loaded by opencode.json
 ├── skills/                 → Loaded on-demand via skill({name: "skill-name"})
 ├── usage/                  → Loaded on-demand when agent encounters an unfamiliar tool
 ├── contract/               → Contract templates (contract.template.json, contract.schema.json, state.md)
-├── rules/                  → rules.json — state machine transitions + scoring thresholds
+├── rules/                  → rules.json - state machine transitions + scoring thresholds
 └── doc/                    → Planning/reporting documents (never loaded automatically)
 ```
 
@@ -183,13 +183,13 @@ Companion skill points to canonical source (e.g., piomin/claude-ai-spring-boot)
 ### Source Repositories
 
 All companion skills reference canonical sources from [jvmskills.com](https://jvmskills.com):
-- [piomin/claude-ai-spring-boot](https://github.com/piomin/claude-ai-spring-boot) — Spring Boot, JPA, code quality, design patterns, logging
-- [martinfrancois/java-streams-skill](https://github.com/martinfrancois/java-streams-skill) — Streams API
-- [martinfrancois/java-optionals-skill](https://github.com/martinfrancois/java-optionals-skill) — Optional patterns
-- [sivaprasadreddy/sivalabs-agent-skills](https://github.com/sivaprasadreddy/sivalabs-agent-skills) — Spring Boot 4.x, JSpecify
-- [timescale/pg-aiguide](https://github.com/timescale/pg-aiguide) — PostgreSQL design, pgvector, text search
-- [jvm-skills/jvm-skills](https://github.com/jvm-skills/jvm-skills) — jOOQ, mutation testing, Kover, workflow skills
-- [brunoborges/jdb-agentic-debugger](https://github.com/brunoborges/jdb-agentic-debugger) — JDB debugging
+- [piomin/claude-ai-spring-boot](https://github.com/piomin/claude-ai-spring-boot) - Spring Boot, JPA, code quality, design patterns, logging
+- [martinfrancois/java-streams-skill](https://github.com/martinfrancois/java-streams-skill) - Streams API
+- [martinfrancois/java-optionals-skill](https://github.com/martinfrancois/java-optionals-skill) - Optional patterns
+- [sivaprasadreddy/sivalabs-agent-skills](https://github.com/sivaprasadreddy/sivalabs-agent-skills) - Spring Boot 4.x, JSpecify
+- [timescale/pg-aiguide](https://github.com/timescale/pg-aiguide) - PostgreSQL design, pgvector, text search
+- [jvm-skills/jvm-skills](https://github.com/jvm-skills/jvm-skills) - jOOQ, mutation testing, Kover, workflow skills
+- [brunoborges/jdb-agentic-debugger](https://github.com/brunoborges/jdb-agentic-debugger) - JDB debugging
 
 ---
 
