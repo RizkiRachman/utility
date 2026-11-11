@@ -45,7 +45,7 @@ jobs:
       - name: Build slim digest
         run: |
           mkdir -p public
-          npx -y repomix@latest --include "workspace/agents/opencode/**" --ignore "**/node_modules/**,**/skills/**/data/**,**/*.csv,**/*.html,**/library/**,**/references/**,**/fixtures/**,**/fonts/**" --style plain --output public/repomix-output.txt
+          npx -y repomix@latest --include "workspace/agents/opencode/**" --ignore "**/node_modules/**,**/skills/**/data/**,**/skills/**/scripts/tests/**,**/*.csv,**/*.html,**/library/**,**/references/**,**/fixtures/**,**/fonts/**" --style plain --output public/repomix-output.txt
       - name: Split into model-sized parts
         run: |
           python3 - <<'PYEOF'
