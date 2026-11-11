@@ -63,7 +63,16 @@ PLACEHOLDER_PATTERN='TODO|lorem|coming soon'
 
 # Default targets: shipped user-facing docs. Bare README.md resolves against
 # the repo root; engine docs resolve against PROJECT_ROOT (engine/).
-DEFAULT_TARGETS=("$REPO_ROOT/README.md" "$PROJECT_ROOT/README.md" "$PROJECT_ROOT/contract/README.md" "$PROJECT_ROOT/agent.md")
+DEFAULT_TARGETS=("$REPO_ROOT/README.md" "$PROJECT_ROOT/README.md" "$PROJECT_ROOT/contract/README.md" "$PROJECT_ROOT/agent.md"
+    "$PROJECT_ROOT/doc/health-check.md"
+    "$PROJECT_ROOT/doc/project.md"
+    "$PROJECT_ROOT/doc/service-rules-thresholds.md"
+    "$PROJECT_ROOT/doc/workflow/01-fundamentals.md"
+    "$PROJECT_ROOT/doc/workflow/02-lifecycle.md"
+    "$PROJECT_ROOT/doc/workflow/03-agents.md"
+    "$PROJECT_ROOT/doc/workflow/04-scoring.md"
+    "$PROJECT_ROOT/doc/workflow/05-operations.md"
+    "$PROJECT_ROOT/doc/workflow/README.md")
 
 # Color output (disable if not a terminal)
 if [[ -t 1 ]]; then
@@ -93,7 +102,8 @@ OPTIONS
 
 ARGS
     FILE...      Files to check. With no files, the default set is checked:
-                 <repo>/README.md, engine/README.md, engine/contract/README.md
+                 <repo>/README.md, engine/README.md, engine/contract/README.md,
+                 engine/agent.md, plus the engine docs listed in DEFAULT_TARGETS
 
 CHECKS
   1. Em/en dashes

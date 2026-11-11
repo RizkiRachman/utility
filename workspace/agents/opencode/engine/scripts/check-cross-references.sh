@@ -522,8 +522,18 @@ check_forbidden_patterns() {
     hits=$(grep -rli 'graphify' $md_files 2>/dev/null || true)
     if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "graphify zombie mention(s) in: $(echo "$hits" | tr "\n" " ")"; fi
 
-    # 9e. Envelope keys missing the :task_id namespace (write AND recall forms)
-    hits=$(grep -rlE 'remember[[:space:]]+(key[[:space:]]+)?orchestration-contract([^:]|$)|recall[[:space:]]+(key[[:space:]]*=?[[:space:]]*"?)?orchestration-contract([^:]|"|$)' $md_files 2>/dev/null || true)
+    # 9e. Envelope keys missing the :task_id namespace (write AND recall forms).
+    #     A bare key is the literal "orchestration-contract" NOT followed by ':',
+    #     so namespaced occurrences (orchestration-contract:<task_id>) never match.
+    #     Covered command forms:
+    #       remember key <key> / recall key[=] <key>        (write and read)
+    #       --key "<key>" / --query "<key>"                 (CLI flag forms)
+    #       query="<key>" / query "<key>"                   (MCP argument forms)
+    #       key <key> \  or  key <key> at end of line       (shell continuation)
+    #       `orchestration-contract`                        (prose code span)
+    #     Scope is *.md only, so the checker's own patterns and the labeled
+    #     legacy fallback in drift-detect.sh (.sh) stay legal.
+    hits=$(grep -rlE 'remember[[:space:]]+(key[[:space:]]+)?orchestration-contract"?([^:]|$)|recall[[:space:]]+(key[[:space:]]*=?[[:space:]]*"?)?orchestration-contract"?([^:]|$)|--key[[:space:]]*=?[[:space:]]*"?orchestration-contract"?([^:]|$)|--query[[:space:]]*=?[[:space:]]*"?orchestration-contract"?([^:]|$)|query[[:space:]]*=[[:space:]]*"?orchestration-contract"?([^:]|$)|query[[:space:]]+"orchestration-contract"?([^:]|$)|key[[:space:]]+orchestration-contract"?([[:space:]]*\\|[[:space:]]*$)|`orchestration-contract`' $md_files 2>/dev/null || true)
     if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "bare envelope key(s) in: $(echo "$hits" | tr "\n" " ")"; fi
 
     if [[ "$broken" -eq 0 ]]; then
