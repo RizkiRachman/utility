@@ -72,7 +72,10 @@ DEFAULT_TARGETS=("$REPO_ROOT/README.md" "$PROJECT_ROOT/README.md" "$PROJECT_ROOT
     "$PROJECT_ROOT/doc/workflow/03-agents.md"
     "$PROJECT_ROOT/doc/workflow/04-scoring.md"
     "$PROJECT_ROOT/doc/workflow/05-operations.md"
-    "$PROJECT_ROOT/doc/workflow/README.md")
+    "$PROJECT_ROOT/doc/workflow/README.md"
+    "$PROJECT_ROOT/usage/opencode.md"
+    "$PROJECT_ROOT/contract/state.template.md"
+    "$REPO_ROOT/session/state.example.md")
 
 # Color output (disable if not a terminal)
 if [[ -t 1 ]]; then
