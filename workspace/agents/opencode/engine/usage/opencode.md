@@ -494,12 +494,15 @@ Per-agent overrides:
 
 ### 9.1 MCP Servers
 
-This project has 3 MCP servers configured in `opencode.json`:
+This project has 5 MCP servers configured in `opencode.json`:
 
 | Server | Type | Command | Notes |
 |--------|------|---------|-------|
 | **lean-ctx** | local | `lean-ctx` | `LEAN_CTX_DATA_DIR` set |
-| **context7** | local | `npx @upstash/context7-mcp` |  -  |
+| **context7** | local | `context7-mcp` | `CONTEXT7_API_KEY` set |
+| **fetch** | local | `mcp-server-fetch` |  -  |
+| **rag** | local | `node /opt/rag/server.js` | enabled |
+| **openui** | local | `node /home/node/workspace/agents/openui/mcp-bridge.mjs` | `OPENUI_URL` set |
 
 ### 9.2 Compaction
 
