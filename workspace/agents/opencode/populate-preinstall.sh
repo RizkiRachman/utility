@@ -147,26 +147,37 @@ cocoindex_wheels_present() {
   return 1
 }
 
-# The [full] extra pulls the local-embedding closure (torch, transformers,
-# sentence-transformers). That closure is several hundred MB - the store grows
-# by roughly that much on the first run, by design (keyless offline embeddings).
+# The base wheel plus the local-embedding closure (torch, transformers,
+# sentence-transformers). The embedding deps come from the CPU torch index
+# (download.pytorch.org/whl/cpu), NOT plain PyPI: on Linux PyPI's torch is the
+# CUDA build and drags in the whole nvidia-* wheel set (~2-3 GB). The CPU wheel
+# carries a +cpu local version, which sorts higher than the plain PyPI version,
+# so pip prefers it once the extra index is in play. Store grows by roughly
+# 300-400 MB total on the first run (CPU torch ~200 MB + NLP deps), by design
+# (keyless offline embeddings).
 # Same pip preference as fetch_pip_wheels: fetch venv's pip first.
 fetch_cocoindex_wheels() {
   if [ -x /opt/pipx/venvs/mcp-server-fetch/bin/pip ]; then
     /opt/pipx/venvs/mcp-server-fetch/bin/pip download --dest "$STORE_DIR/pip" \
-      "cocoindex-code[full]==${COCOINDEX_CODE_VERSION}"
+      "cocoindex-code==${COCOINDEX_CODE_VERSION}"
+    /opt/pipx/venvs/mcp-server-fetch/bin/pip download --dest "$STORE_DIR/pip" \
+      --extra-index-url https://download.pytorch.org/whl/cpu \
+      torch transformers sentence-transformers
   else
     python3 -m pip download --dest "$STORE_DIR/pip" \
-      "cocoindex-code[full]==${COCOINDEX_CODE_VERSION}"
+      "cocoindex-code==${COCOINDEX_CODE_VERSION}"
+    python3 -m pip download --dest "$STORE_DIR/pip" \
+      --extra-index-url https://download.pytorch.org/whl/cpu \
+      torch transformers sentence-transformers
   fi
 }
 
-echo "==> python wheels (cocoindex-code [full] closure)"
+echo "==> python wheels (cocoindex-code base + cpu embedding deps)"
 if cocoindex_wheels_present; then
   mark_skipped "cocoindex-code wheels (already in store)"
 else
   fetch_cocoindex_wheels
-  mark_added "cocoindex-code wheels: cocoindex-code[full]==${COCOINDEX_CODE_VERSION}"
+  mark_added "cocoindex-code wheels: cocoindex-code==${COCOINDEX_CODE_VERSION} + cpu embedding deps (torch/transformers/sentence-transformers)"
 fi
 
 # --------------------------------------------------------------------------
