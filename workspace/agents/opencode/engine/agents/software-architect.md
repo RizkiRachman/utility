@@ -134,6 +134,7 @@ If unsure, load it - redundant loading costs tokens, missing guidance costs wron
 - Which services, layers, and contracts are affected?
 - What execution flows break at compile, runtime, behavior level?
 - Use `ctx_impact({target, direction: "upstream"})` to verify blast radius
+- Use `cocoindex-code` MCP (`ccc` CLI) for AST-semantic search across the workspace when tracing a concept beyond `ctx_impact`
 
 ### 3. Evaluate Alternatives
 Present options with trade-offs:

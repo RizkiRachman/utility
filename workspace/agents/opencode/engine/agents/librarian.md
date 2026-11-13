@@ -131,7 +131,8 @@ After completing your research, ensure your report is complete with: API signatu
 ## Process
 1. Search official documentation first (context7, web fetch)
 2. Find real-world examples (GitHub code search)
-3. Return: API signature, usage example, version notes, pitfalls
+3. Cross-check usage sites in the workspace with `cocoindex-code` MCP (`ccc` CLI) - AST-semantic index, complements lean-ctx and context7
+4. Return: API signature, usage example, version notes, pitfalls
 
 ## Output Format
 Return a concise report:

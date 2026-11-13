@@ -151,6 +151,7 @@ Use lean-ctx MCP tools for token savings:
 - `ctx_read(path, mode)` over `Read`  -  cached, compressed re-reads (~13 tokens)
 - `ctx_search(pattern, path)` over `grep`  -  compact results
 - `ctx_tree(path, depth)` over `ls`  -  compact directory maps
+- `cocoindex-code` MCP (`ccc` CLI)  -  AST-semantic code search across the workspace; complements lean-ctx, not a symbol/callgraph replacement
 - host native `edit` tool for file edits  -  search-and-replace edits (lean-ctx handles reads only)
 
 ### 1. Read Plan / Spec

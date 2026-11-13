@@ -155,14 +155,14 @@ The `engine/` source mirrors the runtime layout - edit here, rebuild to deploy:
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
 | **product-manager** | Requirements + acceptance-criteria backlog (GWT) | lean-ctx, context7 | Read-only | `INIT`, `PLAN` | default | business-analyst, brainstorming, writing-plans, diagram-design | `/opt/engine/agents/product-manager.md` |
-| **system-analyst** | Impact analysis, specs, detailed plans | lean-ctx | Read-only | `INIT`, `PLAN`, `PLAN_SCORED` | executor | system-analyst, business-analyst, writing-plans, diagram-design | `/opt/engine/agents/system-analyst.md` |
-| **software-architect** | Architecture trade-offs, tech-debt assessment | lean-ctx | Read-only | `INIT`, `PLAN`, `PLAN_SCORED`, `REVIEW` | deepseek-flash | system-analyst, java-developer, diagram-design | `/opt/engine/agents/software-architect.md` |
+| **system-analyst** | Impact analysis, specs, detailed plans | lean-ctx, cocoindex-code | Read-only | `INIT`, `PLAN`, `PLAN_SCORED` | executor | system-analyst, business-analyst, writing-plans, diagram-design | `/opt/engine/agents/system-analyst.md` |
+| **software-architect** | Architecture trade-offs, tech-debt assessment | lean-ctx, cocoindex-code | Read-only | `INIT`, `PLAN`, `PLAN_SCORED`, `REVIEW` | deepseek-flash | system-analyst, java-developer, diagram-design | `/opt/engine/agents/software-architect.md` |
 
 ### Implementation Agents (read/write)
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **developer** | Implements the plan, writes tests alongside code | lean-ctx | Read/write (lean-ctx only) | `EXECUTE`, `EXECUTE_SCORED` | executor | test-driven-development, software-developer, design-taste-frontend, impeccable, awesome-pr, tool-economy | `/opt/engine/agents/developer.md` |
+| **developer** | Implements the plan, writes tests alongside code | lean-ctx, cocoindex-code | Read/write (lean-ctx only) | `EXECUTE`, `EXECUTE_SCORED` | executor | test-driven-development, software-developer, design-taste-frontend, impeccable, awesome-pr, tool-economy | `/opt/engine/agents/developer.md` |
 | **devops-engineer** | CI/CD, containerization, deploy, migrations, observability, rollback | lean-ctx | Read/write (lean-ctx only) | `EXECUTE`, `EXECUTE_SCORED`, `REVIEW` | default | devops-expert, observability-and-instrumentation, diagram-design | `/opt/engine/agents/devops-engineer.md` |
 | **fixer** | Bounded, scoped fixes for well-defined tasks | lean-ctx | Read/write (lean-ctx only) | `EXECUTE` | executor | systematic-debugging | `/opt/engine/agents/fixer.md` |
 
@@ -170,7 +170,7 @@ The `engine/` source mirrors the runtime layout - edit here, rebuild to deploy:
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **quality-analyst** | Independent quality review (5-axis: correctness, readability, architecture, security, performance) | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | default | qa-expert, security-expert, code-review-and-quality, impeccable | `/opt/engine/agents/quality-analyst.md` |
+| **quality-analyst** | Independent quality review (5-axis: correctness, readability, architecture, security, performance) | lean-ctx, cocoindex-code | Read-only | `REVIEW`, `REVIEW_SCORED` | default | qa-expert, security-expert, code-review-and-quality, impeccable | `/opt/engine/agents/quality-analyst.md` |
 | **security-engineer** | Independent security review - threat model, vulns, secrets, trust boundaries | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | default | security-expert, code-review-and-quality | `/opt/engine/agents/security-engineer.md` |
 | **scrum-master** | Process owner - guards the contract, state machine, and workflow; unblocks BLOCKED, DoD gate | lean-ctx | Read-only | `*` (all), `BLOCKED` | default | orchestration-template, audit-observability, adaptive-solver | `/opt/engine/agents/scrum-master.md` |
 | **learner** | Post-execution retro - extract lessons, gotchas, patterns | lean-ctx | Read-only | `REVIEW_SCORED`, `COMPLETE` | default | verification-before-completion | `/opt/engine/agents/learner.md` |
@@ -179,8 +179,8 @@ The `engine/` source mirrors the runtime layout - edit here, rebuild to deploy:
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **explorer** | Fast codebase search / unknowns discovery | lean-ctx | Read-only | `*` (all) | default | (exploration) | `/opt/engine/agents/explorer.md` |
-| **librarian** | External docs / library research | context7 | Read-only | `*` (all) | default | (research) | `/opt/engine/agents/librarian.md` |
+| **explorer** | Fast codebase search / unknowns discovery | lean-ctx, cocoindex-code | Read-only | `*` (all) | default | (exploration) | `/opt/engine/agents/explorer.md` |
+| **librarian** | External docs / library research | context7, cocoindex-code | Read-only | `*` (all) | default | (research) | `/opt/engine/agents/librarian.md` |
 | **council** | Multi-model consensus + cross-model arbitration | lean-ctx | Read-only | `*` (all) | default | (multi-LLM consensus) | `/opt/engine/agents/council.md` |
 | **observer** | Visual analysis - images, PDFs, diagrams | lean-ctx | Read-only | `*` (all) | default | (visual analysis), impeccable, diagram-design | `/opt/engine/agents/observer.md` |
 
@@ -230,6 +230,7 @@ See [`/opt/engine/doc/workflow.md`](/opt/engine/doc/workflow.md) for the canonic
 |------|-----------|-----|
 | **Check blast radius before editing** | `ctx_impact` | Knowledge graph tracks callers/importers at d=1/d=2/d=3 depths |
 | **Explore unfamiliar code flows** | `ctx_compose` | Returns process-grouped execution flows ranked by relevance |
+| **AST-aware semantic code search** | cocoindex-code MCP (`ccc` CLI) | AST-semantic index across the workspace; complements lean-ctx, never a symbol/callgraph replacement |
 | **Read/edit files** | `lean-ctx ctx_read`/`ctx_edit` | Cached reads (~13 tok), safe search-and-replace edits |
 | **Shell commands** | `lean-ctx ctx_shell` | Compressed output, 95+ patterns, replaces bash |
 | **Persist decisions/knowledge** | `lean-ctx ctx_knowledge remember` | Cross-session persistence with embeddings |

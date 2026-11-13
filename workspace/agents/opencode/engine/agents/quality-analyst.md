@@ -302,3 +302,4 @@ If review is on receiving end: load `/skill receiving-code-review`  -  requires 
 - `ctx_impact({target, direction: "upstream"})`  -  verify blast radius of all changed symbols
 - `ctx_delta()`  -  verify changes only affect expected scope before reporting
 - `ctx_read(path, mode)`  -  token-efficient file inspection during review
+- `cocoindex-code` MCP (`ccc` CLI)  -  AST-semantic search for similar patterns and duplication across the workspace; complements lean-ctx
