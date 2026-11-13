@@ -9,9 +9,13 @@
 # Idempotent and VERSION-AWARE: an artifact is skipped only when the SAME
 # version is already in the store; a different version is fetched and the old
 # copies of that package are pruned (the Dockerfile tiers are single-match
-# globs, so two versions on disk break them). Dependency closures are never
-# pruned - add-only, see the version-aware guard header. The torch/transformers
-# closure keeps skip-if-present (huge, slow); REFRESH_ML=1 forces a refresh.
+# globs, so two versions on disk break them). Pruning runs on the SKIP path
+# too, so a store that predates pruning self-heals instead of lingering
+# forever. The opencode platform tarballs are additionally pruned by ARCH:
+# mixed-platform stores (arm64 files on an x64 host) cause npm EBADPLATFORM at
+# build time. Dependency closures are never pruned - add-only, see the
+# version-aware guard header. The torch/transformers closure keeps
+# skip-if-present (huge, slow); REFRESH_ML=1 forces a refresh.
 # Root is required only for the apt section. Sections: npm pip bin apt git dist.
 #
 # Cert refresh: the detector runs on EVERY run before CA trust, so rotated
@@ -30,7 +34,11 @@ set -eu
 # Versions - env-overridable. Empty here means "resolve latest below, after
 # the CA-trust block" (resolution needs network + trusted corporate CAs).
 OPENCODE_VERSION="${OPENCODE_VERSION:-}"
-OPENCODE_ARCH="${OPENCODE_ARCH:-arm64}"  # @opencode/cli-linux-${OPENCODE_ARCH}
+# @opencode/cli-linux-<arch> platform suffix. npm platform names are x64 /
+# arm64; the preinstall container always runs on the host's NATIVE arch, so the
+# running machine's uname -m is the correct default (a hardcoded arm64 default
+# installed arm64 tarballs on x64 Docker hosts -> npm EBADPLATFORM at build).
+OPENCODE_ARCH="${OPENCODE_ARCH:-}"
 OPENCODE_PLATFORM_VERSION="${OPENCODE_PLATFORM_VERSION:-}"
 CONTEXT7_VERSION="${CONTEXT7_VERSION:-}"
 LEAN_CTX_VERSION="${LEAN_CTX_VERSION:-}"
@@ -71,6 +79,27 @@ if [ "$ca_trusted" -eq 1 ]; then
   echo "==> trusting extra root CAs from certs/"
   update-ca-certificates >/dev/null 2>&1 || \
     echo "WARN: update-ca-certificates failed - proxied TLS hosts may fail" >&2
+fi
+
+# --------------------------------------------------------------------------
+# opencode platform arch - follows the machine running this script.
+#
+# The preinstall container is started on the host's native architecture, so
+# uname -m here is the platform the image will run on (no emulation in the
+# normal build path). Resolved BEFORE the version block below because
+# OPENCODE_PLATFORM_VERSION resolves against @opencode/cli-linux-<arch>.
+# OPENCODE_ARCH in the environment wins (pins cross-builds, e.g. building an
+# arm64 image from an x64 host).
+# --------------------------------------------------------------------------
+if [ -z "$OPENCODE_ARCH" ]; then
+  case "$(uname -m)" in
+    x86_64)  OPENCODE_ARCH=x64 ;;
+    aarch64) OPENCODE_ARCH=arm64 ;;
+    *) OPENCODE_ARCH=arm64; echo "WARN: unknown arch $(uname -m) - defaulting arm64" >&2 ;;
+  esac
+  echo "==> detected opencode arch: $OPENCODE_ARCH"
+else
+  echo "==> OPENCODE_ARCH=$OPENCODE_ARCH (env pin)"
 fi
 
 # --------------------------------------------------------------------------
@@ -308,6 +337,52 @@ prune_old_wheel_versions() {
 }
 
 # --------------------------------------------------------------------------
+# opencode platform arch in a store filename.
+#
+# Store names are flat (npm pack drops the scope and the slashes):
+#   @opencode/cli-linux-arm64@2.3.0 -> opencode-cli-linux-arm64-2.3.0.tgz
+# so the arch is everything between the "linux-" marker and the LAST dash
+# before "<version>.tgz". Parsed by sed rather than store_version_of, which only
+# understands the trailing version field. Anchoring on the trailing
+# -<version>.tgz pair (dots allowed in the version, no dash) is what keeps a
+# non-matching name from yielding a wrong arch.
+# --------------------------------------------------------------------------
+store_arch_of() { # store_arch_of <opencode-platform-tarball>
+  printf '%s' "${1##*/}" | sed -n 's/^opencode-cli-linux-\(.*\)-[0-9][^-]*\.tgz$/\1/p'
+}
+
+# Delete opencode tarballs in the store that the Dockerfile must never see.
+#
+# Cross-arch cleanup: the store is portable and predates the arch fix, so it
+# can hold OTHER-platform tarballs (e.g. arm64 files fetched on an x64 host
+# before OPENCODE_ARCH followed uname -m) next to the wanted ones. Those are
+# useless for this image and were the arm64-on-x64 EBADPLATFORM source.
+#
+#   prune_opencode_tarballs <arch> <cli-version> <platform-version>
+#
+# Plain CLI tarballs (opencode-cli-<v>.tgz) are arch-neutral: keep only the
+# wanted version. Platform tarballs (opencode-cli-linux-<arch>-<v>.tgz) keep
+# only <arch> at the wanted platform version. Sibling packages with another
+# prefix (firecrawl-cli-*, zod-*) never match these globs.
+prune_opencode_tarballs() {
+  _arch=$1
+  _cli_keep=$2
+  _plat_keep=$3
+  prune_old_versions "$STORE_DIR/npm/opencode-cli-[0-9]*.tgz" "$_cli_keep"
+  for _f in "$STORE_DIR"/npm/opencode-cli-linux-*.tgz; do
+    [ -e "$_f" ] || continue
+    if [ "$(store_arch_of "$_f")" != "$_arch" ] || \
+       [ "$(store_version_of "$_f")" != "$_plat_keep" ]; then
+      if rm -f "$_f"; then
+        echo "  pruned:  $_f (kept ${_arch}/${_plat_keep})"
+      else
+        echo "WARN: could not prune $_f" >&2
+      fi
+    fi
+  done
+}
+
+# --------------------------------------------------------------------------
 # npm - one tarball per package.
 # --------------------------------------------------------------------------
 
@@ -330,8 +405,12 @@ npm_store_glob() {
   esac
 }
 
-# Pack PKG@VERSION unless that exact version is already in the store; on a
-# fetch, prune the package's older tarballs so the Dockerfile's single-match
+# Pack PKG@VERSION unless that exact version is already in the store. Pruning
+# runs on BOTH paths: a store populated before pruning existed still holds the
+# previous version next to the wanted one (that is how opencode-cli 2.2.5 +
+# 2.3.0 ended up side by side and broke the single-match Dockerfile glob), and
+# a skip is exactly when that legacy state is sitting there unfixed. After the
+# prune the package's older tarballs are gone, so the Dockerfile's single-match
 # glob (@opencode+cli-*.tgz) can never see two versions. Deps inside the
 # tarballs stay untouched - npm install -g resolves them at install time from
 # its own store tier, not from sibling files here.
@@ -340,17 +419,23 @@ npm_maybe_pack() {
   ver=${spec##*@}
   glob=$(npm_store_glob "$spec")
   if same_version_in_store "$glob" "$ver"; then
-    mark_skipped "$spec (same version in store)"
-  else
-    npm pack "$spec" --pack-destination "$STORE_DIR/npm"
     prune_old_versions "$glob" "$ver"
-    mark_added "$spec"
+    mark_skipped "$spec (same version in store)"
+    return 0
   fi
+  npm pack "$spec" --pack-destination "$STORE_DIR/npm"
+  prune_old_versions "$glob" "$ver"
+  mark_added "$spec"
 }
 
 echo "==> npm tarballs"
 npm_maybe_pack "@opencode/cli@${OPENCODE_VERSION}"
 npm_maybe_pack "@opencode/cli-linux-${OPENCODE_ARCH}@${OPENCODE_PLATFORM_VERSION}"
+# Cross-arch / mixed-version cleanup for BOTH opencode artifacts: the stores
+# above only know their own glob, so stale arm64 platform tarballs on an x64
+# host (or a legacy extra version) survive a skip. Runs once, after both, so
+# the store is single-arch and single-version whatever path it took.
+prune_opencode_tarballs "$OPENCODE_ARCH" "$OPENCODE_VERSION" "$OPENCODE_PLATFORM_VERSION"
 npm_maybe_pack "@upstash/context7-mcp@${CONTEXT7_VERSION}"
 npm_maybe_pack "zod@${ZOD_VERSION}"
 npm_maybe_pack "firecrawl-cli@${FIRECRAWL_CLI_VERSION}"
@@ -384,6 +469,11 @@ fetch_pip_wheels() {
 echo "==> python wheels (full closure)"
 if same_wheel_version_in_store "$STORE_DIR/pip/mcp_server_fetch-*.whl" \
     "$MCP_SERVER_FETCH_VERSION"; then
+  # Prune on the skip path too: a store populated before pruning existed can
+  # hold the previous primary wheel next to the wanted one and break the
+  # Dockerfile's single-match *.whl glob without this.
+  prune_old_wheel_versions "$STORE_DIR/pip/mcp_server_fetch-*.whl" \
+    "$MCP_SERVER_FETCH_VERSION"
   mark_skipped "pip wheels: mcp-server-fetch==${MCP_SERVER_FETCH_VERSION} (same version in store)"
 else
   fetch_pip_wheels
@@ -454,6 +544,10 @@ fetch_cpu_embedding_wheels() {
 echo "==> python wheels (cocoindex-code base)"
 if same_wheel_version_in_store "$STORE_DIR/pip/cocoindex_code-*.whl" \
     "$COCOINDEX_CODE_VERSION"; then
+  # Prune on the skip path too (see the mcp_server_fetch block above): the
+  # Dockerfile consumes a single-match cocoindex_code-*.whl glob.
+  prune_old_wheel_versions "$STORE_DIR/pip/cocoindex_code-*.whl" \
+    "$COCOINDEX_CODE_VERSION"
   mark_skipped "cocoindex-code==${COCOINDEX_CODE_VERSION} (same version in store)"
 else
   fetch_cocoindex_base_wheel
@@ -599,10 +693,13 @@ fi
 # version manifest - the store is the lockfile; this records what it holds.
 # Values read back from the store are what the Dockerfile globs consume, so
 # this file is the audit trail (and the pin list for a reproducible re-run).
+# The platform arch is part of what the store holds: without it a re-run on a
+# different machine silently mixes arm64 and x64 tarballs.
 # --------------------------------------------------------------------------
 {
   printf '%s\n' "# resolved by populate-preinstall.sh (latest-at-populate-time; env overrides recorded as pins)"
   printf '%s\n' "opencode=$OPENCODE_VERSION"
+  printf '%s\n' "opencode-arch=$OPENCODE_ARCH"
   printf '%s\n' "opencode-platform=$OPENCODE_PLATFORM_VERSION"
   printf '%s\n' "context7=$CONTEXT7_VERSION"
   printf '%s\n' "lean-ctx=$LEAN_CTX_VERSION"
