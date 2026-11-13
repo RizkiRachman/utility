@@ -1,21 +1,91 @@
 # The Agent Foundry
 
-Personal agent workspace: containerized AI coding agents that plan, build, and ship under a scored, gated workflow.
+Containerized AI coding agents that plan, build, and ship under a scored, gated workflow.
 
-[![validate](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg)](https://github.com/RizkiRachman/utility/actions/workflows/validate.yml)
-![OpenCode](https://img.shields.io/badge/OpenCode-2.2.5-111111)
-![Docker Compose](https://img.shields.io/badge/docker%20compose-5%20services-2496ED?logo=docker&logoColor=white)
+<p>
+  <img alt="opencode: 2.2.5" src="https://img.shields.io/badge/opencode-2.2.5-111111">
+  <img alt="lean-ctx: 3.12.0" src="https://img.shields.io/badge/lean--ctx-3.12.0-8B5CF6">
+  <img alt="MCP servers: six" src="https://img.shields.io/badge/MCP%20servers-6-2d3142">
+  <img alt="docker compose: five services" src="https://img.shields.io/badge/docker%20compose-5%20services-2496ED?logo=docker&logoColor=white">
+  <img alt="validate workflow" src="https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg">
+</p>
+
+## Table of Contents
+
+1. [What this is](#what-this-is)
+2. [Quick Start](#quick-start)
+3. [Configuration](#configuration)
+4. [Project Structure](#project-structure)
+5. [Documentation](#documentation)
+6. [Offline Package Store](#offline-package-store)
+7. [Certificates](#certificates)
+8. [Enforcement](#enforcement)
+9. [Diagrams](#diagrams)
+10. [Troubleshooting](#troubleshooting)
+11. [Contributing and License](#contributing-and-license)
 
 ## What this is
 
-A Docker Compose stack where AI coding agents do real work. The product is [workspace/agents/opencode/](workspace/agents/opencode/README.md): an OpenCode 2.2.5 container that ships the Workflow State Engine (17 agents, 45 skills, contract-driven scoring), lean-ctx code intelligence, and six MCP servers, all version-pinned and pre-populated for offline builds. A sidecar container, [workspace/agents/openui/](workspace/agents/openui/README.md), serves generative UI over the same GLM model and is reachable from the agents through an MCP bridge. Scratch work lives in [workspace/sandbox/](workspace/sandbox/README.md), one folder per session.
+A Docker Compose stack where AI coding agents do real work. The product is [workspace/agents/opencode/](workspace/agents/opencode/README.md): an OpenCode 2.2.5 container that ships the Workflow State Engine (17 agents, 45 skills, contract-driven scoring), lean-ctx code intelligence, and six MCP servers, all pre-populated for offline builds. A sidecar container, [workspace/agents/openui/](workspace/agents/openui/README.md), serves generative UI over the same GLM model and is reachable from the agents through an MCP bridge. Scratch work lives in [workspace/sandbox/](workspace/sandbox/README.md), one folder per session.
 
-## What we do
+The stack is built so the image works without network access after the first pull: rules, skills, MCP servers, plugins, and a package store travel inside it. Versions are resolved once at populate time and recorded in an audit manifest, and the offline store is the real lockfile.
 
-- Run every task through a gated state machine: INIT to COMPLETE via scored transitions, with a persistent session envelope as the single source of truth
-- Bake the whole stack into the image: rules, skills, MCP servers, and plugins ready on first boot, no network needed after the first pull
-- Publish a plain-text digest of the agent stack to Cloudflare Pages on every push, so AI agents can read the repo without cloning
-- Keep runs reproducible: store-pinned package versions recorded in an audit manifest, an offline package store that travels with the workspace, skeleton-tracked runtime directories
+## Quick Start
+
+From the repository root:
+
+```bash
+cp workspace/agents/opencode/.env.template .env    # fill in OPENCODE_API_KEY, SUMOPOD_*, CONTEXT7_API_KEY
+docker compose -f docker-compose.example.yaml --profile tools run --rm opencode-preinstall
+docker compose -f docker-compose.example.yaml up -d --build
+open http://127.0.0.1:4096                         # pairing screen, enter your key once
+```
+
+The first command fills the offline package store (`workspace/agents/opencode/pre-install/`); repeat it whenever you want to update the stack. The second builds the image and starts `opencode` and `openui`. Add `--profile scheduler` to the `up` command to also start the daily drift-detect and maintenance containers.
+
+Standalone build, without the repository compose file:
+
+```bash
+cd workspace/agents/opencode
+docker build --build-context preinstall=./pre-install -t opencode:local .
+```
+
+## Configuration
+
+Compose entry point: [`docker-compose.example.yaml`](docker-compose.example.yaml). Services: `opencode`, `openui`, `opencode-preinstall` (profile `tools`), `opencode-scheduler` and `opencode-maintenance` (profile `scheduler`).
+
+### Runtime environment
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `OPENCODE_API_KEY` | Yes | (empty) | OpenCode auth; written to `auth.json`, then unset from the env |
+| `OPENCODE_SERVER_PASSWORD` | No | (empty) | Auth key for OpenCode's pairing screen |
+| `SUMOPOD_API_KEY` | Yes | `REPLACE_ME` (openui only) | Model-provider API key |
+| `SUMOPOD_BASE_URL` | No | `https://ai.sumopod.com/v1` | Model-provider endpoint |
+| `SUMOPOD_BASE_MODEL` | No | `glm-5.3-flash` | Executor model id |
+| `SUMOPOD_BASE_MODEL_NAME` | No | `glm-5.3-flash` | Executor model display name |
+| `CONTEXT7_API_KEY` | Yes | (empty) | Context7 docs MCP key |
+| `FIRECRAWL_API_KEY` | No | (empty) | Firecrawl key; developer search works keyless, alexandria and the firecrawl-cli skills need it |
+| `GITHUB_TOKEN` | No | (empty) | GitHub API token for git-sourced store entries and release lookups |
+| `RAG_EMBEDDINGS_URL` | No | (empty) | OpenAI-compatible `/v1/embeddings` endpoint for the rag server; all three `RAG_EMBEDDINGS_*` set switches it to remote embeddings |
+| `RAG_EMBEDDINGS_MODEL` | No | (empty) | Embeddings model id at the endpoint above |
+| `RAG_EMBEDDINGS_KEY` | No | (empty) | Bearer key for the embeddings endpoint |
+| `OPENIDEA_VERSION` | No | auto-latest | openIdea image pin, resolved by the populate run |
+| `OPENIDEA_MODE` | No | `web` | openIdea container mode: `web` (noVNC) or `x11` |
+| `NOVNC_PORT` | No | `4190` | Host port for the openIdea web UI |
+| `REFRESH_ML` | No | (unset) | Set to `1` to refresh the torch/transformers/sentence-transformers closure |
+| `DOCKER_GID` | No | `101` | Host docker group id for the socket mount |
+
+### Build args
+
+| Arg | Required | Default | Description |
+|---|---|---|---|
+| `OPENCODE_ARCH` | No | auto (`TARGETARCH`) | Platform package arch; `x64` or `arm64`. Populate derives it from `uname -m`, the build from `TARGETARCH` |
+| `OPENCODE_VERSION` | No | empty (store) | OpenCode CLI pin; empty means the store's `versions.lock` entry |
+| `LEAN_CTX_VERSION` | No | empty (store) | lean-ctx pin; empty means the store's entry |
+| `CONTEXT7_VERSION` | No | empty (store) | `@upstash/context7-mcp` pin; empty means the store's entry |
+
+Version pins are deliberately absent from the compose file: an env value overrides the store, and the store's `versions.lock` is the reproducible record.
 
 ## Project Structure
 
@@ -43,11 +113,15 @@ utility/
     │   │   ├── certs/                # TLS certificates: auto-detected plus manual (contents gitignored, skeleton tracked)
     │   │   ├── docker-compose.example.yaml # Standalone single-service compose, alternative to the root file
     │   │   └── .env.template         # Copy to repository-root .env
-    │   └── openui/                   # Generative-UI service (see its README)
-    │       ├── app/                  # Next.js 16 + LangGraph scaffold, Dockerfile included
-    │       ├── mcp-bridge.mjs        # stdio MCP bridge: generate_ui, preview_url
-    │       ├── docker-compose.example.yaml # Standalone single-service compose
-    │       └── .env.example
+    │   ├── openui/                   # Generative-UI service (see its README)
+    │   │   ├── app/                  # Next.js 16 + LangGraph scaffold, Dockerfile included
+    │   │   ├── mcp-bridge.mjs        # stdio MCP bridge: generate_ui, preview_url
+    │   │   ├── docker-compose.example.yaml # Standalone single-service compose
+    │   │   └── .env.example
+    │   └── tools/
+    │       └── openIdea/             # Two-mode GUI container: web/noVNC on 4190, or x11
+    │           ├── Dockerfile        # TARGETARCH-aware; pinned by OPENIDEA_VERSION
+    │           └── certs/            # openIdea's own TLS trust store (contents gitignored)
     ├── sandbox/                      # Session playground (see its README): skeleton tracked, session folders gitignored
     ├── certs/                        # TLS mount point (gitignored, skeleton tracked)
     ├── documentation/wiki/           # NPG Confluence wiki publisher (see its README)
@@ -64,6 +138,7 @@ Each folder carries its own README; start there for detail:
 | [workspace/agents/opencode/engine/](workspace/agents/opencode/engine/README.md) | Workflow State Engine reference: state machine, agents, scripts, scoring |
 | [workspace/agents/opencode/docs/opencode-workflow.md](workspace/agents/opencode/docs/opencode-workflow.md) | Diagrams: offline store to runtime build flow, orchestration state machine |
 | [workspace/agents/openui/](workspace/agents/openui/README.md) | Generative-UI sidecar and its MCP bridge |
+| [workspace/agents/tools/openIdea/](workspace/agents/tools/openIdea/README.md) | Dual-mode GUI container, noVNC and x11 |
 | [workspace/sandbox/](workspace/sandbox/README.md) | Session playground rules |
 | [workspace/documentation/wiki/](workspace/documentation/wiki/README.md) | Confluence wiki publisher |
 
@@ -81,7 +156,7 @@ Six sections: `npm` (tarballs), `pip` (wheels), `bin` (release binaries such as 
 
 ## Certificates
 
-`certs/` carries corporate MITM roots. `detect-zscaler.sh` probes the live wire on every populate run, so rotated roots are re-derived without manual work: it replaces only the `zscaler-autodetected-*.crt` set and never touches manual certificates you placed there. A failed probe changes nothing. The store build then installs everything in `certs/` into its trust store, and the image does the same at build time, so Node, pip, and git all trust the corporate proxy.
+`certs/` carries corporate MITM roots. `detect-zscaler.sh` probes the live wire on every populate run, so rotated roots are re-derived without manual work: it replaces only the `zscaler-autodetected-*.crt` set and never touches manual certificates you placed there. A failed probe changes nothing. The store build then installs everything in `certs/` into its trust store, and the image does the same at build time, so Node, pip, and git all trust the corporate proxy. The openIdea container keeps its own certificates in `workspace/agents/tools/openIdea/certs/`; drop a root there as well when that image build sits behind the same proxy.
 
 ## Enforcement
 
@@ -89,13 +164,35 @@ lean-ctx, the mandatory access layer for reads, search, and shell, ships a baked
 
 - Baseline: `shell_allowlist_extra = ["docker", "sh", "bash", "sudo", "ss"]`, merged onto lean-ctx's built-in read-only allowlist.
 - Extend per environment: add the bare command name to that list and rebuild, or run `lean-ctx allow <cmd>` inside the container, which persists the entry to the same file.
-- Candidates in the template, commented: `opencode` (lets in-container agents verify the CLI and engine version) and `ccc` (the local AST index server, which adds a model download and a CPU cost on first index).
+- Candidates in the template, commented: `opencode` (lets in-container agents verify the CLI and engine version) and `ccc` (the local AST index server for the cocoindex-code MCP, which adds a model download and a CPU cost on first index).
 - Escape hatches: `shell_allowlist = []` drops all extras, `shell_security = "off"` disables shell security checks entirely.
 
 ## Diagrams
 
 All diagrams in this repository follow one standard: Mermaid blocks inside markdown, one diagram per concept, no binary images. The build-to-runtime flow and the orchestration state machine live in [opencode-workflow.md](workspace/agents/opencode/docs/opencode-workflow.md); the stack architecture in the [opencode README](workspace/agents/opencode/README.md); the engine state machine in the [engine README](workspace/agents/opencode/engine/README.md).
 
+```mermaid
+flowchart LR
+    OC["opencode :4096<br/>OpenCode + engine + 6 MCP"]
+    UI["openui :3000<br/>generative UI"]
+    PRE["opencode-preinstall<br/>fills the store"]
+    SCH["scheduler + maintenance<br/>daily engine tasks"]
+    PAGES["utility-digest.pages.dev<br/>repomix digest"]
+    OC <-->|"MCP bridge: generate_ui"| UI
+    PRE -->|"pre-install/<br/>build context"| OC
+    SCH -->|"drift-detect, archive, heal"| OC
+    OC -->|"repomix pack"| PAGES
+```
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Build fails fetching from GitHub behind the corporate proxy | The proxy re-signs TLS with a root the build does not trust | Drop your CA file (`.crt`) into `workspace/agents/opencode/certs/` for the opencode stack, or `workspace/agents/tools/openIdea/certs/` for openIdea, then re-run populate and rebuild |
+| `EBADPLATFORM`, or a missing platform package on x64 | The store held arm64 tarballs; arch now follows `TARGETARCH` at build and `uname -m` at populate | One preinstall run self-heals the store (it prunes the other arch); then rebuild |
+| Store stays on an old package version | The store is the lockfile, so a rebuild alone never moves a version | Re-run the preinstall service: a skip-path prune removes stale copies and a changed version is fetched. The ML closure refreshes only with `REFRESH_ML=1` |
+| An agent cannot run a binary (for example `opencode` or `ccc`) | lean-ctx's baked allowlist does not include it | Add the bare name to `shell_allowlist_extra` in `config/lean-ctx-config.toml` and rebuild, or run `lean-ctx allow <cmd>` inside the container |
+
 ## Contributing and License
 
-This is a personal workspace and not open for external contribution. No LICENSE file ships with the repository; treat the contents as proprietary and internal use only.
+This is an internal repository and is not open for external contribution. Changes are made in place through pull requests, which run the `validate` workflow (JSON validity, shell syntax, cross-references, doc style, contract score) automatically. No LICENSE file ships with the repository; treat the contents as proprietary and for internal use only.

@@ -1155,6 +1155,14 @@
         ],
         "enabled": true
       },
+      "cocoindex-code": {
+        "type": "local",
+        "command": [
+          "ccc",
+          "mcp"
+        ],
+        "enabled": true
+      },
       "openui": {
         "type": "local",
         "command": [
