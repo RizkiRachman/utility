@@ -26,13 +26,16 @@ symbol lookup, use lean-ctx. For documentation, use rag.
 
 - `pipx install "cocoindex-code[full]"` — pinned via
   `ARG COCOINDEX_CODE_VERSION` in `../../Dockerfile`.
-- The `[full]` extra bundles **local sentence-transformers embeddings**
-  (`torch` + `transformers`). No embedding API key is needed and search works
-  offline once the model is cached locally.
-- **Image size note:** this extra is heavy (torch pulls a large dependency
-  tree). The size cost is accepted deliberately: it buys keyless, offline
-  embedding, which matches the offline-first house style of every other baked
-  MCP server. It is documented, not engineered around.
+- The embedding closure is **local sentence-transformers embeddings**
+  (`torch` + `transformers` + `sentence-transformers`). No embedding API key is
+  needed and search works offline once the model is cached locally.
+- **Image size note:** embeddings wind up at ~200 MB, not ~2-3 GB. The
+  network tier resolves `torch` from `https://download.pytorch.org/whl/cpu`
+  (`PIP_EXTRA_INDEX_URL`), so pip picks the CPU wheel instead of the PyPI CUDA
+  build and its `nvidia-*` closure. The CPU wheel carries a `+cpu` local
+  version, which sorts higher than the plain PyPI version, so no pin is needed.
+  The size cost is accepted deliberately: it buys keyless, offline embedding,
+  which matches the offline-first house style of every other baked MCP server.
 - Python 3.11.2 (bookworm) satisfies the upstream 3.11–3.13 requirement.
 - Wheel-first: if `/pi/pip/cocoindex_code-*.whl` exists in the preinstall
   store it is installed from there with `PIP_FIND_LINKS`/`PIP_NO_INDEX`; the
@@ -45,7 +48,9 @@ symbol lookup, use lean-ctx. For documentation, use rag.
   (air-gap safe: the layer succeeds, `ccc` still works, embeddings just need
   network at runtime). The store often lacks platform-matching torch wheels —
   binary wheels must match the container platform — so the network tier is what
-  normally succeeds there.
+  normally succeeds there. The offline store seeds the same CPU embedding
+  closure via `populate-preinstall.sh`, which downloads the base wheel and then
+  the deps from the CPU index — CUDA is deliberately avoided there too.
 - The block verifies with `ccc --help`, not `ccc --version`: `ccc` is a typer
   CLI and exposes no `--version` flag (it exits 2), which would abort `set -eux`.
 
@@ -101,6 +106,17 @@ ccc search "where is the MCP server registered"
 A successful run prints ranked matches with file paths and line ranges. If the
 first invocation reports a missing model, that is the one-time HuggingFace
 download described above — rerun once it completes.
+
+## Troubleshooting
+
+- **`cocoindex-code` fails to initialize on connect.** opencode logs
+  `FAIL cocoindex-code - no initialize response within 20s`, and
+  `opencode.log` shows `ccc mcp` exited with code 1:
+  `Global settings not found: /home/node/.cocoindex_code/global_settings.yml`.
+  Cause: the global settings file was never created (pre-bake images or
+  hand-built containers). Fix: run `ccc init` once in the container, then
+  restart opencode. Images built from this change onward bake the file at
+  build time (`HOME=/home/node ccc init`), so this only affects older images.
 
 ## Future work
 

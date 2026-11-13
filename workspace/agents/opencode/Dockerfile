@@ -147,6 +147,12 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
 # with a three-tier fallback: store wheels -> network -> warn-only. Only a
 # truly air-gapped build ends in the WARN; ccc still works as a CLI there but
 # without local embeddings.
+# The network tier resolves embeddings to CPU-only torch (~200 MB) via the
+# download.pytorch.org/whl/cpu extra index, NOT the PyPI CUDA closure
+# (~2-3 GB of nvidia-* wheels). The CPU wheel carries a +cpu local version,
+# which sorts higher than the plain PyPI version, so pip prefers it.
+# `ccc init` bakes the global settings file: without it `ccc mcp` exits code 1
+# on first connect (opencode surfaces that as a 20s initialize timeout).
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     --mount=from=preinstall,src=/,dst=/pi,ro \
     set -eux; \
@@ -154,7 +160,7 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
       PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx install /pi/pip/cocoindex_code-*.whl; \
       if ! PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx inject cocoindex-code torch transformers sentence-transformers; then \
         echo "store lacks usable embedding wheels for this platform - trying network" >&2; \
-        if ! pipx inject cocoindex-code torch transformers sentence-transformers; then \
+        if ! PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu pipx inject cocoindex-code torch transformers sentence-transformers; then \
           echo "WARN: embedding deps unavailable (store miss + no network); ccc index will need network at runtime" >&2; \
         fi; \
       fi; \
@@ -162,7 +168,9 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
       pipx install "cocoindex-code[full]==${COCOINDEX_CODE_VERSION}"; \
     fi; \
     command -v ccc; \
-    ccc --help >/dev/null
+    ccc --help >/dev/null; \
+    HOME=/home/node ccc init && test -f /home/node/.cocoindex_code/global_settings.yml || \
+      echo "WARN: ccc global settings not baked - run ccc init at runtime before starting opencode" >&2
 
 # Prepare OpenCode configuration and persistent-data directories.
 RUN mkdir -p \
