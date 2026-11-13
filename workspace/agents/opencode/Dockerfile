@@ -9,6 +9,9 @@ ARG LEAN_CTX_VERSION=3.12.0
 ARG CONTEXT7_VERSION=4.4.4
 ARG MCP_VERSION=2.3.0
 ARG MCP_SERVER_FETCH_VERSION=2026.10.28
+# AST-aware semantic code index (binary: ccc); [full] extra bundles local
+# sentence-transformers embeddings so no embedding API key is needed.
+ARG COCOINDEX_CODE_VERSION=0.2.43
 # Vendored first-party plugin (@firecrawl/opencode) + its runtime dep
 ARG ZOD_VERSION=4.1.8
 ARG FIRECRAWL_CLI_VERSION=1.26.24
@@ -131,6 +134,32 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     JS_DIR="/opt/pipx/venvs/mcp-server-fetch/lib/python3.11/site-packages/readabilipy/javascript"; \
     npm install --prefix "$JS_DIR" --no-audit --no-fund; \
     test -d "$JS_DIR/node_modules/@mozilla/readability"
+
+# Install CocoIndex Code (pipx; wheel-first from the offline store).
+# Baked offline-first like the npm/pipx blocks above: the `ccc` binary IS the
+# MCP server, so nothing extra needs to be baked into the image. The [full]
+# extra pulls torch + transformers for local sentence-transformers embeddings,
+# which makes this layer heavy — accepted deliberately over requiring a cloud
+# embedding API key at runtime, matching the offline-first house style.
+# The embedding model itself downloads from HuggingFace on the FIRST runtime
+# index (see supports/cocoindex/README.md), so build stays network-light.
+# The store wheel carries no [full] extras, so the embedding deps are injected
+# from the same store; if they are missing, ccc still works as a CLI but
+# without local embeddings, so a warning is emitted instead of failing.
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    --mount=from=preinstall,src=/,dst=/pi,ro \
+    set -eux; \
+    if ls /pi/pip/cocoindex_code-*.whl >/dev/null 2>&1; then \
+      PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx install /pi/pip/cocoindex_code-*.whl; \
+      if ! PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx inject cocoindex-code \
+             torch transformers sentence-transformers; then \
+        echo "WARN: /pi/pip lacks [full] embedding deps; ccc index will need network" >&2; \
+      fi; \
+    else \
+      pipx install "cocoindex-code[full]==${COCOINDEX_CODE_VERSION}"; \
+    fi; \
+    command -v ccc; \
+    ccc --version
 
 # Prepare OpenCode configuration and persistent-data directories.
 RUN mkdir -p \
