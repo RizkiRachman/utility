@@ -279,7 +279,7 @@ flock 9 2>/dev/null || true
 # ---------------------------------------------------------------------------
 if [[ "$SKIP_KNOWLEDGE" == false ]]; then
     if command -v lean-ctx >/dev/null 2>&1; then
-        echo -e "${GREEN}[INFO]${NC} Persisting to lean-ctx knowledge (key: orchestration-contract)..."
+        echo -e "${GREEN}[INFO]${NC} Persisting to lean-ctx knowledge (key: orchestration-contract:${TASK_ID})..."
 
         # Build optional flags for lean-ctx
         # Persist via the knowledge CLI adapter (R2-14: deployed CLI is
