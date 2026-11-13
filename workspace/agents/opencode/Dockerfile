@@ -1,20 +1,24 @@
 FROM node:22-bookworm-slim
 
-ARG OPENCODE_VERSION=2.2.5
+# Version ARGs: empty value (the default) = latest; set via compose args to pin.
+# The offline store is the real lockfile - every store tier below is glob-based
+# (<pkg>-*.tgz / <pkg>-*.whl) - so these numbers only matter for the network
+# fallbacks, which use @latest / no version spec while the ARG is empty.
+ARG OPENCODE_VERSION=""
 # Platform package suffix used by the offline store tarball glob
 # (@opencode+cli-linux-<arch>-<version>.tgz). Override for x64 builds:
 # OPENCODE_ARCH=x64 (or x64-baseline depending on store contents).
 ARG OPENCODE_ARCH=arm64
-ARG LEAN_CTX_VERSION=3.12.0
-ARG CONTEXT7_VERSION=4.4.4
-ARG MCP_VERSION=2.3.0
-ARG MCP_SERVER_FETCH_VERSION=2026.10.28
+ARG LEAN_CTX_VERSION=""
+ARG CONTEXT7_VERSION=""
+ARG MCP_VERSION=""
+ARG MCP_SERVER_FETCH_VERSION=""
 # AST-aware semantic code index (binary: ccc); [full] extra bundles local
 # sentence-transformers embeddings so no embedding API key is needed.
-ARG COCOINDEX_CODE_VERSION=0.2.43
+ARG COCOINDEX_CODE_VERSION=""
 # Vendored first-party plugin (@firecrawl/opencode) + its runtime dep
-ARG ZOD_VERSION=4.1.8
-ARG FIRECRAWL_CLI_VERSION=1.26.24
+ARG ZOD_VERSION=""
+ARG FIRECRAWL_CLI_VERSION=""
 
 # Corporate CA certificates.
 # Place PEM certificates with the .crt extension under certs/.
@@ -70,13 +74,16 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
         || npm install -g --no-audit --no-fund \
         /pi/npm/@opencode+cli-*.tgz /pi/npm/@opencode+cli-linux-${OPENCODE_ARCH}-*.tgz; \
     else \
-      npm install -g --no-audit --no-fund "@opencode/cli@${OPENCODE_VERSION}"; \
+      if [ -n "${OPENCODE_VERSION}" ]; then OCK="@${OPENCODE_VERSION}"; else OCK="@latest"; fi; \
+      echo "network fallback: @opencode/cli${OCK} (ARG empty = latest)"; \
+      npm install -g --no-audit --no-fund "@opencode/cli${OCK}"; \
     fi; \
     if ls /pi/npm/@upstash+context7-mcp-*.tgz >/dev/null 2>&1; then \
       npm install -g --offline --no-audit --no-fund /pi/npm/@upstash+context7-mcp-*.tgz \
         || npm install -g --no-audit --no-fund /pi/npm/@upstash+context7-mcp-*.tgz; \
     else \
-      npm install -g --no-audit --no-fund "@upstash/context7-mcp@${CONTEXT7_VERSION}"; \
+      if [ -n "${CONTEXT7_VERSION}" ]; then C7K="@${CONTEXT7_VERSION}"; else C7K="@latest"; fi; \
+      npm install -g --no-audit --no-fund "@upstash/context7-mcp${C7K}"; \
     fi; \
     opencode --version; \
     command -v context7-mcp
@@ -91,9 +98,13 @@ RUN --mount=from=preinstall,src=/,dst=/pi,ro \
     fi; \
     if [ "$store_ok" != true ]; then \
       echo "store lean-ctx missing or wrong-arch — fetching from network"; \
-      curl -fsSL \
-        "https://raw.githubusercontent.com/yvgude/lean-ctx/v${LEAN_CTX_VERSION}/install.sh" \
-        -o /tmp/leanctx-install.sh; \
+      if [ -n "${LEAN_CTX_VERSION}" ]; then \
+        LC_URL="https://raw.githubusercontent.com/yvgude/lean-ctx/v${LEAN_CTX_VERSION}/install.sh"; \
+      else \
+        LC_URL="https://raw.githubusercontent.com/yvgude/lean-ctx/main/install.sh"; \
+      fi; \
+      echo "lean-ctx installer: ${LC_URL} (ARG empty = default branch)"; \
+      curl -fsSL "${LC_URL}" -o /tmp/leanctx-install.sh; \
       chmod +x /tmp/leanctx-install.sh; \
       LEAN_CTX_NO_ONBOARD=1 sh /tmp/leanctx-install.sh --download; \
       install -m 0755 /root/.local/bin/lean-ctx /usr/local/bin/lean-ctx; \
@@ -103,16 +114,23 @@ RUN --mount=from=preinstall,src=/,dst=/pi,ro \
 
 # Docker CLI (client only - talks to the host daemon via the compose socket mount).
 ARG TARGETARCH
+# Network-only package (no store artifact): resolve the latest release at build
+# time; the ARG is the fallback when the GitHub API is unreachable.
 ARG DOCKER_CLI_VERSION=27.3.1
-RUN case "${TARGETARCH}" in \
+RUN set -eux; \
+    DC_LATEST=$(curl -fsSL https://api.github.com/repos/docker/cli/releases/latest 2>/dev/null \
+      | sed -n 's/.*"tag_name": "v\([^"]*\)".*/\1/p' | head -1); \
+    DOCKER_CLI_VERSION="${DC_LATEST:-$DOCKER_CLI_VERSION}"; \
+    echo "docker CLI: ${DOCKER_CLI_VERSION}"; \
+    case "${TARGETARCH}" in \
       arm64) DC_ARCH=aarch64 ;; \
       amd64) DC_ARCH=x86_64 ;; \
       *) DC_ARCH=x86_64 ;; \
-    esac \
- && curl -fsSL "https://download.docker.com/linux/static/stable/${DC_ARCH}/docker-${DOCKER_CLI_VERSION}.tgz" -o /tmp/docker-cli.tgz \
- && tar -xzf /tmp/docker-cli.tgz -C /tmp \
- && install -m 0755 /tmp/docker/docker /usr/local/bin/docker \
- && rm -rf /tmp/docker /tmp/docker-cli.tgz
+    esac; \
+    curl -fsSL "https://download.docker.com/linux/static/stable/${DC_ARCH}/docker-${DOCKER_CLI_VERSION}.tgz" -o /tmp/docker-cli.tgz; \
+    tar -xzf /tmp/docker-cli.tgz -C /tmp; \
+    install -m 0755 /tmp/docker/docker /usr/local/bin/docker; \
+    rm -rf /tmp/docker /tmp/docker-cli.tgz
 
 # Install the fetch MCP server (wheel-first from the offline store).
 ENV PIPX_HOME=/opt/pipx \
@@ -125,7 +143,8 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     if ls /pi/pip/mcp_server_fetch-*.whl >/dev/null 2>&1; then \
       PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx install /pi/pip/mcp_server_fetch-*.whl; \
     else \
-      pipx install "mcp-server-fetch==${MCP_SERVER_FETCH_VERSION}"; \
+      if [ -n "${MCP_SERVER_FETCH_VERSION}" ]; then MSF="==${MCP_SERVER_FETCH_VERSION}"; else MSF=""; fi; \
+      pipx install "mcp-server-fetch${MSF}"; \
     fi; \
     # Bake readabilipy's Readability.js deps: without node_modules in the
     # package dir, the fetch server shells out to `npm install` per request,
@@ -165,7 +184,8 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
         fi; \
       fi; \
     else \
-      pipx install "cocoindex-code[full]==${COCOINDEX_CODE_VERSION}"; \
+      if [ -n "${COCOINDEX_CODE_VERSION}" ]; then CCK="==${COCOINDEX_CODE_VERSION}"; else CCK=""; fi; \
+      pipx install "cocoindex-code[full]${CCK}"; \
     fi; \
     command -v ccc; \
     ccc --help >/dev/null; \
@@ -247,7 +267,7 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
         --prefix /tmp/zod-install /pi/npm/zod-*.tgz; \
     else \
       npm install --no-save --no-package-lock --no-audit --no-fund \
-        --prefix /tmp/zod-install "zod@${ZOD_VERSION}"; \
+        --prefix /tmp/zod-install "zod@${ZOD_VERSION:-latest}"; \
     fi; \
     rm -rf /opt/engine/plugins/opencode-firecrawl/node_modules; \
     mv /tmp/zod-install/node_modules /opt/engine/plugins/opencode-firecrawl/node_modules; \
@@ -256,7 +276,7 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
       npm install -g --offline --no-audit --no-fund /pi/npm/firecrawl-cli-*.tgz \
         || npm install -g --no-audit --no-fund /pi/npm/firecrawl-cli-*.tgz; \
     else \
-      npm install -g --no-audit --no-fund "firecrawl-cli@${FIRECRAWL_CLI_VERSION}"; \
+      npm install -g --no-audit --no-fund "firecrawl-cli@${FIRECRAWL_CLI_VERSION:-latest}"; \
     fi; \
     test -d /opt/engine/plugins/opencode-firecrawl; \
     test -d /opt/engine/plugins/opencode-firecrawl/node_modules/zod; \

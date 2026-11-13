@@ -10,12 +10,10 @@ services:
       additional_contexts:
         preinstall: ./workspace/agents/opencode/pre-install
       args:
-        OPENCODE_VERSION: "2.2.5"  # pinned for reproducible builds
-        GRAPHIFY_VERSION: "0.9.100"
-        LEAN_CTX_VERSION: "3.12.0"
-        CONTEXT7_VERSION: "4.4.4"
-        MCP_VERSION: "2.3.0"
-        MCP_SERVER_FETCH_VERSION: "2026.10.28"
+        # Version pins intentionally absent: the Dockerfile ARG defaults are
+        # empty (latest), and the offline store globs are the real lockfile.
+        # Add e.g. OPENCODE_VERSION: "2.3.0" here only to pin deliberately.
+        OPENCODE_ARCH: "arm64"
     init: true
     mem_limit: 3g
     cpus: 2
