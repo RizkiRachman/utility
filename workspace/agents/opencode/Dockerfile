@@ -151,6 +151,8 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
 # download.pytorch.org/whl/cpu extra index, NOT the PyPI CUDA closure
 # (~2-3 GB of nvidia-* wheels). The CPU wheel carries a +cpu local version,
 # which sorts higher than the plain PyPI version, so pip prefers it.
+# `ccc init` bakes the global settings file: without it `ccc mcp` exits code 1
+# on first connect (opencode surfaces that as a 20s initialize timeout).
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     --mount=from=preinstall,src=/,dst=/pi,ro \
     set -eux; \
@@ -166,7 +168,9 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
       pipx install "cocoindex-code[full]==${COCOINDEX_CODE_VERSION}"; \
     fi; \
     command -v ccc; \
-    ccc --help >/dev/null
+    ccc --help >/dev/null; \
+    HOME=/home/node ccc init && test -f /home/node/.cocoindex_code/global_settings.yml || \
+      echo "WARN: ccc global settings not baked - run ccc init at runtime before starting opencode" >&2
 
 # Prepare OpenCode configuration and persistent-data directories.
 RUN mkdir -p \

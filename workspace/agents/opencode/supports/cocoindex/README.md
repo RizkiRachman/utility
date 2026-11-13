@@ -107,6 +107,17 @@ A successful run prints ranked matches with file paths and line ranges. If the
 first invocation reports a missing model, that is the one-time HuggingFace
 download described above — rerun once it completes.
 
+## Troubleshooting
+
+- **`cocoindex-code` fails to initialize on connect.** opencode logs
+  `FAIL cocoindex-code - no initialize response within 20s`, and
+  `opencode.log` shows `ccc mcp` exited with code 1:
+  `Global settings not found: /home/node/.cocoindex_code/global_settings.yml`.
+  Cause: the global settings file was never created (pre-bake images or
+  hand-built containers). Fix: run `ccc init` once in the container, then
+  restart opencode. Images built from this change onward bake the file at
+  build time (`HOME=/home/node ccc init`), so this only affects older images.
+
 ## Future work
 
 1. **Offline wheel seeding — done.** `agents/opencode/populate-preinstall.sh`
