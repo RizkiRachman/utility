@@ -144,22 +144,25 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
 # The embedding model itself downloads from HuggingFace on the FIRST runtime
 # index (see supports/cocoindex/README.md), so build stays network-light.
 # The store wheel carries no [full] extras, so the embedding deps are injected
-# from the same store; if they are missing, ccc still works as a CLI but
-# without local embeddings, so a warning is emitted instead of failing.
+# with a three-tier fallback: store wheels -> network -> warn-only. Only a
+# truly air-gapped build ends in the WARN; ccc still works as a CLI there but
+# without local embeddings.
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     --mount=from=preinstall,src=/,dst=/pi,ro \
     set -eux; \
     if ls /pi/pip/cocoindex_code-*.whl >/dev/null 2>&1; then \
       PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx install /pi/pip/cocoindex_code-*.whl; \
-      if ! PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx inject cocoindex-code \
-             torch transformers sentence-transformers; then \
-        echo "WARN: /pi/pip lacks [full] embedding deps; ccc index will need network" >&2; \
+      if ! PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx inject cocoindex-code torch transformers sentence-transformers; then \
+        echo "store lacks usable embedding wheels for this platform - trying network" >&2; \
+        if ! pipx inject cocoindex-code torch transformers sentence-transformers; then \
+          echo "WARN: embedding deps unavailable (store miss + no network); ccc index will need network at runtime" >&2; \
+        fi; \
       fi; \
     else \
       pipx install "cocoindex-code[full]==${COCOINDEX_CODE_VERSION}"; \
     fi; \
     command -v ccc; \
-    ccc --version
+    ccc --help >/dev/null
 
 # Prepare OpenCode configuration and persistent-data directories.
 RUN mkdir -p \

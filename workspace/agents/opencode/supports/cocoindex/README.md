@@ -38,6 +38,16 @@ symbol lookup, use lean-ctx. For documentation, use rag.
   store it is installed from there with `PIP_FIND_LINKS`/`PIP_NO_INDEX`; the
   network path (`pipx install "cocoindex-code[full]==${VERSION}"`) is the
   fallback, same as the other pipx/npm blocks.
+- **[full] deps use a three-tier inject fallback** (the store wheel carries no
+  extras, so `torch` + `transformers` + `sentence-transformers` are injected
+  separately): **store wheels** (`PIP_FIND_LINKS=/pi/pip` + `PIP_NO_INDEX`) →
+  **network inject** (builds with connectivity self-heal) → **warn-only**
+  (air-gap safe: the layer succeeds, `ccc` still works, embeddings just need
+  network at runtime). The store often lacks platform-matching torch wheels —
+  binary wheels must match the container platform — so the network tier is what
+  normally succeeds there.
+- The block verifies with `ccc --help`, not `ccc --version`: `ccc` is a typer
+  CLI and exposes no `--version` flag (it exits 2), which would abort `set -eux`.
 
 ## MCP wiring
 
