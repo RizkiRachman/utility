@@ -7,8 +7,14 @@ FROM node:22-bookworm-slim
 ARG OPENCODE_VERSION=""
 # Platform package suffix used by the offline store tarball glob
 # (opencode-cli-linux-<arch>-<version>.tgz - npm pack flattens the scope).
-# OPENCODE_ARCH=x64 (or x64-baseline depending on store contents).
-ARG OPENCODE_ARCH=arm64
+# npm platform names: x64 / arm64. The value is DERIVED from TARGETARCH in the
+# install RUN below, because the tarball must match the image platform - a
+# hardcoded arm64 tarball on an x64 host fails with npm EBADPLATFORM. This ARG
+# is an explicit override for that derivation; empty = follow the platform.
+ARG OPENCODE_ARCH=""
+# Build platform (docker buildx/compose always provides it; amd64 | arm64).
+# Also used by the docker-CLI download block below.
+ARG TARGETARCH
 ARG LEAN_CTX_VERSION=""
 ARG CONTEXT7_VERSION=""
 ARG MCP_VERSION=""
@@ -75,15 +81,26 @@ ENV LANG=C.UTF-8 \
 # the platform tarball `opencode-cli-linux-<arch>-<v>.tgz`, so the CLI and
 # platform globs would overlap and the platform tarball would be installed
 # twice. `opencode-cli-[0-9]*.tgz` matches version tarballs only.
+#
+# Arch follows the build platform (TARGETARCH): docker builds arm64 => arm64,
+# amd64 => x64. OPENCODE_ARCH build arg overrides. Installing the other
+# platform's tarball fails at npm install with EBADPLATFORM.
 RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     --mount=from=preinstall,src=/,dst=/pi,ro \
     set -eux; \
+    case "${TARGETARCH}" in \
+      amd64) OC_ARCH=x64 ;; \
+      arm64) OC_ARCH=arm64 ;; \
+      *) OC_ARCH=x64 ;; \
+    esac; \
+    if [ -n "${OPENCODE_ARCH}" ]; then OC_ARCH="${OPENCODE_ARCH}"; fi; \
+    echo "opencode platform arch: ${OC_ARCH} (TARGETARCH=${TARGETARCH:-unknown})"; \
     if ls /pi/npm/opencode-cli-[0-9]*.tgz >/dev/null 2>&1 \
-       && ls /pi/npm/opencode-cli-linux-${OPENCODE_ARCH}-*.tgz >/dev/null 2>&1; then \
+       && ls /pi/npm/opencode-cli-linux-${OC_ARCH}-*.tgz >/dev/null 2>&1; then \
       npm install -g --offline --no-audit --no-fund \
-        /pi/npm/opencode-cli-[0-9]*.tgz /pi/npm/opencode-cli-linux-${OPENCODE_ARCH}-*.tgz \
+        /pi/npm/opencode-cli-[0-9]*.tgz /pi/npm/opencode-cli-linux-${OC_ARCH}-*.tgz \
         || npm install -g --no-audit --no-fund \
-        /pi/npm/opencode-cli-[0-9]*.tgz /pi/npm/opencode-cli-linux-${OPENCODE_ARCH}-*.tgz; \
+        /pi/npm/opencode-cli-[0-9]*.tgz /pi/npm/opencode-cli-linux-${OC_ARCH}-*.tgz; \
     else \
       if [ -n "${OPENCODE_VERSION}" ]; then OCK="@${OPENCODE_VERSION}"; else OCK="@latest"; fi; \
       echo "network fallback: @opencode/cli${OCK} (ARG empty = latest)"; \
@@ -124,7 +141,7 @@ RUN --mount=from=preinstall,src=/,dst=/pi,ro \
     lean-ctx --version
 
 # Docker CLI (client only - talks to the host daemon via the compose socket mount).
-ARG TARGETARCH
+# TARGETARCH is declared in the top ARG block and used here for the download arch.
 # Network-only package (no store artifact): resolve the latest release at build
 # time; the ARG is the fallback when the GitHub API is unreachable.
 ARG DOCKER_CLI_VERSION=27.3.1
