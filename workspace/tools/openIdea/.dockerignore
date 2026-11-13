@@ -1,0 +1,17 @@
+# NOTE: certs/ MUST NOT be excluded here. The Dockerfile COPYs certs/ to
+# install corporate CA trust before any network fetch, so excluding it makes
+# the build fail behind a TLS-inspecting proxy. Only scratch/artifacts follow.
+
+# User code mount target - never sent to the builder.
+project/*
+!project/.gitkeep
+
+# Scratch and local build artifacts
+sandbox/
+*.deb
+*.AppImage
+*.log
+.git
+.gitignore
+README.md
+docker-compose.example.yaml
