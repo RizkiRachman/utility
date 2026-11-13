@@ -29,6 +29,25 @@ STORE_DIR=$(cd "$(dirname "$0")" && pwd)/pre-install
 mkdir -p "$STORE_DIR/npm" "$STORE_DIR/pip" "$STORE_DIR/bin" "$STORE_DIR/apt" \
   "$STORE_DIR/git" "$STORE_DIR/dist"
 
+# Trust extra root CAs shipped in certs/ (corporate MITM proxies like Zscaler).
+# The preinstall container mounts this repo dir at /repo, so /repo/certs is the
+# committed certs/ folder. Needs root; warn-only so non-root runs still proceed.
+ca_trusted=0
+for crt in /repo/certs/*.crt; do
+  if [ -e "$crt" ]; then
+    if cp "$crt" /usr/local/share/ca-certificates/; then
+      ca_trusted=1
+    else
+      echo "WARN: could not install CA $crt (need root) - proxied TLS hosts may fail" >&2
+    fi
+  fi
+done
+if [ "$ca_trusted" -eq 1 ]; then
+  echo "==> trusting extra root CAs from certs/"
+  update-ca-certificates >/dev/null 2>&1 || \
+    echo "WARN: update-ca-certificates failed - proxied TLS hosts may fail" >&2
+fi
+
 ADDED=0
 SKIPPED=0
 
@@ -147,60 +166,105 @@ cocoindex_wheels_present() {
   return 1
 }
 
-# The base wheel plus the local-embedding closure (torch, transformers,
-# sentence-transformers). The embedding deps come from the CPU torch index
+# Each store artifact has its OWN guard, so a partially-filled store self-heals
+# on re-run: a store holding only the cocoindex-code base wheel no longer blocks
+# the cpu embedding deps fetch (and vice versa).
+
+# True when the cocoindex-code base wheel is already in the store.
+cocoindex_wheels_present() {
+  for f in "$STORE_DIR"/pip/cocoindex_code-*.whl; do
+    if [ -e "$f" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# The cocoindex-code base wheel. Same pip preference as fetch_pip_wheels:
+# fetch venv's pip first.
+fetch_cocoindex_base_wheel() {
+  if [ -x /opt/pipx/venvs/mcp-server-fetch/bin/pip ]; then
+    /opt/pipx/venvs/mcp-server-fetch/bin/pip download --dest "$STORE_DIR/pip" \
+      "cocoindex-code==${COCOINDEX_CODE_VERSION}"
+  else
+    python3 -m pip download --dest "$STORE_DIR/pip" \
+      "cocoindex-code==${COCOINDEX_CODE_VERSION}"
+  fi
+}
+
+# The local-embedding closure (torch, transformers, sentence-transformers).
+# The embedding deps come from the CPU torch index
 # (download.pytorch.org/whl/cpu), NOT plain PyPI: on Linux PyPI's torch is the
 # CUDA build and drags in the whole nvidia-* wheel set (~2-3 GB). The CPU wheel
 # carries a +cpu local version, which sorts higher than the plain PyPI version,
 # so pip prefers it once the extra index is in play. Store grows by roughly
 # 300-400 MB total on the first run (CPU torch ~200 MB + NLP deps), by design
 # (keyless offline embeddings).
+# True when at least one torch wheel is already in the store.
+cpu_embedding_wheels_present() {
+  for f in "$STORE_DIR"/pip/torch-*.whl; do
+    if [ -e "$f" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 # Same pip preference as fetch_pip_wheels: fetch venv's pip first.
-fetch_cocoindex_wheels() {
+fetch_cpu_embedding_wheels() {
   if [ -x /opt/pipx/venvs/mcp-server-fetch/bin/pip ]; then
-    /opt/pipx/venvs/mcp-server-fetch/bin/pip download --dest "$STORE_DIR/pip" \
-      "cocoindex-code==${COCOINDEX_CODE_VERSION}"
     /opt/pipx/venvs/mcp-server-fetch/bin/pip download --dest "$STORE_DIR/pip" \
       --extra-index-url https://download.pytorch.org/whl/cpu \
       torch transformers sentence-transformers
   else
-    python3 -m pip download --dest "$STORE_DIR/pip" \
-      "cocoindex-code==${COCOINDEX_CODE_VERSION}"
     python3 -m pip download --dest "$STORE_DIR/pip" \
       --extra-index-url https://download.pytorch.org/whl/cpu \
       torch transformers sentence-transformers
   fi
 }
 
-echo "==> python wheels (cocoindex-code base + cpu embedding deps)"
+echo "==> python wheels (cocoindex-code base)"
 if cocoindex_wheels_present; then
-  mark_skipped "cocoindex-code wheels (already in store)"
+  mark_skipped "cocoindex-code base wheel (already in store)"
 else
-  fetch_cocoindex_wheels
-  mark_added "cocoindex-code wheels: cocoindex-code==${COCOINDEX_CODE_VERSION} + cpu embedding deps (torch/transformers/sentence-transformers)"
+  fetch_cocoindex_base_wheel
+  mark_added "cocoindex-code base wheel: cocoindex-code==${COCOINDEX_CODE_VERSION}"
+fi
+
+echo "==> python wheels (cpu embedding deps: torch/transformers/sentence-transformers)"
+if cpu_embedding_wheels_present; then
+  mark_skipped "cpu embedding deps (already in store)"
+else
+  fetch_cpu_embedding_wheels
+  mark_added "cpu embedding deps: torch+transformers+sentence-transformers (from download.pytorch.org/whl/cpu)"
 fi
 
 # --------------------------------------------------------------------------
 # bin - release binaries.
 # --------------------------------------------------------------------------
 
-# Fetch the lean-ctx release binary via its install script.
+# Fetch the lean-ctx release binary via its install script. The return status
+# reflects reality: being called inside an if-condition suspends set -e, so
+# every step returns 1 explicitly and the final test proves the binary landed.
 fetch_lean_ctx() {
   HOME=$(mktemp -d)
   curl -fsSL \
     "https://raw.githubusercontent.com/yvgude/lean-ctx/v${LEAN_CTX_VERSION}/install.sh" \
-    -o "$HOME/inst.sh"
-  LEAN_CTX_NO_ONBOARD=1 sh "$HOME/inst.sh" --download
-  cp "$HOME/.local/bin/lean-ctx" "$STORE_DIR/bin/lean-ctx"
-  chmod 0755 "$STORE_DIR/bin/lean-ctx"
+    -o "$HOME/inst.sh" || return 1
+  LEAN_CTX_NO_ONBOARD=1 sh "$HOME/inst.sh" --download || return 1
+  cp "$HOME/.local/bin/lean-ctx" "$STORE_DIR/bin/lean-ctx" || return 1
+  chmod 0755 "$STORE_DIR/bin/lean-ctx" || return 1
   rm -rf "$HOME"
+  test -x "$STORE_DIR/bin/lean-ctx"
 }
 
 echo "==> lean-ctx binary"
-if fetch_if_missing "$STORE_DIR/bin/lean-ctx" fetch_lean_ctx; then
+if [ -e "$STORE_DIR/bin/lean-ctx" ]; then
+  mark_skipped "lean-ctx ${LEAN_CTX_VERSION} (binary already in store)"
+elif fetch_lean_ctx; then
   mark_added "lean-ctx ${LEAN_CTX_VERSION}"
 else
-  mark_skipped "lean-ctx ${LEAN_CTX_VERSION} (binary already in store)"
+  echo "WARN: lean-ctx binary fetch FAILED - store incomplete; builds fall back to network" >&2
 fi
 
 # --------------------------------------------------------------------------
