@@ -1,0 +1,30 @@
+# lean-ctx runtime config, baked into the image at /home/node/.config/lean-ctx/config.toml
+# by the Dockerfile (the COPY right after the opencode.json bake).
+#
+# shell_allowlist_extra = commands merged ON TOP of lean-ctx's built-in
+# read-only allowlist, so ctx_shell accepts them instead of returning
+# [BLOCKED]. It extends the allowlist; it never removes a built-in entry.
+#
+# Adding a command, two ways:
+#   1. at runtime: `lean-ctx allow <cmd>` (the user runs this in their own
+#      terminal; it persists to this file and takes effect immediately), or
+#   2. edit this list and rebuild the image.
+#
+# Escape hatches (only if you accept the loss of command gating):
+#   shell_allowlist = []        # no extra commands at all
+#   shell_security = "off"      # disable shell security checks entirely
+#
+# Keep entries as bare command names. Agents cannot widen their own policy at
+# runtime by design, which is why this ships baked from the repo instead.
+shell_allowlist_extra = ["docker", "sh", "bash", "sudo", "ss"]
+
+# Examples - uncomment deliberately:
+#
+# "opencode" - lets in-container agents call `opencode --version` and verify the
+# engine/CLI version directly instead of trusting the Dockerfile ARG.
+#
+# "ccc" - the local cocoindex-code AST index server (`ccc index`, `ccc search`,
+# `ccc grep`). Add it only if you accept the first-run model download and the
+# CPU/memory cost of a local embedding index.
+#
+# shell_allowlist_extra = ["docker", "sh", "bash", "sudo", "ss", "opencode", "ccc"]

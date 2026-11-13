@@ -223,6 +223,7 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
 # Prepare OpenCode configuration and persistent-data directories.
 RUN mkdir -p \
       /home/node/.config/opencode \
+      /home/node/.config/lean-ctx \
       /home/node/.local/share/opencode \
       /home/node/workspace \
  && chown -R node:node /home/node
@@ -231,16 +232,12 @@ RUN mkdir -p \
 # user (root runtime processes can otherwise create it root-owned first).
 RUN mkdir -p /tmp/opencode && chown node:node /tmp/opencode
 
-# lean-ctx shell allowlist extension: merged on top of the built-in defaults
-# (shell_allowlist_extra per lean-ctx docs config-keys reference) so agent sessions
-# can run docker/sh/bash/sudo/ss through ctx_shell without refusals. Baked at build
-# time because lean-ctx deliberately blocks agents from changing their own policy
-# at runtime — the user approved this expansion explicitly.
-ARG LEAN_CTX_CONFIG_DIR=/home/node/.config/lean-ctx
-RUN mkdir -p ${LEAN_CTX_CONFIG_DIR} \
- && printf 'shell_allowlist_extra = ["docker", "sh", "bash", "sudo", "ss"]\n' \
-      > ${LEAN_CTX_CONFIG_DIR}/config.toml \
- && chown node:node ${LEAN_CTX_CONFIG_DIR}/config.toml
+# lean-ctx config bake: shell_allowlist_extra merges onto the built-in read-only
+# allowlist so agent sessions can run docker/sh/bash/sudo/ss through ctx_shell
+# without refusals. Baked at build time because lean-ctx blocks agents from
+# changing their own policy at runtime. Runtime extensions: `lean-ctx allow <cmd>`;
+# escape hatches and the opencode/ccc examples are commented in the shipped file.
+COPY --chown=node:node config/lean-ctx-config.toml /home/node/.config/lean-ctx/config.toml
 
 # Install the entrypoint and normalize Windows CRLF line endings.
 # (Placed before COPY engine/ so engine edits don't invalidate these layers.)

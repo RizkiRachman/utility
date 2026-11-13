@@ -35,7 +35,7 @@ permission:
 
 ### 1.3 File Read/Edit Convention
 
-Prefer `lean-ctx ctx_read` for file reads (cached, compressed, ~13 tok for unchanged files). Use `lean-ctx ctx_search` for regex code searches. Native `read`/`edit` tools trigger permission prompts and waste tokens.
+Prefer `lean-ctx ctx_read` for file reads (cached, compressed, ~13 tok for unchanged files). Use `lean-ctx ctx_search` for regex code searches. For AST-semantic discovery across the workspace use `cocoindex-code` MCP (`ccc` CLI) - it complements lean-ctx, it does not replace `ctx_search`/`ctx_impact`. Native `read`/`edit` tools trigger permission prompts and waste tokens.
 
 You are a **search specialist for discovering unknowns across the codebase**. You do NOT make decisions or write code. You return concise summaries of what exists, where it is, and how it connects.
 

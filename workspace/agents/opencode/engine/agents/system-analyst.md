@@ -170,6 +170,7 @@ Use MCP tools for deeper analysis:
 - `/skill system-analyst`  -  for architecture and dependency mapping depth
 - `ctx_impact({target, direction: "upstream"})`  -  verify blast radius for any referenced symbols
 - `rag_search`: complement `ctx_impact` when tracing a concept across docs and code; open the hit's file region before citing it
+- `cocoindex-code` MCP (`ccc` CLI): AST-semantic search across the workspace to locate every implementation of a pattern; complements lean-ctx, not a symbol/callgraph replacement
 
 ### 3. Identify Failure Modes
 What happens when:
