@@ -29,6 +29,14 @@ STORE_DIR=$(cd "$(dirname "$0")" && pwd)/pre-install
 mkdir -p "$STORE_DIR/npm" "$STORE_DIR/pip" "$STORE_DIR/bin" "$STORE_DIR/apt" \
   "$STORE_DIR/git" "$STORE_DIR/dist"
 
+# Fresh host? Probe the network for TLS interception (e.g. Zscaler) and seed
+# certs/ automatically so the trust block below - and future runs - pick it up.
+# Best-effort: a failed probe must not abort the store population.
+if ! ls /repo/certs/*.crt >/dev/null 2>&1; then
+  echo "==> probing network for TLS interception (no local root CAs found)"
+  sh /repo/detect-zscaler.sh /repo/certs || true
+fi
+
 # Trust extra root CAs shipped in certs/ (corporate MITM proxies like Zscaler).
 # The preinstall container mounts this repo dir at /repo, so /repo/certs is the
 # committed certs/ folder. Needs root; warn-only so non-root runs still proceed.
