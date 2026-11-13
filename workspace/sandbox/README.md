@@ -8,6 +8,20 @@ Session-scoped playground for every agent. Scratch work lives here, one folder p
   <img alt="tracked: skeleton only" src="https://img.shields.io/badge/tracked-skeleton%20only-f08a59">
 </p>
 
+## Table of Contents
+
+1. [Why this exists](#why-this-exists)
+2. [Quick start](#quick-start)
+3. [Rules](#rules)
+4. [Naming](#naming)
+5. [Layout](#layout)
+6. [Lifecycle](#lifecycle)
+7. [Ports](#ports)
+8. [What is tracked](#what-is-tracked)
+9. [FAQ](#faq)
+10. [Enforcement](#enforcement)
+11. [License](#license)
+
 ## Why this exists
 
 Agents need somewhere to run probes, clone a repo, render a page, or keep a throwaway build. Without a shared convention that work lands in repo paths, in `/tmp`, or on top of another session's files, and the friction shows up as overwritten artifacts, colliding dev-server ports, secrets in git, and a repo full of debris.

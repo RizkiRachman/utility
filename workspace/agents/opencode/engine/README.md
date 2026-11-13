@@ -4,16 +4,18 @@
 
 Contract-driven state machine orchestration engine for AI agent workflows: 17 agents, 45 skills, gated scoring on every delegation.
 
-![states](https://img.shields.io/badge/states-8%2B1-0969DA?style=for-the-badge)
-![agents](https://img.shields.io/badge/agents-17-8250DF?style=for-the-badge)
-![skills](https://img.shields.io/badge/skills-45-1F883D?style=for-the-badge)
-![scripts](https://img.shields.io/badge/scripts-40-BF8700?style=for-the-badge)
+<p>
+  <img alt="states: 8 + BLOCKED" src="https://img.shields.io/badge/states-8%20%2B%20BLOCKED-0969DA">
+  <img alt="agents: 17" src="https://img.shields.io/badge/agents-17-8250DF">
+  <img alt="skills: 45" src="https://img.shields.io/badge/skills-45-1F883D">
+  <img alt="gate: score 70" src="https://img.shields.io/badge/gate-score%2070-BF8700">
+</p>
 
-**Purpose.** Agent work is easy to run and hard to trust: outputs drift, decisions vanish, and a confident answer ships unchecked. The engine makes behavior predictable by routing every request through a contract state machine with hard gates, keeps reasoning persistent in one task-namespaced session envelope plus a knowledge store, and stays efficient through a lean baked surface and explicit token budgets.
+Agent work is easy to run and hard to trust: outputs drift, decisions vanish, and a confident answer ships unchecked. The engine routes every request through a contract state machine with hard gates, keeps reasoning persistent in one task-namespaced session envelope plus a knowledge store, and stays efficient through a lean baked surface with explicit token budgets.
 
-**Concept.** Bake is the bundle: one container ships OpenCode, lean-ctx, five registered MCP servers (context7, fetch, lean-ctx, openui, rag), the vendored Firecrawl plugin, 45 skills, and deny-first workflow enforcement. There is no first-boot assembly step and no runtime package fetch, so the first boot is fully operational. The canonical instruction file is [`agent.md`](agent.md), loaded as `instructions[0]` by every agent.
+One container ships OpenCode, lean-ctx, five registered MCP servers (context7, fetch, lean-ctx, openui, rag), the vendored Firecrawl plugin, 45 skills, and deny-first workflow enforcement. There is no first-boot assembly step and no runtime package fetch, so the first boot is fully operational. The canonical instruction file is [`agent.md`](agent.md), loaded as `instructions[0]` by every agent.
 
-**Reasoning.** Storage and workflow are separate concerns. Git stores source, but the workflow assumes no VCS: services arrive with their own patterns, users connect and prepare their own repositories, and they instruct the agent in plain terms. `sandbox/` is the user playground, and any forge works, or none.
+Storage and workflow are separate concerns. Git stores source, but the workflow assumes no VCS: services arrive with their own patterns, users prepare their own repositories, and they instruct the agent in plain terms. `sandbox/` is the user playground, and any forge works, or none. The state machine, scoring thresholds and script inventory below are the operating contract.
 
 ## Design principles
 

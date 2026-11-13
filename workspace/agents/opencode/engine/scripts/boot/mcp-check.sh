@@ -1,5 +1,5 @@
 #!/bin/sh
-# boot/mcp-check.sh — MCP readiness preflight gate (sourced by entrypoint.sh)
+# boot/mcp-check.sh - MCP readiness preflight gate (sourced by entrypoint.sh)
 #
 # Probes every enabled `local` MCP server from the OpenCode config with a
 # JSON-RPC `initialize` handshake so a dead MCP is detected at boot instead
@@ -7,8 +7,8 @@
 # entrypoint, so no bashisms.
 #
 # The baked surface is deny-first: the built-in servers (lean-ctx, context7,
-# fetch, rag) ship with the image and must answer or the boot fails; optional
-# servers (openui) only warn.
+# fetch, rag, cocoindex-code) ship with the image and must answer or the boot
+# fails; optional servers (openui) only warn.
 #
 # Env consumed (defaults live in entrypoint.sh):
 #   MCP_CHECK_ENABLED         true|false  enable the preflight (default: true)
@@ -25,7 +25,12 @@
 
 # Built-in servers ship with the image and must answer; anything else is
 # optional and warn-only. Space-separated, matched exactly.
-MCP_CHECK_BUILTIN="${MCP_CHECK_BUILTIN:-lean-ctx context7 fetch rag}"
+#
+# cocoindex-code counts as built-in: the `ccc` wheel is baked into the image and
+# the Dockerfile hard-fails the build when it is missing, so a boot without it
+# means a broken image. Deny-first is correct here - the JSON-RPC initialize
+# handshake above proves the server answers before boot depends on it.
+MCP_CHECK_BUILTIN="${MCP_CHECK_BUILTIN:-lean-ctx context7 fetch rag cocoindex-code}"
 
 # Defensive defaults so the module also works when sourced standalone (the
 # entrypoint normally sets all of these before sourcing).
@@ -125,7 +130,7 @@ mcp_check_servers() {
     cmd=$(jq -r --arg n "$name" '((.mcp.servers // .mcp) // {})[$n].command | @sh' "$MCP_CHECK_CONFIG")
 
     if ! eval "set -- $cmd"; then
-      echo "[entrypoint]   FAIL  $name — malformed command in config" >&2
+      echo "[entrypoint]   FAIL  $name: malformed command in config" >&2
       failures=$((failures + 1))
       if mcp_is_builtin "$name"; then critical=$((critical + 1)); fi
       continue
@@ -134,7 +139,7 @@ mcp_check_servers() {
     bin="$1"
 
     if ! command -v "$bin" >/dev/null 2>&1; then
-      echo "[entrypoint]   FAIL  $name — executable '$bin' not found" >&2
+      echo "[entrypoint]   FAIL  $name: executable '$bin' not found" >&2
       failures=$((failures + 1))
       if mcp_is_builtin "$name"; then critical=$((critical + 1)); fi
       continue
@@ -143,9 +148,9 @@ mcp_check_servers() {
     response=$(printf '%s\n' "$init" | timeout -k 5 "$MCP_CHECK_TIMEOUT" "$@" 2>/dev/null || true)
 
     if printf '%s' "$response" | grep -q '"result"'; then
-      echo "[entrypoint]   OK    $name — connected"
+      echo "[entrypoint]   OK    $name: connected"
     else
-      echo "[entrypoint]   FAIL  $name — no initialize response within ${MCP_CHECK_TIMEOUT}s" >&2
+      echo "[entrypoint]   FAIL  $name: no initialize response within ${MCP_CHECK_TIMEOUT}s" >&2
       failures=$((failures + 1))
       if mcp_is_builtin "$name"; then critical=$((critical + 1)); fi
     fi
