@@ -261,6 +261,7 @@ Every retrieval question has exactly one right tool. Query the wrong layer and y
 |------|------|------|
 | Exact symbol, callers, blast radius | `ctx_search` symbol / `ctx_impact` | grep sweeps across files |
 | "How does our code do X" | `rag_search` | opening many files to re-derive |
+| AST-aware semantic code search, cross-repo | `ccc` CLI / cocoindex-code MCP | not for impact/callgraph (lean-ctx) or docs (rag) |
 | Library / framework API | `context7` | guessing from memory, random web search |
 | Errors, issues, PR discussions | `firecrawl_developer_search` | broad web search |
 | Single known page | `fetch` | scrape-first patterns |
@@ -281,6 +282,7 @@ One owner per capability; agents must use the designated tool, not a parallel pa
 | Repo reads, search, shell | lean-ctx (`ctx_read`/`ctx_search`/`ctx_shell`) | Mandatory access layer; native read/bash bypass = governance violation |
 | Library / framework docs | context7 | Official docs lookup; never guess from memory |
 | Semantic workspace search | rag (`rag_search`) | Discovery across the workspace; verify hits before editing |
+| AST semantic code index | cocoindex-code MCP | complements lean-ctx; not a symbol/callgraph replacement |
 | Single known page | fetch | Keyless one-off HTTP GET |
 | Broad web search | websearch | Current events beyond library docs |
 | Issues / PRs / READMEs | firecrawl_developer_search | Primary-source passages, keyless |
