@@ -6,7 +6,7 @@ FROM node:22-bookworm-slim
 # fallbacks, which use @latest / no version spec while the ARG is empty.
 ARG OPENCODE_VERSION=""
 # Platform package suffix used by the offline store tarball glob
-# (@opencode+cli-linux-<arch>-<version>.tgz). Override for x64 builds:
+# (opencode-cli-linux-<arch>-<version>.tgz - npm pack flattens the scope).
 # OPENCODE_ARCH=x64 (or x64-baseline depending on store contents).
 ARG OPENCODE_ARCH=arm64
 ARG LEAN_CTX_VERSION=""
@@ -64,23 +64,34 @@ ENV LANG=C.UTF-8 \
 # Context7 is baked (not npx) so library docs lookup works on
 # offline / CA-restricted corporate networks without a runtime download.
 # Tarball-first from the offline store (/pi/npm), network as fallback.
+#
+# Store filenames are what `npm pack <scoped-pkg>` actually writes: the scope
+# is flattened to a plain prefix, with no @ or + and no nested directory
+# (`npm pack @opencode/cli` -> opencode-cli-<v>.tgz). populate-preinstall.sh
+# prunes older versions on each bump, so these globs stay single-match - which
+# is what makes `npm install -g /pi/npm/opencode-cli-*.tgz` safe.
+#
+# The CLI glob must start with a digit: `opencode-cli-*.tgz` would ALSO match
+# the platform tarball `opencode-cli-linux-<arch>-<v>.tgz`, so the CLI and
+# platform globs would overlap and the platform tarball would be installed
+# twice. `opencode-cli-[0-9]*.tgz` matches version tarballs only.
 RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     --mount=from=preinstall,src=/,dst=/pi,ro \
     set -eux; \
-    if ls /pi/npm/@opencode+cli-*.tgz >/dev/null 2>&1 \
-       && ls /pi/npm/@opencode+cli-linux-${OPENCODE_ARCH}-*.tgz >/dev/null 2>&1; then \
+    if ls /pi/npm/opencode-cli-[0-9]*.tgz >/dev/null 2>&1 \
+       && ls /pi/npm/opencode-cli-linux-${OPENCODE_ARCH}-*.tgz >/dev/null 2>&1; then \
       npm install -g --offline --no-audit --no-fund \
-        /pi/npm/@opencode+cli-*.tgz /pi/npm/@opencode+cli-linux-${OPENCODE_ARCH}-*.tgz \
+        /pi/npm/opencode-cli-[0-9]*.tgz /pi/npm/opencode-cli-linux-${OPENCODE_ARCH}-*.tgz \
         || npm install -g --no-audit --no-fund \
-        /pi/npm/@opencode+cli-*.tgz /pi/npm/@opencode+cli-linux-${OPENCODE_ARCH}-*.tgz; \
+        /pi/npm/opencode-cli-[0-9]*.tgz /pi/npm/opencode-cli-linux-${OPENCODE_ARCH}-*.tgz; \
     else \
       if [ -n "${OPENCODE_VERSION}" ]; then OCK="@${OPENCODE_VERSION}"; else OCK="@latest"; fi; \
       echo "network fallback: @opencode/cli${OCK} (ARG empty = latest)"; \
       npm install -g --no-audit --no-fund "@opencode/cli${OCK}"; \
     fi; \
-    if ls /pi/npm/@upstash+context7-mcp-*.tgz >/dev/null 2>&1; then \
-      npm install -g --offline --no-audit --no-fund /pi/npm/@upstash+context7-mcp-*.tgz \
-        || npm install -g --no-audit --no-fund /pi/npm/@upstash+context7-mcp-*.tgz; \
+    if ls /pi/npm/upstash-context7-mcp-*.tgz >/dev/null 2>&1; then \
+      npm install -g --offline --no-audit --no-fund /pi/npm/upstash-context7-mcp-*.tgz \
+        || npm install -g --no-audit --no-fund /pi/npm/upstash-context7-mcp-*.tgz; \
     else \
       if [ -n "${CONTEXT7_VERSION}" ]; then C7K="@${CONTEXT7_VERSION}"; else C7K="@latest"; fi; \
       npm install -g --no-audit --no-fund "@upstash/context7-mcp${C7K}"; \

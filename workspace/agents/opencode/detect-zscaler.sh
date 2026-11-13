@@ -9,20 +9,38 @@
 # is a sufficient trust anchor for openssl/curl. All chain certs that mention
 # Zscaler are saved.
 #
-# populate-preinstall.sh calls this on a fresh host (certs/ empty), then trusts
-# whatever landed there. certs/ stays gitignored - it now self-seeds.
+# ROTATION-READY: the probe runs on EVERY invocation and the autodetected set
+# is replaced, not appended to. Corporate MITM roots rotate (new intermediates,
+# new pinning), so a once-captured cert goes stale silently; re-deriving it
+# from the live wire each run keeps the store trusted. This is why
+# populate-preinstall.sh calls the detector unconditionally: it is safe to run
+# on a schedule.
+#
+# Cert ownership split (the whole refresh rule):
+#   zscaler-autodetected-*.crt  the detector's OUTPUT set - deleted and
+#                               rewritten on every interception-found run.
+#   any other *.crt             MANUAL certs - never touched, never counted
+#                               as "already handled", never pruned.
+#
+# populate-preinstall.sh calls this on every run, then trusts whatever landed
+# in certs/. certs/ stays gitignored - it self-seeds and self-refreshes.
 #
 # Usage: sh detect-zscaler.sh [output-dir] [probe-host]
 #   output-dir  default: <script-dir>/certs   (created if missing)
 #   probe-host  default: github.com
 #
-# Exit 0 = interception found, cert(s) written (or already present)
-# Exit 1 = no interception detected (direct, clean chain)
-# Exit 2 = environment/probe failure (openssl missing, no route to 443)
+# Exit 0 = interception found, autodetected cert set refreshed
+# Exit 1 = no interception detected (direct, clean chain; stale autodetected
+#          certs removed)
+# Exit 2 = environment/probe failure (openssl missing, no route to 443) -
+#          certs are left untouched because nothing could be verified
 #
 # Extraction is exposed as extract_zscaler_certs() for direct unit testing:
 #   ZSHARED=1 . ./detect-zscaler.sh      # source without running main
 set -u
+
+# Prefix of the files this script owns. Anything else in out_dir is manual.
+AUTODETECTED_PREFIX="zscaler-autodetected-"
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
@@ -31,13 +49,20 @@ err()  { echo "ERROR: $*" >&2; }
 
 # Extract certs mentioning Zscaler from a raw `s_client -showcerts` dump.
 #
-#   extract_zscaler_certs CHAIN_FILE OUT_DIR
+#   extract_zscaler_certs CHAIN_FILE OUT_DIR [SKIP_FP_FILE]
 #
-# Prints each written file; returns 0 when at least one cert was written
-# (or already existed by fingerprint), 1 when nothing matched.
+# Prints each written file; returns 0 when at least one cert was written, 1
+# when nothing matched.
+#
+# Fingerprint dedupe compares only against files NOT owned by this script
+# (manual certs), plus fingerprints listed in SKIP_FP_FILE (the surviving
+# manual fingerprints, when the caller pre-collected them). The autodetected
+# set is the caller's replace-target: a fresh run must rewrite it, so the old
+# copies must never suppress a re-extraction.
 extract_zscaler_certs() {
   _chain_file=$1
   _out_dir=$2
+  _skip_fp_file=${3:-}
   _zfound=0
 
   _work=$(mktemp -d) || return 1
@@ -74,19 +99,29 @@ extract_zscaler_certs() {
         [ "$_subj" = "$_iss" ] && continue
       fi
 
-      # Fingerprint dedupe: an identical cert already in OUT_DIR is reused, not
-      # rewritten. Keeps re-runs (and duplicate PEMs on the wire) idempotent.
+      # Fingerprint dedupe: only the SURVIVING certs count - manual certs in
+      # OUT_DIR (anything not named zscaler-autodetected-*) plus the caller's
+      # pre-collected manual fingerprint list. The autodetected set is being
+      # replaced, so it must not suppress the fresh extraction.
       _fp=$(openssl x509 -noout -fingerprint -sha256 -in "$_cand" 2>/dev/null) || continue
       [ -n "$_fp" ] || continue
       _dup=0
       for _existing in "$_out_dir"/*.crt; do
         [ -f "$_existing" ] || continue
+        case "${_existing##*/}" in
+          "$AUTODETECTED_PREFIX"*) continue ;;
+        esac
         _efp=$(openssl x509 -noout -fingerprint -sha256 -in "$_existing" 2>/dev/null) || continue
         if [ "$_efp" = "$_fp" ]; then
           _dup=1
           break
         fi
       done
+      if [ "$_dup" -eq 0 ] && [ -n "$_skip_fp_file" ] && [ -s "$_skip_fp_file" ]; then
+        if grep -qxF "$_fp" "$_skip_fp_file"; then
+          _dup=1
+        fi
+      fi
       if [ "$_dup" -eq 1 ]; then
         _zfound=1
         continue
@@ -120,17 +155,31 @@ probe_host() {
   [ -s "$_dest" ]
 }
 
+# Delete this script's autodetected set; prints how many files were removed.
+# Manual certs (any *.crt not carrying AUTODETECTED_PREFIX) are never touched.
+# $1 = out_dir, $2 = "verbose" to print each removal.
+clear_autodetected_certs() {
+  _dir=$1
+  _verbose=${2:-}
+  _removed=0
+  for _crt in "$_dir/$AUTODETECTED_PREFIX"*.crt; do
+    [ -f "$_crt" ] || continue
+    if rm -f "$_crt"; then
+      _removed=$((_removed + 1))
+      [ -n "$_verbose" ] && echo "removed: $_crt"
+    else
+      warn "could not remove $_crt"
+    fi
+  done
+  printf '%s' "$_removed"
+}
+
 main() {
   out_dir=${1:-$SCRIPT_DIR/certs}
   probe_host_default=${2:-github.com}
 
-  # Already seeded? Nothing to detect - the existing CA trust takes over.
-  for _crt in "$out_dir"/*.crt; do
-    if [ -e "$_crt" ]; then
-      echo "root CAs already present in $out_dir - skipping detection"
-      return 0
-    fi
-  done
+  # NO early exit on an existing cert set: autodetected certs go stale when the
+  # corporate root rotates, so every run probes and refreshes its own set.
 
   # openssl is the whole tool; install it in a root preinstall container so the
   # call stays zero-config, and fail cleanly everywhere else.
@@ -162,26 +211,51 @@ main() {
   if [ -z "$_probed" ]; then
     rm -rf "$_tmpdir"
     warn "no TLS handshake succeeded (tried $probe_host_default, www.google.com) - cannot tell direct from intercepted"
+    warn "leaving $out_dir untouched (existing certs kept)"
     return 2
   fi
 
   if ! tr 'A-Z' 'a-z' < "$_chain" | grep -q zscaler; then
     echo "no TLS interception detected (direct chain to $_probed)"
     rm -rf "$_tmpdir"
+    _stale=$(clear_autodetected_certs "$out_dir")
+    echo "no interception - removed $_stale stale autodetected cert(s)"
     return 1
   fi
 
   echo "==> TLS interception detected via $_probed (zscaler in chain)"
-  extract_zscaler_certs "$_chain" "$out_dir"
+
+  # Manual fingerprints are collected BEFORE the autodetected set is cleared,
+  # so a manual cert's fingerprint still suppresses a duplicate write. (The
+  # extractor also rescans surviving manual certs; this list is belt-and-braces
+  # for hosts where the rescan cannot re-read a file.)
+  _manual_fp="$_tmpdir/manual-fingerprints.txt"
+  : > "$_manual_fp"
+  for _crt in "$out_dir"/*.crt; do
+    [ -f "$_crt" ] || continue
+    case "${_crt##*/}" in
+      "$AUTODETECTED_PREFIX"*) continue ;;
+    esac
+    _f=$(openssl x509 -noout -fingerprint -sha256 -in "$_crt" 2>/dev/null) || continue
+    [ -n "$_f" ] && printf '%s\n' "$_f" >> "$_manual_fp"
+  done
+
+  # Replace, never append: drop the old autodetected set first so a rotated
+  # root does not leave the superseded cert trusted forever.
+  _old=$(clear_autodetected_certs "$out_dir")
+  extract_zscaler_certs "$_chain" "$out_dir" "$_manual_fp"
   _rc=$?
   rm -rf "$_tmpdir"
 
   if [ "$_rc" -ne 0 ]; then
     warn "interception detected but no zscaler cert could be extracted from the chain"
+    warn "the previous autodetected set was already removed - re-run when the probe works"
     return 2
   fi
 
-  echo "saved: $out_dir/zscaler-autodetected-*.crt - populate-preinstall.sh will trust these"
+  _fresh=$(ls "$out_dir/$AUTODETECTED_PREFIX"*.crt 2>/dev/null | wc -l | tr -d ' ')
+  echo "refreshed: $_fresh cert(s) in $out_dir (replaced $_old autodetected)"
+  echo "saved: $out_dir/$AUTODETECTED_PREFIX*.crt - populate-preinstall.sh will trust these"
   return 0
 }
 

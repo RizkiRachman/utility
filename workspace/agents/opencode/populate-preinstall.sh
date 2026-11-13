@@ -6,10 +6,17 @@
 # committed or pushed. The store is portable - copy the workspace to another
 # machine and the store comes with it.
 #
-# Idempotent: every artifact follows the same skip-if-exists pattern - when
-# its marker (tarball, wheel, binary, deb, clone dir, zip) is already in the
-# store, the fetch is skipped, so re-runs fetch only what is missing. Root is
-# required only for the apt section. Store sections: npm pip bin apt git dist.
+# Idempotent and VERSION-AWARE: an artifact is skipped only when the SAME
+# version is already in the store; a different version is fetched and the old
+# copies of that package are pruned (the Dockerfile tiers are single-match
+# globs, so two versions on disk break them). Dependency closures are never
+# pruned - add-only, see the version-aware guard header. The torch/transformers
+# closure keeps skip-if-present (huge, slow); REFRESH_ML=1 forces a refresh.
+# Root is required only for the apt section. Sections: npm pip bin apt git dist.
+#
+# Cert refresh: the detector runs on EVERY run before CA trust, so rotated
+# corporate MITM roots are re-derived from the live wire. certs/ keeps manual
+# certs and replaces only zscaler-autodetected-*.crt.
 #
 # Version policy: latest at populate time - the STORE is the lockfile. The
 # Dockerfile store-first tiers are glob-based (...-*.tgz / *-*.whl), so the
@@ -41,6 +48,15 @@ mkdir -p "$STORE_DIR/npm" "$STORE_DIR/pip" "$STORE_DIR/bin" "$STORE_DIR/apt" \
 # Trust extra root CAs shipped in certs/ (corporate MITM proxies like Zscaler).
 # The preinstall container mounts this repo dir at /repo, so /repo/certs is the
 # committed certs/ folder. Needs root; warn-only so non-root runs still proceed.
+#
+# Rotation-ready: refresh auto-detected MITM certs from the live wire on every
+# run (corporate roots rotate). Manual certs in certs/ are never touched.
+# Best-effort: a failed probe must not abort the store population.
+# The trust block below only installs what is in certs/ - it runs after the
+# detector so a freshly refreshed set is what gets trusted.
+echo "==> probing network for TLS interception (cert refresh)"
+sh /repo/detect-zscaler.sh /repo/certs || true
+
 ca_trusted=0
 for crt in /repo/certs/*.crt; do
   if [ -e "$crt" ]; then
@@ -183,32 +199,152 @@ fetch_if_missing() {
 }
 
 # --------------------------------------------------------------------------
-# npm - one tarball per package.
+# version-aware store guards
+#
+# Presence globs alone are wrong in both directions: an artifact already in the
+# store never updates (cocoindex-code stuck on its first version forever), and
+# after a bump the old file LINGERS next to the new one - which breaks the
+# Dockerfile's store tiers, because they are single-match globs
+# (`npm install -g /pi/npm/@opencode+cli-*.tgz` fails with two versions on
+# disk). So: skip only when the SAME version is already stored, otherwise
+# fetch and PRUNE the old copies of that exact package.
+#
+# PRUNE IS CONSERVATIVE BY DESIGN: only the primary artifact's own old files
+# are removed. Dependency-closure wheels (mcp_*, torch, transformers, and
+# friends) are ADD-ONLY - a closure resolved for a new parent may still need an
+# older dependency wheel, and guessing which transitive wheels are dead is how
+# offline installs break. Extra dep wheels are harmless (pip resolves by name
+# and version); missing ones are not.
 # --------------------------------------------------------------------------
 
-# True when a tarball for the package (any version) is already in the store.
-# npm pack writes scoped packages as '@scope+name-<version>.tgz'.
-# $glob is expanded unquoted on purpose (paths in this workspace have no spaces).
-npm_tarball_present() {
-  pkg=${1%@*}
-  case "$pkg" in
-    @*/*) glob="$STORE_DIR/npm/${pkg%%/*}+${pkg#*/}-"*.tgz ;;
-    *)    glob="$STORE_DIR/npm/$pkg-"*.tgz ;;
-  esac
-  for f in $glob; do
-    if [ -e "$f" ]; then
+# Version embedded in a store filename: strips everything up to the last dash
+# before the extension ("opencode-cli-2.3.0.tgz" -> "2.3.0").
+store_version_of() { # store_version_of <file-path>
+  base=${1##*/}
+  base=${base%.*}
+  printf '%s' "${base##*-}"
+}
+
+# Version of a WHEEL filename. Wheel naming is
+# <pkg>-<version>-<python>-<abi>-<platform>.whl, so the version is the SECOND
+# dash field - NOT the last (dashes inside the version's abi/platform tail, and
+# multi-dash package names like cocoindex_code, both defeat store_version_of):
+#   cocoindex_code-0.2.43-py3-none-any.whl          -> 0.2.43
+#   aiohttp-3.14.5-cp311-cp311-manylinux...whl      -> 3.14.5
+wheel_version_of() { # wheel_version_of <file-path>
+  base=${1##*/}
+  base=${base%.whl}
+  printf '%s' "$base" | cut -d- -f2
+}
+
+# 0 when some file matching GLOB (shell glob, may match nothing) holds
+# WANTED-VERSION. The glob is passed QUOTED and word-split inside so a
+# multi-match expansion cannot be mistaken for glob+version arguments.
+#
+#   same_version_in_store '<glob>' <wanted-version>
+#
+# Paths in this workspace have no spaces, so unquoted splitting is deliberate.
+same_version_in_store() {
+  _glob=$1
+  _want=$2
+  for _f in $_glob; do
+    [ -e "$_f" ] || continue
+    if [ "$(store_version_of "$_f")" = "$_want" ]; then
       return 0
     fi
   done
   return 1
 }
 
+# 0 when some wheel matching GLOB already holds WANTED-VERSION (wheel naming).
+same_wheel_version_in_store() {
+  _glob=$1
+  _want=$2
+  for _f in $_glob; do
+    [ -e "$_f" ] || continue
+    if [ "$(wheel_version_of "$_f")" = "$_want" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Delete every match of GLOB whose version differs from KEEP-VERSION.
+#
+#   prune_old_versions '<glob>' <keep-version>
+#
+# Prints each removed path. Sibling packages that share a filename prefix
+# (opencode-cli-* vs opencode-cli-linux-*) are never in the same glob: each
+# caller passes the tightest pattern for its own artifact.
+prune_old_versions() {
+  _glob=$1
+  _keep=$2
+  for _f in $_glob; do
+    [ -e "$_f" ] || continue
+    if [ "$(store_version_of "$_f")" != "$_keep" ]; then
+      if rm -f "$_f"; then
+        echo "  pruned:  $_f (kept $_keep)"
+      else
+        echo "WARN: could not prune $_f" >&2
+      fi
+    fi
+  done
+}
+
+# Wheel flavour of prune_old_versions (see wheel_version_of for the naming).
+prune_old_wheel_versions() {
+  _glob=$1
+  _keep=$2
+  for _f in $_glob; do
+    [ -e "$_f" ] || continue
+    if [ "$(wheel_version_of "$_f")" != "$_keep" ]; then
+      if rm -f "$_f"; then
+        echo "  pruned:  $_f (kept $_keep)"
+      else
+        echo "WARN: could not prune $_f" >&2
+      fi
+    fi
+  done
+}
+
+# --------------------------------------------------------------------------
+# npm - one tarball per package.
+# --------------------------------------------------------------------------
+
+# Store glob for an npm package spec (version stripped). This npm writes scoped
+# packages WITHOUT the @scope/ or + separator:
+#   @upstash/context7-mcp@4.7.0 -> upstash-context7-mcp-4.7.0.tgz
+#   @opencode/cli-linux-arm64    -> opencode-cli-linux-arm64-<v>.tgz
+# (verified with `npm pack @upstash/context7-mcp@4.7.0`). The result is a
+# PATTERN, not a file list - callers pass it quoted to the guard helpers, which
+# split it.
+npm_store_glob() {
+  pkg=${1%@*}
+  case "$pkg" in
+    @*/*)
+      # @scope/name -> scope-name-*.tgz (drop the @, turn the / into -)
+      _scope=${pkg%%/*}
+      _name=${pkg#*/}
+      printf '%s' "$STORE_DIR/npm/${_scope#@}-${_name}-*.tgz" ;;
+    *)    printf '%s' "$STORE_DIR/npm/$pkg-*.tgz" ;;
+  esac
+}
+
+# Pack PKG@VERSION unless that exact version is already in the store; on a
+# fetch, prune the package's older tarballs so the Dockerfile's single-match
+# glob (@opencode+cli-*.tgz) can never see two versions. Deps inside the
+# tarballs stay untouched - npm install -g resolves them at install time from
+# its own store tier, not from sibling files here.
 npm_maybe_pack() {
-  if npm_tarball_present "$1"; then
-    mark_skipped "$1 (tarball already in store)"
+  spec=$1
+  ver=${spec##*@}
+  glob=$(npm_store_glob "$spec")
+  if same_version_in_store "$glob" "$ver"; then
+    mark_skipped "$spec (same version in store)"
   else
-    npm pack "$1" --pack-destination "$STORE_DIR/npm"
-    mark_added "$1"
+    npm pack "$spec" --pack-destination "$STORE_DIR/npm"
+    prune_old_versions "$glob" "$ver"
+    mark_added "$spec"
   fi
 }
 
@@ -227,16 +363,6 @@ npm_maybe_pack "firecrawl-cli@${FIRECRAWL_CLI_VERSION}"
 # pip - full wheel closure.
 # --------------------------------------------------------------------------
 
-# True when at least one wheel is already in the store.
-pip_wheels_present() {
-  for f in "$STORE_DIR"/pip/*.whl; do
-    if [ -e "$f" ]; then
-      return 0
-    fi
-  done
-  return 1
-}
-
 # The container ships pipx but NOT python3-pip; prefer the fetch venv's pip
 # and fall back to python3 -m pip (e.g. on a dev host).
 fetch_pip_wheels() {
@@ -249,27 +375,26 @@ fetch_pip_wheels() {
   fi
 }
 
+# Guarded by the PRIMARY artifact (the mcp_server_fetch wheel): the closure is
+# one `pip download`, so a new mcp-server-fetch version must refetch the whole
+# closure - its deps may have moved with it. Pruning is primary-only: the dep
+# wheels stay add-only (see the version-aware guard header), which keeps the
+# Dockerfile's mcp_server_fetch-*.whl single-match glob safe while leaving
+# pip's resolver every dependency version it might need.
 echo "==> python wheels (full closure)"
-if pip_wheels_present; then
-  mark_skipped "pip wheels (already in store)"
+if same_wheel_version_in_store "$STORE_DIR/pip/mcp_server_fetch-*.whl" \
+    "$MCP_SERVER_FETCH_VERSION"; then
+  mark_skipped "pip wheels: mcp-server-fetch==${MCP_SERVER_FETCH_VERSION} (same version in store)"
 else
   fetch_pip_wheels
+  prune_old_wheel_versions "$STORE_DIR/pip/mcp_server_fetch-*.whl" \
+    "$MCP_SERVER_FETCH_VERSION"
   mark_added "pip wheels: mcp==${MCP_VERSION}, mcp-server-fetch==${MCP_SERVER_FETCH_VERSION}"
 fi
 
 # Each store artifact has its OWN guard, so a partially-filled store self-heals
 # on re-run: a store holding only the cocoindex-code base wheel no longer blocks
 # the cpu embedding deps fetch (and vice versa).
-
-# True when the cocoindex-code base wheel is already in the store.
-cocoindex_wheels_present() {
-  for f in "$STORE_DIR"/pip/cocoindex_code-*.whl; do
-    if [ -e "$f" ]; then
-      return 0
-    fi
-  done
-  return 1
-}
 
 # The cocoindex-code base wheel. Same pip preference as fetch_pip_wheels:
 # fetch venv's pip first.
@@ -291,6 +416,18 @@ fetch_cocoindex_base_wheel() {
 # so pip prefers it once the extra index is in play. Store grows by roughly
 # 300-400 MB total on the first run (CPU torch ~200 MB + NLP deps), by design
 # (keyless offline embeddings).
+#
+# This closure KEEPS skip-if-present (unlike the version-aware artifacts
+# above): it is hundreds of MB and torch's patch releases would re-download it
+# on every populate run. Refresh it deliberately:
+#   - delete pre-install/pip/torch-*.whl, or
+#   - REFRESH_ML=1 sh populate-preinstall.sh
+# REFRESH_ML=1 also prunes the previous torch/transformers/sentence-transformers
+# wheels after the fetch. Those three are the only pruned names - their
+# transitive closure (nvidia-*, huggingface_hub, tokenizers, ...) stays add-only
+# like every other dependency wheel.
+REFRESH_ML="${REFRESH_ML:-0}"
+
 # True when at least one torch wheel is already in the store.
 cpu_embedding_wheels_present() {
   for f in "$STORE_DIR"/pip/torch-*.whl; do
@@ -315,16 +452,39 @@ fetch_cpu_embedding_wheels() {
 }
 
 echo "==> python wheels (cocoindex-code base)"
-if cocoindex_wheels_present; then
-  mark_skipped "cocoindex-code base wheel (already in store)"
+if same_wheel_version_in_store "$STORE_DIR/pip/cocoindex_code-*.whl" \
+    "$COCOINDEX_CODE_VERSION"; then
+  mark_skipped "cocoindex-code==${COCOINDEX_CODE_VERSION} (same version in store)"
 else
   fetch_cocoindex_base_wheel
+  prune_old_wheel_versions "$STORE_DIR/pip/cocoindex_code-*.whl" \
+    "$COCOINDEX_CODE_VERSION"
   mark_added "cocoindex-code base wheel: cocoindex-code==${COCOINDEX_CODE_VERSION}"
 fi
 
+# Prune one ML name to its newest stored wheel. Called only after a fetch, but
+# the glob is still checked: with `set -u` a bare `ls` on no match would abort.
+prune_ml_wheels() { # prune_ml_wheels <name>   e.g. torch
+  _newest=
+  for _f in "$STORE_DIR/pip/$1-"*.whl; do
+    [ -e "$_f" ] || continue
+    _newest=$_f
+  done
+  if [ -n "$_newest" ]; then
+    prune_old_wheel_versions "$STORE_DIR/pip/$1-*.whl" "$(wheel_version_of "$_newest")"
+  fi
+}
+
 echo "==> python wheels (cpu embedding deps: torch/transformers/sentence-transformers)"
-if cpu_embedding_wheels_present; then
-  mark_skipped "cpu embedding deps (already in store)"
+if [ "$REFRESH_ML" = "1" ]; then
+  echo "  REFRESH_ML=1 - refetching the ML closure"
+  fetch_cpu_embedding_wheels
+  prune_ml_wheels torch
+  prune_ml_wheels transformers
+  prune_ml_wheels sentence_transformers
+  mark_added "cpu embedding deps: torch+transformers+sentence-transformers (REFRESH_ML=1)"
+elif cpu_embedding_wheels_present; then
+  mark_skipped "cpu embedding deps (already in store - REFRESH_ML=1 to refresh)"
 else
   fetch_cpu_embedding_wheels
   mark_added "cpu embedding deps: torch+transformers+sentence-transformers (from download.pytorch.org/whl/cpu)"
