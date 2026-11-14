@@ -1,3 +1,6 @@
 *
 !.gitignore
 !.gitkeep
+!README.md
+!detect-zscaler.sh
+!sync-certs.sh

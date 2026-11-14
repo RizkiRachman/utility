@@ -124,7 +124,7 @@ Cause: the global settings file was never created, which affects pre-bake images
 
 ## Future work
 
-1. Offline wheel seeding, done. `agents/opencode/populate-preinstall.sh` seeds the `cocoindex-code[full]` closure, the wheel plus the torch/transformers/sentence-transformers tree, into `pre-install/pip/` under its own skip-if-exists guard, the same way `mcp-server-fetch` is seeded. The version comes from `COCOINDEX_CODE_VERSION` in that script, which is env-overridable and must match the Dockerfile default.
+1. Offline wheel seeding, done. `agents/opencode/populate-preinstall.sh` seeds the `cocoindex-code[full]` closure, the wheel plus the torch/transformers/sentence-transformers tree, into the workspace-root `pre-installer/pip/` under its own skip-if-exists guard, the same way `mcp-server-fetch` is seeded. The version comes from `COCOINDEX_CODE_VERSION` in that script, which is env-overridable and must match the Dockerfile default.
 2. Consolidate support code under `supports/`. The rag server currently lives at `agents/opencode/rag/` and will move under `supports/` later. That move is out of scope here.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

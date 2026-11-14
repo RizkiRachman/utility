@@ -1,0 +1,11 @@
+# resolved by populate-preinstall.sh (latest-at-populate-time; env overrides recorded as pins)
+opencode=2.3.0
+opencode-arch=x64
+opencode-platform=2.3.0
+context7=4.7.0
+lean-ctx=3.12.4
+mcp=2.3.0
+mcp-server-fetch=2026.11.11
+cocoindex-code=0.2.43
+zod=4.6.7
+firecrawl-cli=1.29.0

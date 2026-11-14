@@ -11,13 +11,13 @@ The offline store is the lockfile: populate-preinstall resolves the latest versi
 flowchart TB
     subgraph POP["populate-preinstall.sh"]
         direction TB
-        P1["cert probe<br/>detect-zscaler.sh"] --> P2["CA trust<br/>certs/ + update-ca-certificates"]
+        P1["cert probe<br/>certs/detect-zscaler.sh"] --> P2["CA trust<br/>certs/ + update-ca-certificates"]
         P2 --> P3["resolve latest<br/>npm / PyPI / GitHub API"]
         P3 --> P4["fetch + prune<br/>version-aware guards"]
         P4 --> P5["write versions.lock<br/>audit manifest"]
     end
 
-    subgraph STORE["pre-install store (gitignored, portable)"]
+    subgraph STORE["pre-installer store (gitignored, portable)"]
         direction LR
         S1["npm"]
         S2["pip"]

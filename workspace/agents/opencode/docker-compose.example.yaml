@@ -10,7 +10,8 @@ services:
     build:
       context: .
       additional_contexts:
-        preinstall: ./pre-install
+        # Store lives at workspace root (single source shared across submodules)
+        preinstall: ../../pre-installer
       args:
         OPENCODE_VERSION: "2.2.5"  # pinned for reproducible builds
         OPENCODE_ARCH: "arm64"     # matches pre-install store tarballs; x64 builds override

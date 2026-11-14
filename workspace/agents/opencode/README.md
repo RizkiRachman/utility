@@ -11,7 +11,7 @@ Self-hosted OpenCode v2 stack in Docker: workflow-state-engine, lean-ctx, six MC
   <img alt="validate workflow" src="https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg">
 </p>
 
-This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (17 agents, 45 skills, contract-driven scoring), lean-ctx as the mandatory access layer, and six MCP servers: lean-ctx, Context7, fetch, rag, OpenUI, and CocoIndex Code. The image is pre-populated from an offline package store, so builds need no network after the first pull. Versions are resolved once at populate time and recorded in `pre-install/versions.lock`; that manifest is the lockfile, and an env var such as `OPENCODE_VERSION` is the deliberate pin. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md).
+This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (17 agents, 45 skills, contract-driven scoring), lean-ctx as the mandatory access layer, and six MCP servers: lean-ctx, Context7, fetch, rag, OpenUI, and CocoIndex Code. The image is pre-populated from an offline package store, so builds need no network after the first pull. Versions are resolved once at populate time and recorded in `agents/opencode/pre-install/versions.lock`; that manifest is the lockfile, and an env var such as `OPENCODE_VERSION` is the deliberate pin. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md).
 
 ## Table of Contents
 
@@ -41,10 +41,10 @@ docker compose -f docker-compose.example.yaml up -d --build
 open http://127.0.0.1:4096                                   # pairing screen, enter your key once
 ```
 
-The preinstall step fills `pre-install/` for the host arch; skip it only when the store is already populated. Standalone build and run, without the repository compose file:
+The preinstall step fills the workspace-root `pre-installer/` for the host arch; skip it only when the store is already populated. Standalone build and run, without the repository compose file:
 
 ```bash
-docker build --build-context preinstall=./pre-install -t opencode:local .
+docker build --build-context preinstall=../../pre-installer -t opencode:local .
 docker run --rm -it -p 127.0.0.1:4096:4096 \
   -e OPENCODE_API_KEY="<key>" \
   -v "$PWD/config/opencode.json":/home/node/.config/opencode/opencode.json:ro \
@@ -97,7 +97,7 @@ Compose file: [`docker-compose.example.yaml`](../../../docker-compose.example.ya
 | `ZOD_VERSION` | No | empty (store) | zod pin (runtime dep of `@firecrawl/opencode`, resolved once) |
 | `FIRECRAWL_CLI_VERSION` | No | empty (store) | `firecrawl-cli` pin (binary `firecrawl`) |
 
-Version resolution happens at populate time, not at build: `populate-preinstall.sh` asks the registry for the current version of each package, writes the result to `pre-install/versions.lock`, and the Dockerfile consumes the store globs. A resolver failure warns and falls back to the previous pin. To pin deliberately, pass the env var (for example `OPENCODE_VERSION: "2.3.0"` in the compose build args).
+Version resolution happens at populate time, not at build: `populate-preinstall.sh` asks the registry for the current version of each package, writes the result to `agents/opencode/pre-install/versions.lock`, and the Dockerfile consumes the store globs. A resolver failure warns and falls back to the previous pin. To pin deliberately, pass the env var (for example `OPENCODE_VERSION: "2.3.0"` in the compose build args).
 
 Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` (incl. a `firecrawl_alexandria` ask entry), `plugins` (vendored `/opt/engine/plugins/opencode-firecrawl`), `mcp.servers` + `disabled`, `providers.package`, `instructions` (loads `/opt/engine/agent.md` plus `opencode/config/rag-usage.md`, which tells agents to search the rag index before writing code), `update`, `compaction.keep.tokens`; mounted read-only) and `config/opencode-model-fallback.json` (dormant, kept for a future `@opencode/plugin` port).
 
@@ -110,7 +110,7 @@ Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` 
 | `config/opencode.json` | `/home/node/.config/opencode/opencode.json` | Read-only bind mount; restart to apply edits |
 | `config/opencode-model-fallback.json` | `/home/node/.config/opencode/opencode-model-fallback.json` | Read-only, dormant |
 | `opencode-data` (named volume) | `/home/node/.local/share/opencode` | Auth, session store, lean-ctx knowledge store, rag index |
-| `pre-install/` | build context `preinstall` | Offline package store, consumed at build time |
+| `../../pre-installer/` (workspace root) | build context `preinstall` | Offline package store, consumed at build time |
 
 ## MCP Servers
 
@@ -171,7 +171,7 @@ Details: [engine/doc/health-check.md](engine/doc/health-check.md).
 
 ## Offline Pre-Install Store
 
-`pre-install/` holds apt `.deb` files, pip wheels, npm tarballs, git sources, and prebuilt binaries for the host arch: populate reads `uname -m` (`x86_64` to `x64`, `aarch64` to `arm64`) and prunes the other one. The compose `opencode-preinstall` service (profile `tools`) is a throwaway `node:22-bookworm-slim` container that fills it; repeat runs skip everything already present and prune stale copies. The image build consumes the store via the `preinstall` build context; without it, installs fall back to the network and fail in offline environments. The store is gitignored except `.gitkeep` placeholders. The root [README](../../../README.md) covers auto-latest resolution, `versions.lock`, and the ML closure (`REFRESH_ML=1`).
+The workspace-root `pre-installer/` store holds apt `.deb` files, pip wheels, npm tarballs, git sources, and prebuilt binaries for the host arch: populate reads `uname -m` (`x86_64` to `x64`, `aarch64` to `arm64`) and prunes the other one. The compose `opencode-preinstall` service (profile `tools`) is a throwaway `node:22-bookworm-slim` container that fills it; repeat runs skip everything already present and prune stale copies. The image build consumes the store via the `preinstall` build context; without it, installs fall back to the network and fail in offline environments. The store is gitignored by design; only `agents/opencode/pre-install/versions.lock` is tracked. The root [README](../../../README.md) covers auto-latest resolution, `versions.lock`, and the ML closure (`REFRESH_ML=1`).
 
 ## Components
 
@@ -187,7 +187,7 @@ Details: [engine/doc/health-check.md](engine/doc/health-check.md).
 | @firecrawl/opencode | `1.4.0` (ISC, first-party), vendored at `engine/plugins/opencode-firecrawl` ([upstream](https://github.com/firecrawl/opencode-firecrawl)) |
 | firecrawl-cli | npm, binary `firecrawl` |
 
-Every version above lands in `pre-install/versions.lock` when populate runs; that file is the pin record. There is no separate version list to keep in sync.
+Every version above lands in `agents/opencode/pre-install/versions.lock` when populate runs; that file is the pin record. There is no separate version list to keep in sync.
 
 **Custom plugins removed** (`@razroo/opencode-model-fallback@0.3.2`, `@tarquinen/opencode-dcp@3.2.0`, `opencode-websearch-cited@1.2.0`): they target the V1 plugin API and V2 additionally rejects their old `file://<file>` entries (`configured plugin path must be a directory`), so they never loaded. They are dropped from the image and `config/opencode.json` until ported to the `@opencode/plugin` V2 API; no fallback executor→reviewer resilience is active until then. Contrast: the first-party V2-native `@firecrawl/opencode` plugin is adopted offline-vendored at `engine/plugins/opencode-firecrawl` (developer search works keyless out of the box); the community V1-era plugins above remain removed.
 
@@ -203,12 +203,11 @@ opencode/
 │   ├── README.md
 │   ├── test.sh                  # 10-case suite (CLI, Java chunking, MCP, remote embeddings)
 │   └── test/                    # corpus fixtures, embeddings stub, MCP checks
-├── populate-preinstall.sh       # Offline-store bootstrap (run inside preinstall service)
-├── detect-zscaler.sh            # TLS interception probe, refreshes auto-detected certs
+├── populate-preinstall.sh       # Offline-store bootstrap (fills workspace-root pre-installer/)
 ├── .env.template                # Copy to repository-root .env
 ├── config/                      # opencode.json (V2-native, 6 MCP servers), rag-usage.md agent guidance, dormant fallback config, lean-ctx-config.toml
-├── certs/                       # TLS certs placeholder, auto-detected plus manual (contents gitignored)
-├── pre-install/                 # Offline package store (gitignored, versions.lock is the manifest)
+├── certs/                       # TLS certs mirror (synced from workspace-root certs/)
+├── pre-install/                 # versions.lock + .gitkeep only (store at workspace-root pre-installer/)
 ├── session/                     # Live orchestration contract + state log (gitignored)
 ├── sandbox/                     # Session playground, one folder per session (contents gitignored)
 └── engine/                      # Workflow-state-engine -> copied to /opt/engine
@@ -250,7 +249,7 @@ flowchart LR
     OC <-->|"MCP bridge: generate_ui"| UI
     SCH -->|"drift-detect"| G
     MN -->|"archive, heal"| G
-    PRE -->|"fills pre-install,<br/>build context"| OC
+    PRE -->|"fills pre-installer,<br/>build context"| OC
     CI -->|"deploy-digest.yml"| PAGES
 ```
 
@@ -304,7 +303,7 @@ opencode serve attaches to:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Build fails fetching from GitHub behind the corporate proxy | The proxy re-signs TLS with a root the image does not trust | Drop your CA `.crt` into `certs/`, re-run the preinstall service, rebuild. `detect-zscaler.sh` also refreshes auto-detected roots on every populate run |
+| Build fails fetching from GitHub behind the corporate proxy | The proxy re-signs TLS with a root the image does not trust | Drop your CA `.crt` into the workspace-root `certs/` and run `sh certs/sync-certs.sh`, re-run the preinstall service, rebuild. `certs/detect-zscaler.sh` also refreshes auto-detected roots on every populate run |
 | `EBADPLATFORM`, or a missing platform package on x64 | The store held arm64 tarballs; arch now follows `TARGETARCH` at build and `uname -m` at populate | One preinstall run self-heals the store (it prunes the other arch); then rebuild |
 | Store stays on an old package version | The store is the lockfile, so a rebuild alone never moves a version | Re-run the preinstall service: a skip-path prune removes stale copies and a changed version is fetched. The ML closure refreshes only with `REFRESH_ML=1` |
 | An agent cannot run a binary (for example `opencode` or `ccc`) | lean-ctx's baked allowlist does not include it | Add the bare name to `shell_allowlist_extra` in `config/lean-ctx-config.toml` and rebuild, or run `lean-ctx allow <cmd>` inside the container |
@@ -326,7 +325,7 @@ opencode serve attaches to:
 
 Never committed or pushed:
 
-- `pre-install/`: offline package store (gitignored except `.gitkeep` placeholders), with `versions.lock` as the version manifest.
+- `pre-installer/` (workspace root): offline package store (gitignored by design), with `pre-install/versions.lock` (tracked) as the version manifest.
 - `session/`: **project-local runtime state**. Compose mounts the workspace at `/home/node/workspace`, so this `session/` *is* the container's global session directory: `contract.json` (seeded from `engine/contract/contract.template.json` via `snapshot-contract.sh`), `state.md`, `state.example.md` (tracked), `archive/`. Gitignore policy: `session/*` ignored, `state.example.md` negated.
 - `sandbox/`: **session playground**. One folder per live session (`sandbox/<session-slug>/`) for probes, clones, and rendered tests. Tracked: `README.md`, `.gitignore`, `.gitkeep`; everything else is gitignored on the `certs/` pattern. Rules: [sandbox/README.md](../../../sandbox/README.md).
 

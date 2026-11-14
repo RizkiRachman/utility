@@ -1,10 +1,13 @@
 #!/bin/sh
-# Populate the offline package store (pre-install/) used by the Docker build.
+# Populate the offline package store (workspace-root pre-installer/) used by
+# the Docker build.
 #
-# pre-install/ is fully gitignored (except its .gitkeep files): its contents
-# live only on the local disk / inside the workspace volume and are NEVER
-# committed or pushed. The store is portable - copy the workspace to another
-# machine and the store comes with it.
+# The store lives at <workspace-root>/pre-installer/ (env PREINSTALL_STORE
+# overrides) and is fully gitignored: its contents live only on the local
+# disk / inside the workspace volume and are NEVER committed or pushed. The
+# store is portable - copy the workspace to another machine and the store
+# comes with it. Only the version lock (agents/opencode/pre-install/
+# versions.lock) is git-tracked.
 #
 # Idempotent and VERSION-AWARE: an artifact is skipped only when the SAME
 # version is already in the store; a different version is fetched and the old
@@ -19,14 +22,17 @@
 # Root is required only for the apt section. Sections: npm pip bin apt git dist.
 #
 # Cert refresh: the detector runs on EVERY run before CA trust, so rotated
-# corporate MITM roots are re-derived from the live wire. certs/ keeps manual
-# certs and replaces only zscaler-autodetected-*.crt.
+# corporate MITM roots are re-derived from the live wire. certs/ (workspace
+# root, single source) keeps manual certs and replaces only
+# zscaler-autodetected-*.crt; certs/sync-certs.sh mirrors the set into the
+# submodule cert dirs after every run.
 #
 # Version policy: latest at populate time - the STORE is the lockfile. The
 # Dockerfile store-first tiers are glob-based (...-*.tgz / *-*.whl), so the
 # store always governs offline installs; only the network fallbacks care about
 # numbers, and those are now "latest" when the Dockerfile ARG is empty.
-# The exact versions used by this run are written to pre-install/versions.lock.
+# The exact versions used by this run are written to
+# agents/opencode/pre-install/versions.lock (git-tracked).
 # Env overrides (OPENCODE_VERSION=... sh populate-preinstall.sh) win and are
 # the reproducibility escape hatch.
 set -eu
@@ -49,24 +55,34 @@ COCOINDEX_CODE_VERSION="${COCOINDEX_CODE_VERSION:-}"
 ZOD_VERSION="${ZOD_VERSION:-}"
 FIRECRAWL_CLI_VERSION="${FIRECRAWL_CLI_VERSION:-}"
 
-STORE_DIR=$(cd "$(dirname "$0")" && pwd)/pre-install
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+# Store: workspace-root pre-installer/ - the single source shared across all
+# submodules. PREINSTALL_STORE overrides for non-standard checkouts.
+STORE_DIR="${PREINSTALL_STORE:-$REPO_ROOT/pre-installer}"
+# The version lock stays inside the agents/opencode submodule (git-tracked).
+LOCK_FILE="$SCRIPT_DIR/pre-install/versions.lock"
+mkdir -p "$(dirname "$LOCK_FILE")"
 mkdir -p "$STORE_DIR/npm" "$STORE_DIR/pip" "$STORE_DIR/bin" "$STORE_DIR/apt" \
   "$STORE_DIR/git" "$STORE_DIR/dist"
 
-# Trust extra root CAs shipped in certs/ (corporate MITM proxies like Zscaler).
-# The preinstall container mounts this repo dir at /repo, so /repo/certs is the
-# committed certs/ folder. Needs root; warn-only so non-root runs still proceed.
+# Trust extra root CAs from the workspace-root certs/ folder - the single
+# cert source shared across submodules (corporate MITM proxies like Zscaler).
+# Needs root; warn-only so non-root runs still proceed.
 #
 # Rotation-ready: refresh auto-detected MITM certs from the live wire on every
-# run (corporate roots rotate). Manual certs in certs/ are never touched.
+# run (corporate roots rotate). The detector lives in certs/ and seeds the
+# parent folder; certs/sync-certs.sh then mirrors the set into the submodule
+# cert dirs. Manual certs in certs/ are never touched.
 # Best-effort: a failed probe must not abort the store population.
 # The trust block below only installs what is in certs/ - it runs after the
 # detector so a freshly refreshed set is what gets trusted.
 echo "==> probing network for TLS interception (cert refresh)"
-sh /repo/detect-zscaler.sh /repo/certs || true
+sh "$REPO_ROOT/certs/detect-zscaler.sh" "$REPO_ROOT/certs" || true
+sh "$REPO_ROOT/certs/sync-certs.sh" || true
 
 ca_trusted=0
-for crt in /repo/certs/*.crt; do
+for crt in "$REPO_ROOT/certs"/*.crt; do
   if [ -e "$crt" ]; then
     if cp "$crt" /usr/local/share/ca-certificates/; then
       ca_trusted=1
@@ -708,9 +724,9 @@ fi
   printf '%s\n' "cocoindex-code=$COCOINDEX_CODE_VERSION"
   printf '%s\n' "zod=$ZOD_VERSION"
   printf '%s\n' "firecrawl-cli=$FIRECRAWL_CLI_VERSION"
-} > "$STORE_DIR/versions.lock"
+} > "$LOCK_FILE"
 
 echo ""
 echo "==> done: ${ADDED} added, ${SKIPPED} skipped - store at ${STORE_DIR}"
 echo "    sections: npm pip bin apt git dist"
-echo "==> versions locked to pre-install/versions.lock"
+echo "==> versions locked to $LOCK_FILE"

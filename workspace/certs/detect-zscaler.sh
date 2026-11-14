@@ -22,11 +22,13 @@
 #   any other *.crt             MANUAL certs - never touched, never counted
 #                               as "already handled", never pruned.
 #
-# populate-preinstall.sh calls this on every run, then trusts whatever landed
-# in certs/. certs/ stays gitignored - it self-seeds and self-refreshes.
+# populate-preinstall.sh calls this on the workspace-root certs/ - the single
+# cert source - and certs/sync-certs.sh then mirrors the set into the
+# submodule cert dirs. certs/ content stays gitignored - it self-seeds and
+# self-refreshes; only the two scripts are tracked.
 #
 # Usage: sh detect-zscaler.sh [output-dir] [probe-host]
-#   output-dir  default: <script-dir>/certs   (created if missing)
+#   output-dir  default: certs/ - the script's own dir   (created if missing)
 #   probe-host  default: github.com
 #
 # Exit 0 = interception found, autodetected cert set refreshed
@@ -175,7 +177,7 @@ clear_autodetected_certs() {
 }
 
 main() {
-  out_dir=${1:-$SCRIPT_DIR/certs}
+  out_dir=${1:-$SCRIPT_DIR}
   probe_host_default=${2:-github.com}
 
   # NO early exit on an existing cert set: autodetected certs go stale when the
