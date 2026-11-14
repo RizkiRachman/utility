@@ -11,6 +11,7 @@
 *.pem
 *.key
 !*.pub
+docker-compose.yaml
 
 # ---- Orchestration session state (runtime-only) ------------
 session/*
