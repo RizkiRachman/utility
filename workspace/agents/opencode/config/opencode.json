@@ -150,6 +150,19 @@
           "name": "GLM 5.3 Flash"
         }
       }
+    },
+    "openrouter": {
+      "name": "OpenRouter",
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://openrouter.ai/api/v1",
+        "apiKey": "{env:OPENROUTER_API_KEY}"
+      },
+      "models": {
+        "z-ai/glm-5.3-flash": {
+          "name": "GLM-5.3-Flash"
+        }
+      }
     }
   },
   "agents": {

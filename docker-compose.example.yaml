@@ -29,6 +29,7 @@ services:
       OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD:-}
       OPENCODE_CONFIG: /home/node/.config/opencode/opencode.json
       SUMOPOD_API_KEY: ${SUMOPOD_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       SUMOPOD_BASE_URL: ${SUMOPOD_BASE_URL:-https://ai.sumopod.com/v1}
       SUMOPOD_BASE_MODEL: ${SUMOPOD_BASE_MODEL:-glm-5.3-flash}
       SUMOPOD_BASE_MODEL_NAME: ${SUMOPOD_BASE_MODEL_NAME:-glm-5.3-flash}

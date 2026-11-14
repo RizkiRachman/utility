@@ -27,6 +27,7 @@
   "timeout_seconds": 60,
   "notify_on_fallback": true,
   "fallback_models": [
+    "OpenRouter/z-ai/glm-5.3-flash",
     "sumopod/deepseek-flash"
   ]
 }
