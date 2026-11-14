@@ -16,7 +16,7 @@
 #
 # Keep entries as bare command names. Agents cannot widen their own policy at
 # runtime by design, which is why this ships baked from the repo instead.
-shell_allowlist_extra = ["docker", "sh", "bash", "sudo", "ss"]
+shell_allowlist_extra = ["docker", "sh", "bash", "sudo", "ss", "ccc"]
 
 # Examples - uncomment deliberately:
 #
