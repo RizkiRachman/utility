@@ -579,9 +579,20 @@ function walk(root, skipStats) {
 }
 
 function loadFile(abs, relPath) {
-  const st = fs.statSync(abs);
+  let st;
+  try {
+    st = fs.statSync(abs);
+  } catch (e) {
+    return { skip: 'unreadable', size: 0, mtime: 0 };
+  }
   if (st.size > MAX_FILE_SIZE) return { skip: 'size', size: st.size, mtime: st.mtimeMs };
-  const buf = fs.readFileSync(abs);
+  let buf;
+  try {
+    buf = fs.readFileSync(abs);
+  } catch (e) {
+    // Unreadable file (permissions, race with deletion): skip, don't abort the run.
+    return { skip: 'unreadable', size: st.size, mtime: st.mtimeMs };
+  }
   if (buf.includes(0)) return { skip: 'binary', size: st.size, mtime: st.mtimeMs };
   const ext = path.extname(relPath || abs).slice(1).toLowerCase();
   if (EXT_SKIPS.has(ext)) return { skip: 'extension', size: st.size, mtime: st.mtimeMs };
@@ -592,19 +603,28 @@ function loadFile(abs, relPath) {
 // Indexing
 // ---------------------------------------------------------------------------
 
+// SQLite caps host parameters per statement (SQLITE_MAX_VARIABLE_NUMBER:
+// 999 on older builds, 32766 on newer). A bulk purge of thousands of stale
+// files exceeds both, so every IN (...) list here is processed in fixed
+// batches. Safe under the caller's BEGIN/COMMIT transaction.
+const SQL_PARAM_BATCH = 500;
+
 function deleteChunksOfFiles(db, fileIds) {
   if (!fileIds.length) return;
-  const placeholders = fileIds.map(() => '?').join(',');
-  const ids = db.prepare(
-    `SELECT id FROM chunks WHERE file_id IN (${placeholders})`
-  ).all(...fileIds);
-  if (ids.length) {
-    const ph = ids.map(() => '?').join(',');
-    const arg = ids.map((r) => r.id);
-    db.prepare(`DELETE FROM fts WHERE chunk_id IN (${ph})`).run(...arg);
-    db.prepare(`DELETE FROM vectors WHERE chunk_id IN (${ph})`).run(...arg);
+  for (let i = 0; i < fileIds.length; i += SQL_PARAM_BATCH) {
+    const batch = fileIds.slice(i, i + SQL_PARAM_BATCH);
+    const placeholders = batch.map(() => '?').join(',');
+    const chunkIds = db.prepare(
+      `SELECT id FROM chunks WHERE file_id IN (${placeholders})`
+    ).all(...batch);
+    for (let j = 0; j < chunkIds.length; j += SQL_PARAM_BATCH) {
+      const idBatch = chunkIds.slice(j, j + SQL_PARAM_BATCH).map((r) => r.id);
+      const ph = idBatch.map(() => '?').join(',');
+      db.prepare(`DELETE FROM fts WHERE chunk_id IN (${ph})`).run(...idBatch);
+      db.prepare(`DELETE FROM vectors WHERE chunk_id IN (${ph})`).run(...idBatch);
+    }
+    db.prepare(`DELETE FROM chunks WHERE file_id IN (${placeholders})`).run(...batch);
   }
-  db.prepare(`DELETE FROM chunks WHERE file_id IN (${placeholders})`).run(...fileIds);
 }
 
 /**
@@ -621,7 +641,7 @@ async function indexRoot(db, rootRaw) {
   const cfg = embeddingsConfig();
   const stats = {
     root, files: 0, rechunked: 0, purged: 0, skipped_binary: 0,
-    skipped_ext: 0, skipped_name: 0,
+    skipped_ext: 0, skipped_name: 0, skipped_unreadable: 0,
     chunks: 0, dims: null, mode: null, ms: 0,
   };
 
@@ -653,6 +673,7 @@ async function indexRoot(db, rootRaw) {
     const loaded = loadFile(f.abs, f.rel);
     if (loaded.skip === 'binary') { stats.skipped_binary++; continue; }
     if (loaded.skip === 'extension') { stats.skipped_ext++; continue; }
+    if (loaded.skip === 'unreadable') { stats.skipped_unreadable++; continue; }
     if (loaded.skip === 'size') continue;
     const hash = sha256(loaded.buf);
     const prev = existingByPath.get(f.abs);
