@@ -9,6 +9,15 @@
 # is a sufficient trust anchor for openssl/curl. All chain certs that mention
 # Zscaler are saved.
 #
+# MULTI-HOST PROBE: zscaler presents DIFFERENT issuer chains per site, so a
+# single probe host under-covers what clients actually contact. Probing only
+# github.com is why the torch CPU wheel index (download.pytorch.org) failed
+# pip with SSL errors while pypi.org kept working - pypi.org is bypassed by
+# zscaler policy (clean chain), but download.pytorch.org and
+# download.eclipse.org ARE intercepted, each with its own intermediates. Every
+# host in DEFAULT_PROBE_HOSTS is probed on every run; the zscaler certs found
+# across ALL intercepted hosts are merged into one fingerprint-deduped set.
+#
 # ROTATION-READY: the probe runs on EVERY invocation and the autodetected set
 # is replaced, not appended to. Corporate MITM roots rotate (new intermediates,
 # new pinning), so a once-captured cert goes stale silently; re-deriving it
@@ -29,13 +38,17 @@
 #
 # Usage: sh detect-zscaler.sh [output-dir] [probe-host]
 #   output-dir  default: certs/ - the script's own dir   (created if missing)
-#   probe-host  default: github.com
+#   probe-host  optional single-host override (probes ONLY that host);
+#               default: every host in DEFAULT_PROBE_HOSTS
 #
-# Exit 0 = interception found, autodetected cert set refreshed
-# Exit 1 = no interception detected (direct, clean chain; stale autodetected
-#          certs removed)
-# Exit 2 = environment/probe failure (openssl missing, no route to 443) -
-#          certs are left untouched because nothing could be verified
+# Exit 0 = interception found on at least one host, autodetected set refreshed
+# Exit 1 = probes ran and none of the reachable hosts shows interception
+#          (direct, clean chains; stale autodetected certs removed). Some
+#          hosts failing to connect is tolerated - each one warns; exit 2 is
+#          reserved for when NO host could be probed at all.
+# Exit 2 = environment/probe failure - openssl missing, no host reachable on
+#          443, or interception seen but nothing extractable (a no-data run
+#          leaves the cert store untouched)
 #
 # Extraction is exposed as extract_zscaler_certs() for direct unit testing:
 #   ZSHARED=1 . ./detect-zscaler.sh      # source without running main
@@ -43,6 +56,15 @@ set -u
 
 # Prefix of the files this script owns. Anything else in out_dir is manual.
 AUTODETECTED_PREFIX="zscaler-autodetected-"
+
+# Hosts probed each run. Zscaler hands out different issuer chains per site,
+# so one probe host is not enough to cover what pip will actually contact:
+#   github.com            the original canary (git/npm/GitHub API traffic)
+#   pypi.org              usually BYPASSED by zscaler policy - a clean chain
+#                         here is expected and proves nothing about the rest
+#   download.pytorch.org  the torch CPU wheel index (pip --extra-index-url)
+#   download.eclipse.org  observed interception + mid-transfer resets
+DEFAULT_PROBE_HOSTS="github.com pypi.org download.pytorch.org download.eclipse.org"
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
@@ -57,10 +79,11 @@ err()  { echo "ERROR: $*" >&2; }
 # when nothing matched.
 #
 # Fingerprint dedupe compares only against files NOT owned by this script
-# (manual certs), plus fingerprints listed in SKIP_FP_FILE (the surviving
-# manual fingerprints, when the caller pre-collected them). The autodetected
-# set is the caller's replace-target: a fresh run must rewrite it, so the old
-# copies must never suppress a re-extraction.
+# (manual certs), plus fingerprints listed in SKIP_FP_FILE (what the caller
+# pre-collected: surviving manual fingerprints, and - in the multi-host main
+# flow - certs an earlier intercepted host already contributed this run). The
+# autodetected set is the caller's replace-target: a fresh run must rewrite
+# it, so the OLD copies must never suppress a re-extraction.
 extract_zscaler_certs() {
   _chain_file=$1
   _out_dir=$2
@@ -103,7 +126,7 @@ extract_zscaler_certs() {
 
       # Fingerprint dedupe: only the SURVIVING certs count - manual certs in
       # OUT_DIR (anything not named zscaler-autodetected-*) plus the caller's
-      # pre-collected manual fingerprint list. The autodetected set is being
+      # pre-collected fingerprint list. The autodetected set is being
       # replaced, so it must not suppress the fresh extraction.
       _fp=$(openssl x509 -noout -fingerprint -sha256 -in "$_cand" 2>/dev/null) || continue
       [ -n "$_fp" ] || continue
@@ -148,10 +171,15 @@ extract_zscaler_certs() {
 }
 
 # Run one probe host; writes the raw chain to $1, returns 0 on a non-empty chain.
+# The timeout bounds the WHOLE handshake+dump so one dead/resetting host cannot
+# stall the multi-host sweep. zscaler sometimes accepts the connection then
+# resets mid-transfer (seen on download.eclipse.org) - the cert chain is
+# already on the wire by then, and a partial dump still yields a non-empty
+# chain file.
 probe_host() {
   _host=$1
   _dest=$2
-  timeout 10 sh -c \
+  timeout 15 sh -c \
     "echo | openssl s_client -connect ${_host}:443 -servername ${_host} -showcerts" \
     > "$_dest" 2>/dev/null || true
   [ -s "$_dest" ]
@@ -178,7 +206,7 @@ clear_autodetected_certs() {
 
 main() {
   out_dir=${1:-$SCRIPT_DIR}
-  probe_host_default=${2:-github.com}
+  single_host=${2:-}
 
   # NO early exit on an existing cert set: autodetected certs go stale when the
   # corporate root rotates, so every run probes and refreshes its own set.
@@ -197,66 +225,99 @@ main() {
 
   mkdir -p "$out_dir" || { err "cannot create $out_dir"; return 2; }
 
-  _tmpdir=$(mktemp -d) || { err "mktemp failed"; return 2; }
-  _chain="$_tmpdir/chain.txt"
+  # Probe list: the multi-host default, or the caller's single-host override.
+  if [ -n "$single_host" ]; then
+    probe_hosts=$single_host
+  else
+    probe_hosts=$DEFAULT_PROBE_HOSTS
+  fi
 
-  # First reachable probe wins; a blocked github.com should not mask a working
-  # google.com when the proxy only allowlists some hosts.
-  _probed=
-  for _host in "$probe_host_default" www.google.com; do
+  _tmpdir=$(mktemp -d) || { err "mktemp failed"; return 2; }
+  _chain_dir="$_tmpdir/chains"
+  mkdir -p "$_chain_dir"
+
+  # Probe EVERY host. Each host's raw chain is kept only when it shows
+  # interception (the per-host file feeds extraction below); a per-host connect
+  # failure warns but does not abort the sweep - the exit code sorts that out
+  # (2 only when NOTHING could be probed).
+  _probed=0
+  _intercepted=0
+  for _host in $probe_hosts; do
+    _chain="$_chain_dir/$_host.txt"
     if probe_host "$_host" "$_chain"; then
-      _probed=$_host
-      break
+      _probed=$((_probed + 1))
+      if tr 'A-Z' 'a-z' < "$_chain" | grep -q zscaler; then
+        echo "==> TLS interception detected via $_host (zscaler in chain)"
+        _intercepted=$((_intercepted + 1))
+      else
+        echo "no TLS interception detected (direct chain to $_host)"
+        rm -f "$_chain"
+      fi
+    else
+      warn "probe to $_host failed (no TLS handshake) - skipping this host"
     fi
   done
 
-  if [ -z "$_probed" ]; then
+  if [ "$_probed" -eq 0 ]; then
     rm -rf "$_tmpdir"
-    warn "no TLS handshake succeeded (tried $probe_host_default, www.google.com) - cannot tell direct from intercepted"
+    warn "no TLS handshake succeeded on any probe host ($probe_hosts) - cannot tell direct from intercepted"
     warn "leaving $out_dir untouched (existing certs kept)"
     return 2
   fi
 
-  if ! tr 'A-Z' 'a-z' < "$_chain" | grep -q zscaler; then
-    echo "no TLS interception detected (direct chain to $_probed)"
+  if [ "$_intercepted" -eq 0 ]; then
+    _total=$(printf '%s\n' "$probe_hosts" | wc -w | tr -d ' ')
+    echo "no TLS interception detected on any reachable host (probed $_probed of $_total)"
     rm -rf "$_tmpdir"
     _stale=$(clear_autodetected_certs "$out_dir")
     echo "no interception - removed $_stale stale autodetected cert(s)"
     return 1
   fi
 
-  echo "==> TLS interception detected via $_probed (zscaler in chain)"
-
-  # Manual fingerprints are collected BEFORE the autodetected set is cleared,
-  # so a manual cert's fingerprint still suppresses a duplicate write. (The
-  # extractor also rescans surviving manual certs; this list is belt-and-braces
-  # for hosts where the rescan cannot re-read a file.)
-  _manual_fp="$_tmpdir/manual-fingerprints.txt"
-  : > "$_manual_fp"
+  # Dedupe list: fingerprints that must suppress a write. The manual certs are
+  # collected BEFORE the autodetected set is cleared, so a manual cert's
+  # fingerprint still suppresses a duplicate write. During extraction below,
+  # every cert an earlier host's chain contributed is appended: zscaler serves
+  # overlapping intermediates across sites, and without this the same
+  # intermediate would be written once per intercepted host. (The extractor
+  # also rescans surviving manual certs; this list is belt-and-braces for
+  # hosts where the rescan cannot re-read a file.)
+  _dedupe_fp="$_tmpdir/dedupe-fingerprints.txt"
+  : > "$_dedupe_fp"
   for _crt in "$out_dir"/*.crt; do
     [ -f "$_crt" ] || continue
     case "${_crt##*/}" in
       "$AUTODETECTED_PREFIX"*) continue ;;
     esac
     _f=$(openssl x509 -noout -fingerprint -sha256 -in "$_crt" 2>/dev/null) || continue
-    [ -n "$_f" ] && printf '%s\n' "$_f" >> "$_manual_fp"
+    [ -n "$_f" ] && printf '%s\n' "$_f" >> "$_dedupe_fp"
   done
 
   # Replace, never append: drop the old autodetected set first so a rotated
   # root does not leave the superseded cert trusted forever.
   _old=$(clear_autodetected_certs "$out_dir")
-  extract_zscaler_certs "$_chain" "$out_dir" "$_manual_fp"
-  _rc=$?
+
+  for _chain in "$_chain_dir"/*.txt; do
+    [ -f "$_chain" ] || continue
+    extract_zscaler_certs "$_chain" "$out_dir" "$_dedupe_fp"
+    # Grow the dedupe list with what this chain just contributed so the next
+    # intercepted host cannot re-write the same intermediate under a new name.
+    for _fresh in "$out_dir/$AUTODETECTED_PREFIX"*.crt; do
+      [ -f "$_fresh" ] || continue
+      _f=$(openssl x509 -noout -fingerprint -sha256 -in "$_fresh" 2>/dev/null) || continue
+      [ -n "$_f" ] && printf '%s\n' "$_f" >> "$_dedupe_fp"
+    done
+  done
   rm -rf "$_tmpdir"
 
-  if [ "$_rc" -ne 0 ]; then
-    warn "interception detected but no zscaler cert could be extracted from the chain"
+  _fresh=$(ls "$out_dir/$AUTODETECTED_PREFIX"*.crt 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$_fresh" -eq 0 ]; then
+    warn "interception detected but no zscaler cert could be extracted from any chain"
     warn "the previous autodetected set was already removed - re-run when the probe works"
     return 2
   fi
 
-  _fresh=$(ls "$out_dir/$AUTODETECTED_PREFIX"*.crt 2>/dev/null | wc -l | tr -d ' ')
-  echo "refreshed: $_fresh cert(s) in $out_dir (replaced $_old autodetected)"
+  echo "refreshed: $_fresh cert(s) in $out_dir (merged from $_intercepted intercepted host(s), replaced $_old autodetected)"
   echo "saved: $out_dir/$AUTODETECTED_PREFIX*.crt - populate-preinstall.sh will trust these"
   return 0
 }

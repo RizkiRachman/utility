@@ -98,6 +98,35 @@ if [ "$ca_trusted" -eq 1 ]; then
 fi
 
 # --------------------------------------------------------------------------
+# pip/python trust: aim pip, requests, and openssl at the SYSTEM CA bundle.
+#
+# pip validates TLS against its bundled certifi store by default - certifi
+# does NOT contain the corporate MITM intermediates the block above installed
+# into the system trust store, so pip downloads fail SSL on an inspected host
+# even though curl/update-ca-certificates succeeded. The system bundle is
+# rebuilt by update-ca-certificates from certs/*.crt and carries the zscaler
+# chain; exporting it covers the torch/transformers CPU wheel downloads from
+# download.pytorch.org (inspected by zscaler, unlike pypi.org). Inherited env
+# values win (existing pins stay honored). These exports hold for everything
+# below in this shell: the version resolvers and every pip call site.
+# --------------------------------------------------------------------------
+pip_ca_bundle=
+for ca_bundle_candidate in /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/cert.pem; do
+  if [ -f "$ca_bundle_candidate" ]; then
+    pip_ca_bundle=$ca_bundle_candidate
+    break
+  fi
+done
+if [ -n "$pip_ca_bundle" ]; then
+  export PIP_CERT="${PIP_CERT:-$pip_ca_bundle}"
+  export REQUESTS_CA_BUNDLE="${REQUESTS_CA_BUNDLE:-$pip_ca_bundle}"
+  export SSL_CERT_FILE="${SSL_CERT_FILE:-$pip_ca_bundle}"
+  echo "==> pip/python TLS trust via system bundle: PIP_CERT/REQUESTS_CA_BUNDLE/SSL_CERT_FILE=$pip_ca_bundle"
+else
+  echo "WARN: no system CA bundle found (looked for /etc/ssl/certs/ca-certificates.crt, /etc/pki/tls/cert.pem) - pip keeps its certifi defaults" >&2
+fi
+
+# --------------------------------------------------------------------------
 # opencode platform arch - follows the machine running this script.
 #
 # The preinstall container is started on the host's native architecture, so
