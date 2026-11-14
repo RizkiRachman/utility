@@ -4,8 +4,8 @@
 Self-hosted OpenCode v2 stack in Docker: workflow-state-engine, lean-ctx, six MCP servers, offline-ready.
 
 <p>
-  <img alt="opencode: 2.2.5" src="https://img.shields.io/badge/opencode-2.2.5-111111">
-  <img alt="lean-ctx: 3.12.0" src="https://img.shields.io/badge/lean--ctx-3.12.0-8B5CF6">
+  <img alt="opencode: 2.3.0" src="https://img.shields.io/badge/opencode-2.3.0-111111">
+  <img alt="lean-ctx: 3.12.4" src="https://img.shields.io/badge/lean--ctx-3.12.4-8B5CF6">
   <img alt="MCP servers: six" src="https://img.shields.io/badge/MCP%20servers-6-2d3142">
   <img alt="status: beta" src="https://img.shields.io/badge/status-beta-orange">
   <img alt="validate workflow" src="https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg">

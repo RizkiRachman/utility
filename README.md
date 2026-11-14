@@ -3,8 +3,8 @@
 Containerized AI coding agents that plan, build, and ship under a scored, gated workflow.
 
 <p>
-  <img alt="opencode: 2.2.5" src="https://img.shields.io/badge/opencode-2.2.5-111111">
-  <img alt="lean-ctx: 3.12.0" src="https://img.shields.io/badge/lean--ctx-3.12.0-8B5CF6">
+  <img alt="opencode: 2.3.0" src="https://img.shields.io/badge/opencode-2.3.0-111111">
+  <img alt="lean-ctx: 3.12.4" src="https://img.shields.io/badge/lean--ctx-3.12.4-8B5CF6">
   <img alt="MCP servers: six" src="https://img.shields.io/badge/MCP%20servers-6-2d3142">
   <img alt="docker compose: five services" src="https://img.shields.io/badge/docker%20compose-5%20services-2496ED?logo=docker&logoColor=white">
   <img alt="validate workflow" src="https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg">
@@ -92,7 +92,7 @@ Version pins are deliberately absent from the compose file: an env value overrid
 ```text
 utility/
 ├── docker-compose.example.yaml       # 5 services: opencode, openui, opencode-preinstall, opencode-scheduler, opencode-maintenance
-├── wrangler.toml                     # Empty placeholder; Pages deploy is CI-only (deploy-digest.yml)
+
 ├── .github/
 │   ├── workflows/validate.yml        # CI: JSON validity, bash -n sweep, cross-reference integrity, doc style (humanizer), contract score, conventions (non-blocking)
 │   ├── workflows/deploy-digest.yml   # CI: packs the agent stack with repomix, deploys to Cloudflare Pages (project utility-digest)
@@ -100,7 +100,7 @@ utility/
 └── workspace/
     ├── agents/
     │   ├── opencode/                 # The product (see its README)
-    │   │   ├── Dockerfile            # OpenCode 2.2.5 on node:22-bookworm-slim
+    │   │   ├── Dockerfile            # OpenCode 2.3.0 on node:22-bookworm-slim
     │   │   ├── entrypoint.sh         # Boot chain: auth, MCP preflight, optional engine self-check, serve (serve/web probe fallback)
     │   │   ├── config/               # opencode.json: 6 MCP servers, firecrawl plugin, 20 agents; lean-ctx config template; model fallback config; rag-usage.md
     │   │   ├── rag/                  # RAG MCP server (SQLite FTS5 + vectors)
