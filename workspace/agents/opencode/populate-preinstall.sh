@@ -63,6 +63,157 @@ STORE_DIR="${PREINSTALL_STORE:-$REPO_ROOT/pre-installer}"
 # The version lock stays inside the agents/opencode submodule (git-tracked).
 LOCK_FILE="$SCRIPT_DIR/pre-install/versions.lock"
 mkdir -p "$(dirname "$LOCK_FILE")"
+# --- digest pinning modes (S3/P2-9) ----------------------------------------
+# populate (default): fetch artifacts; at the END of the run re-verify EVERY
+#   recorded digest (pinned artifacts are hashed again even when a fetch
+#   guard skipped them - this closes the skip path) and warn on store files
+#   with no pin.
+# --verify-digests: OFFLINE gate - no network, no resolvers. Exits 1 on any
+#   digest mismatch (file quarantined), missing pinned file, OR store file
+#   with no manifest entry (reverse sweep).
+# --update-digests: maintainer path - REGENERATES digests.sha256 from the
+#   current store (sorted, deduped) after all fetchers run. NOT an append:
+#   a dependency bump must not leave the old pin behind and FATAL the gate
+#   forever. One-time re-pin cost per bump - noted in README.
+# Digests file: pre-install/digests.sha256 ("<sha256>  <store-relative-path>").
+# Policy: recorded digests are ENFORCED (mismatch aborts the run and
+#   quarantines the file); unrecorded artifacts warn in populate mode and
+#   FAIL the gate in verify mode.
+#
+# TOFU window (disclosed, not hidden): the FIRST fetch of an artifact cannot
+# be digest-verified - there is no prior pin to check against (Trust On First
+# Use). Once --update-digests records pins, every later populate run and
+# every --verify-digests gate re-hashes the pinned files, so post-first-fetch
+# tampering is detected. First-fetch substitution is NOT; the pins themselves
+# come from a maintainer run on a trusted connection.
+DIGESTS_FILE="$SCRIPT_DIR/pre-install/digests.sha256"
+POPULATE_MODE=populate
+case "${1:-}" in
+  --verify-digests) POPULATE_MODE=verify ;;
+  --update-digests) POPULATE_MODE=update-digests ;;
+  esac
+# One sha256 line per store artifact FILE. Git-mirror clones are directory
+# tree state - out of scope for line digests; noted in the lock file instead.
+
+# Count REAL pins: non-comment, non-blank lines. A comment-only manifest (as
+# shipped) has ZERO pins - a non-empty file is not enforcement.
+digest_pin_count() {
+  [ -f "$DIGESTS_FILE" ] || { echo 0; return 0; }
+  _c=0
+  _c=$(grep -cvE '^[[:space:]]*(#|$)' "$DIGESTS_FILE" 2>/dev/null) || _c=0
+  echo "${_c:-0}"
+}
+
+# Store artifact FILES (same glob set as the update sweep; git-mirror clone
+# dirs are directory state, out of scope for line digests).
+store_artifact_count() {
+  _n=0
+  for _f in "$STORE_DIR"/npm/*.tgz "$STORE_DIR"/pip/*.whl "$STORE_DIR"/bin/* \
+            "$STORE_DIR"/apt/*.deb "$STORE_DIR"/dist/*; do
+    if [ -f "$_f" ]; then _n=$((_n + 1)); fi
+  done
+  echo "$_n"
+}
+
+# Move a store artifact that failed its pin OUT of the store so no consumer
+# (Dockerfile globs, runtime) can use it; print the path for the operator.
+quarantine() { # quarantine <store-relative-path>
+  mkdir -p "$STORE_DIR/.quarantine" 2>/dev/null || true
+  _name=$(printf '%s' "$1" | tr '/' '_')
+  if mv "$STORE_DIR/$1" "$STORE_DIR/.quarantine/$_name" 2>/dev/null; then
+    echo "QUARANTINED: $STORE_DIR/.quarantine/$_name (was $1)" >&2
+  else
+    echo "WARN: could not quarantine $STORE_DIR/$1 - remove it manually" >&2
+  fi
+}
+
+digest_check() { # digest_check <absolute-marker-path>
+  [ -f "$1" ] || return 0
+  rel=${1#"$STORE_DIR/"}
+  [ "$rel" != "$1" ] || return 0
+  recorded=$(awk -v r="$rel" "\$2==r {print \$1; exit}" "$DIGESTS_FILE" 2>/dev/null)
+  actual=$(sha256sum "$1" | cut -d" " -f1)
+  if [ -n "$recorded" ]; then
+    if [ "$recorded" != "$actual" ]; then
+      echo "FATAL: digest mismatch for $rel (recorded $recorded, actual $actual)" >&2
+      quarantine "$rel"
+      exit 1
+    fi
+  elif [ "$POPULATE_MODE" = update-digests ]; then
+    : # entries come from the end-of-run full regenerate (sorted, deduped)
+  else
+    echo "WARN: no digest recorded for $rel - run with --update-digests to record" >&2
+  fi
+}
+
+# Entry parser: `read -r sum rel` splits on any whitespace run, so both the
+# sha256sum-style two-space form and a single-space form parse correctly
+# (a fixed two-space strip silently breaks on single-space lines).
+verify_all_digests() {
+  pins=$(digest_pin_count)
+  store_count=$(store_artifact_count)
+  if [ "$pins" -eq 0 ]; then
+    if [ "$store_count" -gt 0 ]; then
+      if [ "$POPULATE_MODE" = verify ]; then
+        echo "FATAL: $DIGESTS_FILE pins NOTHING (0 non-comment entries) but the store holds $store_count artifact(s) - nothing is enforced; run --update-digests once with network access" >&2
+        exit 1
+      fi
+      echo "WARN: TOFU - $store_count store artifact(s) with 0 pins: nothing is enforced yet; run --update-digests to record pins" >&2
+      return 0
+    fi
+    echo "WARN: nothing pinned (TOFU): empty store and empty pin set - first-fetch integrity is unverified until --update-digests records pins" >&2
+    return 0
+  fi
+  fail=0
+  while read -r sum rel || [ -n "$sum" ]; do
+    case "$sum" in ""|\#*) continue ;; esac
+    case "$sum" in
+      [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*) : ;;
+      *) echo "FATAL: malformed pin line (expected \"<sha256> <path>\"): $sum" >&2; fail=1; continue ;;
+    esac
+    if [ ! -f "$STORE_DIR/$rel" ]; then
+      echo "FATAL: pinned artifact missing from store: $rel" >&2
+      fail=1
+      continue
+    fi
+    actual=$(sha256sum "$STORE_DIR/$rel" | cut -d" " -f1)
+    if [ "$sum" != "$actual" ]; then
+      echo "FATAL: digest mismatch for $rel (recorded $sum, actual $actual)" >&2
+      quarantine "$rel"
+      fail=1
+    fi
+  done < "$DIGESTS_FILE"
+  # Sweep every store file against the manifest: verify mode FAILS on files
+  # with no pin (an unpinned file could otherwise ride into the build outside
+  # the gate); populate/update end-of-run only warns.
+  for f in "$STORE_DIR"/npm/*.tgz "$STORE_DIR"/pip/*.whl "$STORE_DIR"/bin/* \
+           "$STORE_DIR"/apt/*.deb "$STORE_DIR"/dist/*; do
+    [ -f "$f" ] || continue
+    rel=${f#"$STORE_DIR/"}
+    # Exact match (N1): the manifest's path column must equal the store file
+    # name byte-for-byte. A regex here would interpolate the file name into
+    # an ERE - `+`/`[`/`(`/`*` in names false-FAIL validly pinned artifacts
+    # and an unescaped `.` is a wildcard bypass. Same approach as
+    # digest_check above: awk with an exact string comparison.
+    if awk -v r="$rel" '$2==r {found=1; exit} END {exit !found}' "$DIGESTS_FILE" 2>/dev/null; then
+      continue
+    fi
+    if [ "$POPULATE_MODE" = verify ]; then
+      echo "FATAL: store artifact with no digest pin: $rel" >&2
+      fail=1
+    else
+      echo "WARN: no digest recorded for $rel - run with --update-digests to record" >&2
+    fi
+  done
+  if [ "$fail" -ne 0 ]; then
+    exit 1
+  fi
+  echo "==> digest verification OK ($pins pin(s) re-verified)"
+}
+if [ "$POPULATE_MODE" = verify ]; then
+  verify_all_digests
+  exit 0
+fi
 mkdir -p "$STORE_DIR/npm" "$STORE_DIR/pip" "$STORE_DIR/bin" "$STORE_DIR/apt" \
   "$STORE_DIR/git" "$STORE_DIR/dist"
 
@@ -77,9 +228,26 @@ mkdir -p "$STORE_DIR/npm" "$STORE_DIR/pip" "$STORE_DIR/bin" "$STORE_DIR/apt" \
 # Best-effort: a failed probe must not abort the store population.
 # The trust block below only installs what is in certs/ - it runs after the
 # detector so a freshly refreshed set is what gets trusted.
+#
+# The cert GATE is enforcing (N3): sync-certs.sh can exit nonzero for benign
+# reasons (the seeding detector hitting an environment error), so the sync
+# itself stays best-effort - but the allowlist CHECK is re-run directly and
+# fails the run when a non-allowlisted cert is present: Dockerfile
+# `COPY certs/` must not be able to trust a smuggled CA. Set
+# CERTS_GATE_REQUIRED=0 to opt out (not recommended).
 echo "==> probing network for TLS interception (cert refresh)"
 sh "$REPO_ROOT/certs/detect-zscaler.sh" "$REPO_ROOT/certs" || true
-sh "$REPO_ROOT/certs/sync-certs.sh" || true
+if ! sh "$REPO_ROOT/certs/sync-certs.sh"; then
+  if ! sh "$REPO_ROOT/certs/check-certs.sh"; then
+    if [ "${CERTS_GATE_REQUIRED:-1}" = "1" ]; then
+      echo "FATAL: certs allowlist check failed - a non-allowlisted cert is present; refusing to populate the store (set CERTS_GATE_REQUIRED=0 to override)" >&2
+      exit 1
+    fi
+    echo "WARN: CERTS_GATE_REQUIRED=0 - continuing despite a non-allowlisted cert" >&2
+  else
+    echo "WARN: cert sync failed for a benign reason (e.g. the detector hit an environment error); the allowlist check passed" >&2
+  fi
+fi
 
 ca_trusted=0
 for crt in "$REPO_ROOT/certs"/*.crt; do
@@ -252,6 +420,8 @@ mark_skipped() {
   echo "  skipped: $1"
 }
 
+# --- digest verification (S3/P2-9) -----------------------------------------
+
 # Generic skip-if-exists guard for one store artifact.
 #
 #   fetch_if_missing MARKER CMD [ARG...]
@@ -270,6 +440,7 @@ fetch_if_missing() {
     return 1
   fi
   "$@" || exit $?
+  digest_check "$marker"
 }
 
 # --------------------------------------------------------------------------
@@ -741,6 +912,36 @@ fi
 # The platform arch is part of what the store holds: without it a re-run on a
 # different machine silently mixes arm64 and x64 tarballs.
 # --------------------------------------------------------------------------
+# --update-digests REGENERATES the manifest from the current store (truncate +
+# full sweep, sorted, deduped) instead of appending: after a dependency bump
+# the old pin would otherwise linger next to the new artifact and FATAL the
+# gate on every later run. Regeneration re-pins everything once - the cost of
+# a bump, noted in README.
+if [ "$POPULATE_MODE" = update-digests ]; then
+  echo "==> regenerating $DIGESTS_FILE from the store (sorted, deduped)"
+  {
+    printf '%s\n' "# resolved by populate-preinstall.sh --update-digests (maintainer run with network)"
+    printf '%s\n' "# one line per store artifact: \"<sha256>  <store-relative-path>\""
+    printf '%s\n' "# recorded digests are enforced on every populate run and by --verify-digests"
+    for f in "$STORE_DIR"/npm/*.tgz "$STORE_DIR"/pip/*.whl "$STORE_DIR"/bin/* \
+             "$STORE_DIR"/apt/*.deb "$STORE_DIR"/dist/*; do
+      [ -f "$f" ] || continue
+      printf '%s  %s\n' "$(sha256sum "$f" | cut -d' ' -f1)" "${f#"$STORE_DIR/"}"
+    done | LC_ALL=C sort -u
+  } > "$DIGESTS_FILE"
+fi
+
+# End-of-run digest gate (N5): every normal populate run re-hashes EVERY
+# pinned artifact before declaring success (fetch-guard skips included) and
+# warns on store files with no pin. A mismatch quarantines the file and
+# aborts. This runs BEFORE versions.lock is written so the lock only ever
+# records a state that passed the gate.
+echo "==> digest gate: end-of-run re-verification of pinned artifacts"
+verify_all_digests
+
+# digests-enforced comes from the PIN COUNT (real non-comment entries), not
+# file size - a comment-only manifest is NOT enforcement.
+digest_pins=$(digest_pin_count)
 {
   printf '%s\n' "# resolved by populate-preinstall.sh (latest-at-populate-time; env overrides recorded as pins)"
   printf '%s\n' "opencode=$OPENCODE_VERSION"
@@ -753,6 +954,9 @@ fi
   printf '%s\n' "cocoindex-code=$COCOINDEX_CODE_VERSION"
   printf '%s\n' "zod=$ZOD_VERSION"
   printf '%s\n' "firecrawl-cli=$FIRECRAWL_CLI_VERSION"
+  printf "%s\n" "digests-file=pre-install/digests.sha256"
+  printf "%s\n" "digests-pins=$digest_pins"
+  printf "%s\n" "digests-enforced=$( [ "$digest_pins" -gt 0 ] && echo true || echo false )"
 } > "$LOCK_FILE"
 
 echo ""

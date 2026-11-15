@@ -73,3 +73,13 @@ for d in "$REPO_ROOT/agents/opencode/certs" "$REPO_ROOT/agents/openui/app/certs"
 done
 
 echo "==> sync complete: $(parent_certs) cert(s) mirrored to all submodule cert dirs"
+
+# --- End-of-sync allowlist gate (S2/P2-13) ----------------------------------
+# This is where certs actually land on every populate run - so this is where
+# the allowlist check ENFORCES: a non-allowlisted cert fails the sync. The
+# validate.yml step runs the same script only as a tracked-inventory sanity
+# check on the committed files (there is no live cert set in CI).
+if ! sh "$SCRIPT_DIR/check-certs.sh"; then
+  echo "ERROR: certs allowlist check FAILED after sync - a non-allowlisted cert is present" >&2
+  exit 1
+fi

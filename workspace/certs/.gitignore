@@ -4,3 +4,6 @@
 !README.md
 !detect-zscaler.sh
 !sync-certs.sh
+!certs-allowlist.txt
+!check-certs.sh
+!test-detect-zscaler.sh

@@ -386,6 +386,8 @@ The engine itself is stateless. Live runtime state lives in the **project-root**
 
 > **LOCAL-ONLY:** `session/`, `.session/` and everything inside them are runtime state. NEVER `git add`, commit, or push them (gitignored; history grows unbounded). Archive historical state logs to `.session/` instead.
 
+> **Path-jail note:** the shipped lean-ctx gateway path-jails at /opt/engine, while the docs above define the project root as /home/node/workspace. Tools resolve session/ and sandbox/ paths per their own root; the entrypoint seeds session/ at boot (OPENCODE_SESSION_DIR overrides), so state exists before agents run regardless of which tool touches it first.
+
 Initialize or refresh session state with:
 
 ```bash

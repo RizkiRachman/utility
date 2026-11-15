@@ -1,0 +1,101 @@
+# Opt-in docker socket confinement (S1/P2-10). Base compose stays direct-mount.
+#
+# Activate:
+#   docker compose -f docker-compose.example.yaml -f docker-compose.socket-proxy.yaml up -d
+#
+# Requires compose v2.24+ for the !override volumes tag.
+#
+# WHAT THIS OVERLAY IS (and is not):
+# Even with the capability gates below, enabling POST=1 would allow CONTAINER
+# CREATE - and a created container can be privileged and/or bind host paths,
+# which is host root by another route. What this overlay removes is the
+# everyday blast radius: EXEC=0 and VOLUMES=0 deny `docker exec` and new host
+# bind mounts over the socket, and dropping the direct docker.sock mount from
+# the opencode container stops unfiltered API access. It is a BLAST-RADIUS
+# REDUCER, NOT an escape boundary. ALLOW_RESTARTS=1 would additionally let
+# the proxy kill/restart ANY container (restart APIs are not per-container).
+#
+# Shipped default is the observational/read-only profile: POST=0 and
+# ALLOW_RESTARTS=0 below leave the socket strictly read-only (docker ps /
+# images / inspect only - events, ping and version handshakes stay enabled).
+# If your workflow needs to create or start containers through the proxy,
+# switch to the create-capable profile by swapping the commented POST /
+# ALLOW_RESTARTS lines - that profile is documented in the header above as
+# host-root-equivalent for the container, so opt in only where the opencode
+# container is already trusted with that power.
+#
+# Image pinning: pin by digest before production use, e.g.
+#   DOCKER_SOCKET_PROXY_IMAGE=tecnativa/docker-socket-proxy@sha256:<digest>
+# TODO(digest): obtain the current digest on a networked host with
+#   docker manifest inspect tecnativa/docker-socket-proxy:latest
+#   (or: docker buildx imagetools inspect tecnativa/docker-socket-proxy:latest)
+# and record it here or in .env. This repository's build environment has no
+# registry access, so NO digest is invented here; the movable tag default is
+# deliberate and marked for maintainer pinning.
+services:
+  docker-socket-proxy:
+    image: ${DOCKER_SOCKET_PROXY_IMAGE:-tecnativa/docker-socket-proxy:latest}
+    restart: unless-stopped
+    # init: tiny init as PID 1 so the proxy (haproxy) process is reaped
+    # properly instead of becoming a zombie holder of the socket mount.
+    init: true
+    # The whole point of this overlay: the proxy gets the host socket (the
+    # base file gives opencode the direct mount; the !override below drops
+    # it). No :ro suffix - connect() on the unix socket needs write access
+    # and a read-only bind mount breaks it on some daemons.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # Capability gates per the proxy docs. The shipped default below is the
+      # observational/read-only profile (POST=0, ALLOW_RESTARTS=0); the
+      # commented inverse lines opt into the create-capable profile, which
+      # is host-root-equivalent for this container (see header).
+      CONTAINERS: 1
+      IMAGES: 1
+      NETWORKS: 1
+      VOLUMES: 0
+      EXEC: 0
+      # Read-only default: no POST - no container create / mutate calls.
+      POST: 0
+      # Opt-in create-capable profile: uncomment the next line to allow
+      # container create (privileged / host-bind = host root; see header).
+      # POST: 1
+      # ALLOW_RESTARTS=0 default: restarting ANY container cannot be scoped
+      # to a single container, so it stays denied; uncomment to opt in.
+      ALLOW_RESTARTS: 0
+      # ALLOW_RESTARTS: 1
+      # docker CLI handshakes: /_ping before most commands, /version for
+      # client-server negotiation. Without these, even `docker ps` fails.
+      PING: 1
+      VERSION: 1
+    healthcheck:
+      # /_ping (gated by PING: 1); busybox wget is present in the alpine base.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:2375/_ping >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # Dedicated internal network: the proxy is not on the shared default net.
+    networks:
+      - socket-proxy
+  opencode:
+    depends_on:
+      docker-socket-proxy:
+        condition: service_healthy
+    environment:
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
+    volumes: !override
+      - ./workspace:/home/node/workspace
+      - ./workspace/agents/opencode/config/opencode.json:/home/node/.config/opencode/opencode.json:ro
+      - ./workspace/agents/opencode/rag:/opt/rag:ro
+      - opencode-data:/home/node/.local/share/opencode
+    # Explicit networks (declaring any network stops the implicit default):
+    # keep normal egress on default, reach the proxy on its internal net.
+    networks:
+      - default
+      - socket-proxy
+networks:
+  socket-proxy:
+    internal: true
+volumes:
+  opencode-data:

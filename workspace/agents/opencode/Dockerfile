@@ -55,6 +55,29 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     update-ca-certificates; \
     git config --system --add safe.directory '*'
 
+# --- Offline-store digest gate (S3/P2-9) ------------------------------------
+# Enforces ONLY when pre-install/digests.sha256 carries pins (>0 non-comment
+# entries): a fresh checkout ships a comment-only manifest, and this gate
+# logs loudly and skips so pre-population builds stay green. After the
+# maintainer's one-time --update-digests run, every build re-hashes the
+# mounted store and fails on any mismatch (tampered file quarantined) or
+# store file with no pin. TOFU caveat: pins are only as trustworthy as the
+# connection the maintainer first recorded them on (see the populate script
+# header). A digest-pin update invalidates all later layers by design.
+COPY populate-preinstall.sh /tmp/digest-gate/populate-preinstall.sh
+COPY pre-install/digests.sha256 /tmp/digest-gate/pre-install/digests.sha256
+RUN --mount=from=preinstall,src=/,dst=/pi,ro \
+    set -eu; \
+    pins=$(grep -cvE '^[[:space:]]*(#|$)' /tmp/digest-gate/pre-install/digests.sha256 2>/dev/null || true); \
+    if [ -z "$pins" ]; then pins=0; fi; \
+    if [ "$pins" -gt 0 ]; then \
+      echo "digest gate: $pins pin(s) in pre-install/digests.sha256 - ENFORCING (populate-preinstall.sh --verify-digests)"; \
+      PREINSTALL_STORE=/pi sh /tmp/digest-gate/populate-preinstall.sh --verify-digests; \
+    else \
+      echo "digest gate: 0 pins (comment-only manifest) - pre-population build, verification SKIPPED; run --update-digests once with network access to enable enforcement"; \
+    fi; \
+    rm -rf /tmp/digest-gate
+
 # Configure Node.js and Python to trust the corporate CA.
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt \
     SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \

@@ -3,7 +3,8 @@
 .idea
 session
 .session
-pre-install
+pre-install/*
+!pre-install/digests.sha256
 .env*
 node_modules
 docker-compose.example.yaml

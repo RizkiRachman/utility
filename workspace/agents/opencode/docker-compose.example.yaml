@@ -1,6 +1,6 @@
 name: opencode
 
-services:
+services: # standalone dev compose: healthcheck and scheduler/maintenance parity with the root example is intentionally minimal here
   opencode:
     container_name: opencode
     image: opencode:local   # tag applied to the build below; scheduler service reuses it

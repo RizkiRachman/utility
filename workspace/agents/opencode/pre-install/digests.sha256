@@ -1,0 +1,3 @@
+# resolved by populate-preinstall.sh --update-digests (maintainer run with network)
+# one line per store artifact: "<sha256>  <store-relative-path>"
+# recorded digests are enforced on every populate run and by --verify-digests
