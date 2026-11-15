@@ -51,9 +51,8 @@ venv/
 htmlcov/
 .coverage
 
-# ---- Tooling state (lean-ctx, graphify, firecrawl) ---------
+# ---- Tooling state (lean-ctx, firecrawl) ---------
 .lean-ctx/
-graphify-out/
 .firecrawl/
 
 # ---- Build output ------------------------------------------

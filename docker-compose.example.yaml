@@ -40,13 +40,9 @@ services:
       RAG_EMBEDDINGS_URL: ${RAG_EMBEDDINGS_URL:-}
       RAG_EMBEDDINGS_MODEL: ${RAG_EMBEDDINGS_MODEL:-}
       RAG_EMBEDDINGS_KEY: ${RAG_EMBEDDINGS_KEY:-}
-      GRAPHIFY_ROOT: /home/node/workspace
-      GRAPHIFY_BUILD: if-missing
-      GRAPHIFY_TIMEOUT: "900"
     volumes:
       - ./workspace:/home/node/workspace
       - ./workspace/agents/opencode/config/opencode.json:/home/node/.config/opencode/opencode.json:ro
-      - ./workspace/agents/opencode/config/opencode-model-fallback.json:/home/node/.config/opencode/opencode-model-fallback.json:ro
       - ./workspace/agents/opencode/rag:/opt/rag:ro
       - opencode-data:/home/node/.local/share/opencode
       - /var/run/docker.sock:/var/run/docker.sock
@@ -75,8 +71,6 @@ services:
     volumes:
       - ./workspace:/home/node/workspace
     environment:
-      GRAPHIFY_ROOT: /home/node/workspace
-      GRAPHIFY_BUILD: if-missing
     command: >-
       sh -c "scripts/scheduled-runner.sh --task drift-detect --schedule daily
       --pid-file /tmp/scheduled-runner.pid && exec tail -F scheduled-runner.log"
