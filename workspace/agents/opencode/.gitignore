@@ -8,3 +8,4 @@ pre-install/**
 !pre-install/**/
 !pre-install/**/.gitkeep
 !pre-install/versions.lock
+!pre-install/digests.sha256

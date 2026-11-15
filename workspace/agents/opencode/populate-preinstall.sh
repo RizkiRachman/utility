@@ -63,6 +63,67 @@ STORE_DIR="${PREINSTALL_STORE:-$REPO_ROOT/pre-installer}"
 # The version lock stays inside the agents/opencode submodule (git-tracked).
 LOCK_FILE="$SCRIPT_DIR/pre-install/versions.lock"
 mkdir -p "$(dirname "$LOCK_FILE")"
+# --- digest pinning modes (S3/P2-9) ----------------------------------------
+# populate (default): fetch artifacts; verify any recorded digests; warn on
+#   store artifacts without a digest entry.
+# --verify-digests: OFFLINE check of the store against digests.sha256 - no
+#   network, no resolvers; exit 1 on any mismatch or missing pinned file.
+# --update-digests: maintainer path - compute and record sha256 for every
+#   fetched artifact and sweep the store for unpinned files.
+# Digests file: pre-install/digests.sha256 ("<sha256>  <store-relative-path>").
+# Policy: recorded digests are ENFORCED (mismatch aborts the run); unrecorded
+# artifacts warn so a maintainer notices; record with --update-digests.
+DIGESTS_FILE="$SCRIPT_DIR/pre-install/digests.sha256"
+POPULATE_MODE=populate
+case "${1:-}" in
+  --verify-digests) POPULATE_MODE=verify ;;
+  --update-digests) POPULATE_MODE=update-digests ;;
+  esac
+# One sha256 line per store artifact FILE. Git-mirror clones are directory
+# tree state - out of scope for line digests; noted in the lock file instead.
+digest_check() { # digest_check <absolute-marker-path>
+  [ -f "$1" ] || return 0
+  rel=${1#"$STORE_DIR/"}
+  [ "$rel" != "$1" ] || return 0
+  recorded=$(awk -v r="$rel" "\$2==r {print \$1; exit}" "$DIGESTS_FILE" 2>/dev/null)
+  actual=$(sha256sum "$1" | cut -d" " -f1)
+  if [ -n "$recorded" ]; then
+    if [ "$recorded" != "$actual" ]; then
+      echo "FATAL: digest mismatch for $rel (recorded $recorded, actual $actual)" >&2
+      exit 1
+    fi
+  elif [ "$POPULATE_MODE" = update-digests ]; then
+    mkdir -p "$(dirname "$DIGESTS_FILE")"
+    printf "%s  %s\n" "$actual" "$rel" >> "$DIGESTS_FILE"
+    echo "  digest recorded: $rel"
+  else
+    echo "WARN: no digest recorded for $rel - run with --update-digests to record" >&2
+  fi
+}
+verify_all_digests() {
+  if [ ! -s "$DIGESTS_FILE" ]; then
+    echo "FATAL: $DIGESTS_FILE missing or empty - nothing pinned yet (run --update-digests once with network access)" >&2
+    exit 1
+  fi
+  fail=0
+  while IFS= read -r line; do
+    case "$line" in ""|\#*) continue ;; esac
+    sum=${line%% *}; rel=${line#*  }
+    if [ ! -f "$STORE_DIR/$rel" ]; then
+      echo "FATAL: pinned artifact missing from store: $rel" >&2; fail=1; continue
+    fi
+    actual=$(sha256sum "$STORE_DIR/$rel" | cut -d" " -f1)
+    if [ "$sum" != "$actual" ]; then
+      echo "FATAL: digest mismatch for $rel" >&2; fail=1
+    fi
+  done < "$DIGESTS_FILE"
+  [ "$fail" -eq 0 ] || exit 1
+  echo "==> digest verification OK"
+}
+if [ "$POPULATE_MODE" = verify ]; then
+  verify_all_digests
+  exit 0
+fi
 mkdir -p "$STORE_DIR/npm" "$STORE_DIR/pip" "$STORE_DIR/bin" "$STORE_DIR/apt" \
   "$STORE_DIR/git" "$STORE_DIR/dist"
 
@@ -252,6 +313,8 @@ mark_skipped() {
   echo "  skipped: $1"
 }
 
+# --- digest verification (S3/P2-9) -----------------------------------------
+
 # Generic skip-if-exists guard for one store artifact.
 #
 #   fetch_if_missing MARKER CMD [ARG...]
@@ -270,6 +333,7 @@ fetch_if_missing() {
     return 1
   fi
   "$@" || exit $?
+  digest_check "$marker"
 }
 
 # --------------------------------------------------------------------------
@@ -753,8 +817,17 @@ fi
   printf '%s\n' "cocoindex-code=$COCOINDEX_CODE_VERSION"
   printf '%s\n' "zod=$ZOD_VERSION"
   printf '%s\n' "firecrawl-cli=$FIRECRAWL_CLI_VERSION"
+  printf "%s\n" "digests-file=pre-install/digests.sha256"
+  printf "%s\n" "digests-enforced=$( [ -s "$DIGESTS_FILE" ] && echo true || echo false )"
 } > "$LOCK_FILE"
 
+# Sweep: record digests for store files still unpinned (update-digests mode).
+if [ "$POPULATE_MODE" = update-digests ]; then
+  for f in "$STORE_DIR"/npm/*.tgz "$STORE_DIR"/pip/*.whl "$STORE_DIR"/bin/* "$STORE_DIR"/apt/*.deb "$STORE_DIR"/dist/*; do
+    [ -f "$f" ] || continue
+    digest_check "$f"
+  done
+fi
 echo ""
 echo "==> done: ${ADDED} added, ${SKIPPED} skipped - store at ${STORE_DIR}"
 echo "    sections: npm pip bin apt git dist"

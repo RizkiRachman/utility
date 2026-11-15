@@ -1,0 +1,4 @@
+# Allowed certificate filename patterns in the certs/ dirs (exact or glob).
+# Anything else fails check-certs.sh (CI gate). Manual certs: add an entry
+# here AND keep the file out of git (contents are gitignored by design).
+zscaler-autodetected-*.crt
