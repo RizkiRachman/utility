@@ -119,6 +119,9 @@ If a reviewer can only run on the same provider family as the executor after fal
 - Set OPENCODE_SERVER_PASSWORD in production, or bind the service to localhost. The empty default leaves the server unauthenticated on its port.
 - Gate scripts (validate-contract, state-guard, sdd-gate, snapshot-contract, persist-contract, loop-validate, verify-knowledge, auto-score, detect-parallel-conflicts) are allowlisted in config/lean-ctx-config.toml with per-entry rationale; extend with lean-ctx allow, never by hand-editing the runtime file.
 - The sidecar openui service still defaults to the sumopod provider for its own model calls; it needs the same live-provider treatment as the main config (tracked as follow-up).
+- Artifact integrity (S3): populate-preinstall.sh verifies sha256 digests from pre-install/digests.sha256; recorded digests are enforced (mismatch aborts). Maintainers populate once with: sh populate-preinstall.sh --update-digests. The store build fails on digest mismatch via --verify-digests when the file has entries.
+- Deployment modes (S5): OPENCODE_DEPLOY_MODE=production makes the entrypoint fail fast unless OPENCODE_SERVER_PASSWORD is set or OPENCODE_BIND_LOCALHOST=1 is explicit. Default dev mode keeps current behavior.
+- Socket confinement (S1): opt-in via docker-compose.socket-proxy.yaml (filtered docker API over the compose network; host socket mount dropped with the !override volumes tag; compose v2.24+ required).
 ## Ports and Volumes
 
 | Host | Container | Notes |

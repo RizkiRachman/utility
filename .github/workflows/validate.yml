@@ -49,6 +49,10 @@ jobs:
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/validate-contract.sh --file engine/contract/contract.template.json --score
 
+      - name: Certificates allowlist
+        working-directory: workspace
+        run: sh certs/check-certs.sh
+
       # Non-blocking for now: the convention rule set is still maturing;
       # flip to blocking once the remaining rules are verified clean.
       - name: Conventions (non-blocking)
