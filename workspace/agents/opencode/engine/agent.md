@@ -136,7 +136,7 @@ The `engine/` source mirrors the runtime layout - edit here, rebuild to deploy:
 
 > Full agent instruction files at `/opt/engine/agents/` (symlinked into the OpenCode config dir). Each file defines role, MCPs, skills, and post-flight protocol.
 >
-> **Model tiers**: `executor` = `opencode/big-pickle` (build/plan tier - developer, fixer, system-analyst); `default` = `sumopod/glm-5.3-flash` (all other agents), fallback `sumopod/deepseek-flash`; reviewers (`quality-analyst`, `security-engineer`, `software-architect`) pinned to `sumopod/deepseek-flash`. Reviewers never share the executor's model - this is the basis of **cross-model review**.
+> **Model tiers**: `executor` = `openrouter/z-ai/glm-5.3-flash` (build/plan tier - developer, fixer, system-analyst); `default` = `openrouter/z-ai/glm-5.3-flash` (all other agents), fallback `openrouter/deepseek/deepseek-v4.1-flash`; reviewers (`quality-analyst`, `security-engineer`, `software-architect`) pinned to `openrouter/deepseek/deepseek-v4.1-flash`. Reviewers never share the executor's model - this is the basis of **cross-model review**.
 
 ### Orchestrator
 
@@ -156,7 +156,7 @@ The `engine/` source mirrors the runtime layout - edit here, rebuild to deploy:
 |-------|------|----------|--------|----------------|-------|--------|------|
 | **product-manager** | Requirements + acceptance-criteria backlog (GWT) | lean-ctx, context7 | Read-only | `INIT`, `PLAN` | default | business-analyst, brainstorming, writing-plans, diagram-design | `/opt/engine/agents/product-manager.md` |
 | **system-analyst** | Impact analysis, specs, detailed plans | lean-ctx, cocoindex-code | Read-only | `INIT`, `PLAN`, `PLAN_SCORED` | executor | system-analyst, business-analyst, writing-plans, diagram-design | `/opt/engine/agents/system-analyst.md` |
-| **software-architect** | Architecture trade-offs, tech-debt assessment | lean-ctx, cocoindex-code | Read-only | `INIT`, `PLAN`, `PLAN_SCORED`, `REVIEW` | deepseek-flash | system-analyst, java-developer, diagram-design | `/opt/engine/agents/software-architect.md` |
+| **software-architect** | Architecture trade-offs, tech-debt assessment | lean-ctx, cocoindex-code | Read-only | `INIT`, `PLAN`, `PLAN_SCORED`, `REVIEW` | openrouter/deepseek/deepseek-v4.1-flash | system-analyst, java-developer, diagram-design | `/opt/engine/agents/software-architect.md` |
 
 ### Implementation Agents (read/write)
 
@@ -441,7 +441,7 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 - **Never commit secrets, credentials, tokens, `.env` files**
 
 ### Cross-Model Review
-- **Reviewers (pinned to `sumopod/deepseek-flash`) must run on a different model than the executor (build/plan tier, big-pickle)** they audit; fallbacks must not collapse separation - on double-fallback set `governance.cross_model_degraded` and cap verdict at RETRY.
+- **Reviewers (pinned to `openrouter/deepseek/deepseek-v4.1-flash`) must run on a different model than the executor (build/plan tier)** they audit; fallbacks must not collapse separation - on double-fallback set `governance.cross_model_degraded` and cap verdict at RETRY.
 - **Conflicting reviewer verdicts** (PASS vs BLOCK) → `BLOCKED`, arbitrated by `@council` (see `rules.json → enforcement.cross_model_review`)
 - **Security-sensitive changes** (auth, secrets, credentials, config, crypto) auto-require `@security-engineer` review
 

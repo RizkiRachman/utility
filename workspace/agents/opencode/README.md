@@ -66,10 +66,11 @@ Compose file: [`docker-compose.example.yaml`](../../../docker-compose.example.ya
 |---|---|---|---|
 | `OPENCODE_API_KEY` | Yes | `REPLACE_ME` | OpenCode auth; written to `auth.json`, then unset from the env |
 | `OPENCODE_SERVER_PASSWORD` | No | (empty) | Auth key for OpenCode's own HTTP basic auth / pairing screen |
-| `SUMOPOD_API_KEY` | Yes | `REPLACE_ME` | Model-provider API key |
-| `SUMOPOD_BASE_URL` | Yes | `https://ai.sumopod.com/v1` | Model-provider endpoint |
-| `SUMOPOD_BASE_MODEL` | Yes | `glm-5.3-flash` | Executor model id |
-| `SUMOPOD_BASE_MODEL_NAME` | Yes | `glm-5.3-flash` | Executor model display name |
+| `SUMOPOD_API_KEY` | No | (empty) | Declared fallback provider, currently INACTIVE: no API key. Keep empty unless a key becomes available |
+| `SUMOPOD_BASE_URL` | No | `https://ai.sumopod.com/v1` | Inactive fallback endpoint |
+| `SUMOPOD_BASE_MODEL` | No | `glm-5.3-flash` | Inactive fallback executor id (kept for reference) |
+| `SUMOPOD_BASE_MODEL_NAME` | No | `glm-5.3-flash` | Inactive fallback display name |
+| `OPENROUTER_API_KEY` | Yes | (empty) | OpenRouter API key; primary provider. Primary and executor tier run `openrouter/z-ai/glm-5.3-flash`; fallbacks `deepseek/deepseek-v4.1-flash`, `gpt-6-luna`, `qwen/qwen3.8-flash` |
 | `CONTEXT7_API_KEY` | Yes | `REPLACE_ME` | Context7 docs MCP key |
 | `FIRECRAWL_API_KEY` | No | (unset) | Firecrawl key; developer search works keyless, alexandria + firecrawl-cli skills need it |
 | `RAG_EMBEDDINGS_URL` | No | (empty) | OpenAI-compatible `/v1/embeddings` endpoint for the rag server; all three `RAG_EMBEDDINGS_*` set switches it to remote embeddings |
@@ -99,8 +100,25 @@ Compose file: [`docker-compose.example.yaml`](../../../docker-compose.example.ya
 
 Version resolution happens at populate time, not at build: `populate-preinstall.sh` asks the registry for the current version of each package, writes the result to `agents/opencode/pre-install/versions.lock`, and the Dockerfile consumes the store globs. A resolver failure warns and falls back to the previous pin. To pin deliberately, pass the env var (for example `OPENCODE_VERSION: "2.3.0"` in the compose build args).
 
-Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` (incl. a `firecrawl_alexandria` ask entry), `plugins` (vendored `/opt/engine/plugins/opencode-firecrawl`), `mcp.servers` + `disabled`, `providers.package`, `instructions` (loads `/opt/engine/agent.md` plus `opencode/config/rag-usage.md`, which tells agents to search the rag index before writing code), `update`, `compaction.keep.tokens`; mounted read-only) and `config/opencode-model-fallback.json` (dormant, kept for a future `@opencode/plugin` port).
+Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` (incl. a `firecrawl_alexandria` ask entry), `plugins` (vendored `/opt/engine/plugins/opencode-firecrawl`), `mcp.servers` + `disabled`, `providers.package`, `instructions` (loads `/opt/engine/agent.md` plus `opencode/config/rag-usage.md`, which tells agents to search the rag index before writing code), `update`, `compaction.keep.tokens`; mounted read-only).
 
+## Model Policy
+
+| Tier | Model | Notes |
+|---|---|---|
+| Primary + executor (build, orchestrator, system-analyst, developer, fixer, all default agents) | openrouter/z-ai/glm-5.3-flash | Live provider; set OPENROUTER_API_KEY; 1M ctx; $0.0399 in / $0.0784 out (cheapest 1M model) |
+| Fallback chain | deepseek/deepseek-v4.1-flash, then gpt-6-luna, then qwen/qwen3.8-flash | First live fallback wins; ~z-ai/glm-flash-latest is an alias of the primary || openrouter/~z-ai/glm-flash-latest, then| Reviewers (quality-analyst, security-engineer, software-architect, tier-2 judge) | openrouter/deepseek/deepseek-v4.1-flash | Different model family than the GLM executor (genuine cross-model, single provider); 1M ctx; $0.0507 in / $0.2028 out || First live fallback wins |
+| Reviewers (quality-analyst, security-engineer, software-architect, tier-2 judge) | openrouter/deepseek/deepseek-v4.1-flash | Different model family than the GLM executor (genuine cross-model, single provider); 1M ctx; $0.0507 in / $0.2028 out |
+| Declared fallback (inactive) | sumopod/glm-5.3-flash, sumopod/deepseek-flash | No API key available; display names carry an INACTIVE marker; never primary |
+
+If a reviewer can only run on the same provider family as the executor after fallback, set governance.cross_model_degraded=true and cap the combined verdict at RETRY (engine/rules/rules.json, enforcement.cross_model_review.degraded_mode). Context and pricing verified against the live OpenRouter model registry (1M ctx = 1048576 tokens).
+
+## Security Notes
+
+- docker.sock is mounted into the opencode container (compose group_add DOCKER_GID). That is host-equivalent access, needed for sandbox container management. Treat container compromise as host compromise; prefer a socket proxy in hostile environments.
+- Set OPENCODE_SERVER_PASSWORD in production, or bind the service to localhost. The empty default leaves the server unauthenticated on its port.
+- Gate scripts (validate-contract, state-guard, sdd-gate, snapshot-contract, persist-contract, loop-validate, verify-knowledge, auto-score, detect-parallel-conflicts) are allowlisted in config/lean-ctx-config.toml with per-entry rationale; extend with lean-ctx allow, never by hand-editing the runtime file.
+- The sidecar openui service still defaults to the sumopod provider for its own model calls; it needs the same live-provider treatment as the main config (tracked as follow-up).
 ## Ports and Volumes
 
 | Host | Container | Notes |
@@ -108,7 +126,6 @@ Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` 
 | `127.0.0.1:4096` | `4096` | OpenCode web UI (serve); loopback only |
 | `./workspace` | `/home/node/workspace` | Working tree mounted into the container (repo compose) |
 | `config/opencode.json` | `/home/node/.config/opencode/opencode.json` | Read-only bind mount; restart to apply edits |
-| `config/opencode-model-fallback.json` | `/home/node/.config/opencode/opencode-model-fallback.json` | Read-only, dormant |
 | `opencode-data` (named volume) | `/home/node/.local/share/opencode` | Auth, session store, lean-ctx knowledge store, rag index |
 | `../../pre-installer/` (workspace root) | build context `preinstall` | Offline package store, consumed at build time |
 
@@ -189,7 +206,7 @@ The workspace-root `pre-installer/` store holds apt `.deb` files, pip wheels, np
 
 Every version above lands in `agents/opencode/pre-install/versions.lock` when populate runs; that file is the pin record. There is no separate version list to keep in sync.
 
-**Custom plugins removed** (`@razroo/opencode-model-fallback@0.3.2`, `@tarquinen/opencode-dcp@3.2.0`, `opencode-websearch-cited@1.2.0`): they target the V1 plugin API and V2 additionally rejects their old `file://<file>` entries (`configured plugin path must be a directory`), so they never loaded. They are dropped from the image and `config/opencode.json` until ported to the `@opencode/plugin` V2 API; no fallback executor→reviewer resilience is active until then. Contrast: the first-party V2-native `@firecrawl/opencode` plugin is adopted offline-vendored at `engine/plugins/opencode-firecrawl` (developer search works keyless out of the box); the community V1-era plugins above remain removed.
+**Custom plugins removed** (`@razroo/opencode-model-fallback@0.3.2`, `@tarquinen/opencode-dcp@3.2.0`, `opencode-websearch-cited@1.2.0`): they target the V1 plugin API and V2 additionally rejects their old `file://<file>` entries (`configured plugin path must be a directory`), so they never loaded. They are dropped from the image and `config/opencode.json` until ported to the `@opencode/plugin` V2 API; provider failover is carried by the provider config (openrouter primary, sumopod declared-inactive fallback) plus rules.json degraded_mode. Contrast: the first-party V2-native `@firecrawl/opencode` plugin is adopted offline-vendored at `engine/plugins/opencode-firecrawl` (developer search works keyless out of the box); the community V1-era plugins above remain removed.
 
 ## Project Structure
 
@@ -205,7 +222,7 @@ opencode/
 │   └── test/                    # corpus fixtures, embeddings stub, MCP checks
 ├── populate-preinstall.sh       # Offline-store bootstrap (fills workspace-root pre-installer/)
 ├── .env.template                # Copy to repository-root .env
-├── config/                      # opencode.json (V2-native, 6 MCP servers), rag-usage.md agent guidance, dormant fallback config, lean-ctx-config.toml
+├── config/                      # opencode.json (V2-native, 6 MCP servers), rag-usage.md agent guidance, lean-ctx-config.toml (baked gate-script allowlist)
 ├── certs/                       # TLS certs mirror (synced from workspace-root certs/)
 ├── pre-install/                 # versions.lock + .gitkeep only (store at workspace-root pre-installer/)
 ├── session/                     # Live orchestration contract + state log (gitignored)

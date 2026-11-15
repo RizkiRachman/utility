@@ -13,7 +13,7 @@ Contract-driven state machine orchestration engine for AI agent workflows: 17 ag
 
 Agent work is easy to run and hard to trust: outputs drift, decisions vanish, and a confident answer ships unchecked. The engine routes every request through a contract state machine with hard gates, keeps reasoning persistent in one task-namespaced session envelope plus a knowledge store, and stays efficient through a lean baked surface with explicit token budgets.
 
-One container ships OpenCode, lean-ctx, five registered MCP servers (context7, fetch, lean-ctx, openui, rag), the vendored Firecrawl plugin, 45 skills, and deny-first workflow enforcement. There is no first-boot assembly step and no runtime package fetch, so the first boot is fully operational. The canonical instruction file is [`agent.md`](agent.md), loaded as `instructions[0]` by every agent.
+One container ships OpenCode, lean-ctx, six registered MCP servers (cocoindex-code, context7, fetch, lean-ctx, openui, rag), the vendored Firecrawl plugin, 45 skills, and deny-first workflow enforcement. There is no first-boot assembly step and no runtime package fetch, so the first boot is fully operational. The canonical instruction file is [`agent.md`](agent.md), loaded as `instructions[0]` by every agent.
 
 Storage and workflow are separate concerns. Git stores source, but the workflow assumes no VCS: services arrive with their own patterns, users prepare their own repositories, and they instruct the agent in plain terms. `sandbox/` is the user playground, and any forge works, or none. The state machine, scoring thresholds and script inventory below are the operating contract.
 
@@ -185,6 +185,7 @@ Any state can escalate to `BLOCKED` when a combined score lands below 50 or retr
 |-----------|------|-----------|
 | INIT → PLAN | Session created | Always |
 | PLAN → PLAN_SCORED | Plan produced | Always |
+| PLAN_SCORED → EXECUTE | Plan accepted | Score ≥ 70 |
 | EXECUTE → EXECUTE_SCORED | Implementation done | Always |
 | EXECUTE_SCORED → REVIEW | Code review | Score ≥ 70 |
 | REVIEW → REVIEW_SCORED | Review done | Always |
@@ -207,28 +208,28 @@ Three-tier scoring runs after every delegation:
 
 ## Agents
 
-17 instruction files under [`agents/`](agents/orchestrator.md). The build tier plans and writes code on `big-pickle`; quality and security reviews run on an independent model (`deepseek-flash`); everything else runs the default (`glm`). No agent audits its own output.
+17 instruction files under [`agents/`](agents/orchestrator.md). The build tier plans and writes code on `glm-5.3-flash` (openrouter/z-ai/glm-5.3-flash); quality and security reviews run on an independent model (`openrouter/deepseek/deepseek-v4.1-flash`); everything else runs the same primary (`glm-5.3-flash`). No agent audits its own output.
 
 | Agent | Role | Model | Access |
 |---|---|---|---|
-| [`orchestrator`](agents/orchestrator.md) | Scrum lead: delegates, scores, drives the state machine | glm | read/write |
-| [`build`](agents/build.md) | Restricted bootstrap entrypoint: no tools, hands every request to the orchestrator | big-pickle | none (delegates) |
-| [`design-orchestrator`](agents/design-orchestrator.md) | UI/UX specialist orchestrator, 4-layer design pipeline | glm | read/write |
-| [`product-manager`](agents/product-manager.md) | Requirements + GWT acceptance criteria | glm | read-only |
-| [`system-analyst`](agents/system-analyst.md) | Impact analysis, specs, implementation plans | big-pickle | read-only |
-| [`software-architect`](agents/software-architect.md) | Architecture trade-offs, tech-debt assessment | glm | read-only |
-| [`developer`](agents/developer.md) | Implements the plan, writes tests alongside code | big-pickle | read/write |
-| [`devops-engineer`](agents/devops-engineer.md) | CI/CD, containerization, deploy, migrations, observability | glm | read/write |
-| [`fixer`](agents/fixer.md) | Bounded, scoped fixes for well-defined tasks | big-pickle | read/write |
-| [`quality-analyst`](agents/quality-analyst.md) | Independent 5-axis quality review | deepseek-flash | read-only |
-| [`security-engineer`](agents/security-engineer.md) | Security review: threat model, vulns, secrets | deepseek-flash | read-only |
-| [`scrum-master`](agents/scrum-master.md) | Process owner: guards contract and state machine, unblocks BLOCKED | glm | read-only |
-| [`learner`](agents/learner.md) | Post-execution retro: extract and persist lessons | glm | read-only |
-| [`explorer`](agents/explorer.md) | Fast codebase search and unknown discovery | glm | read-only |
-| [`librarian`](agents/librarian.md) | External docs and library research | glm | read-only |
+| [`orchestrator`](agents/orchestrator.md) | Scrum lead: delegates, scores, drives the state machine | glm-5.3-flash | read/write |
+| [`build`](agents/build.md) | Restricted bootstrap entrypoint: no tools, hands every request to the orchestrator | glm-5.3-flash | none (delegates) |
+| [`design-orchestrator`](agents/design-orchestrator.md) | UI/UX specialist orchestrator, 4-layer design pipeline | glm-5.3-flash | read/write |
+| [`product-manager`](agents/product-manager.md) | Requirements + GWT acceptance criteria | glm-5.3-flash | read-only |
+| [`system-analyst`](agents/system-analyst.md) | Impact analysis, specs, implementation plans | glm-5.3-flash | read-only |
+| [`software-architect`](agents/software-architect.md) | Architecture trade-offs, tech-debt assessment | openrouter/deepseek/deepseek-v4.1-flash | read-only |
+| [`developer`](agents/developer.md) | Implements the plan, writes tests alongside code | glm-5.3-flash | read/write |
+| [`devops-engineer`](agents/devops-engineer.md) | CI/CD, containerization, deploy, migrations, observability | glm-5.3-flash | read/write |
+| [`fixer`](agents/fixer.md) | Bounded, scoped fixes for well-defined tasks | glm-5.3-flash | read/write |
+| [`quality-analyst`](agents/quality-analyst.md) | Independent 5-axis quality review | openrouter/deepseek/deepseek-v4.1-flash | read-only |
+| [`security-engineer`](agents/security-engineer.md) | Security review: threat model, vulns, secrets | openrouter/deepseek/deepseek-v4.1-flash | read-only |
+| [`scrum-master`](agents/scrum-master.md) | Process owner: guards contract and state machine, unblocks BLOCKED | glm-5.3-flash | read-only |
+| [`learner`](agents/learner.md) | Post-execution retro: extract and persist lessons | glm-5.3-flash | read-only |
+| [`explorer`](agents/explorer.md) | Fast codebase search and unknown discovery | glm-5.3-flash | read-only |
+| [`librarian`](agents/librarian.md) | External docs and library research | glm-5.3-flash | read-only |
 | [`council`](agents/council.md) | Multi-model consensus and cross-model arbitration | multi | read-only |
-| [`observer`](agents/observer.md) | Visual analysis: images, PDFs, diagrams | glm | read-only |
-**Cross-model review**: the build tier (`build`, @system-analyst, @developer, @fixer on `big-pickle`) never shares a model with its reviewers (@quality-analyst, @security-engineer on `deepseek-flash`). Conflicting verdicts escalate to `BLOCKED`, arbitrated by @council.
+| [`observer`](agents/observer.md) | Visual analysis: images, PDFs, diagrams | glm-5.3-flash | read-only |
+**Cross-model review**: the build tier (`build`, @system-analyst, @developer, @fixer on `openrouter/z-ai/glm-5.3-flash`) never shares a model with its reviewers (@quality-analyst, @security-engineer on `openrouter/deepseek/deepseek-v4.1-flash`). Conflicting verdicts escalate to `BLOCKED`, arbitrated by @council. If a reviewer must double-fallback onto the executor provider family, set `governance.cross_model_degraded` and cap the verdict at RETRY (`rules.json → enforcement.cross_model_review.degraded_mode`).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
