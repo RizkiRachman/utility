@@ -9,9 +9,10 @@ services:
       context: workspace/agents/opencode
       # Version pins intentionally absent: the Dockerfile ARG defaults are
       # empty (latest), and the offline store globs are the real lockfile.
-      # Add e.g. OPENCODE_VERSION: "2.3.0" here only to pin deliberately.
+      # Add e.g. OPENCODE_VERSION: "2.3.0" under build.args only to pin
+      # deliberately. (The no-op `args: {}` was removed - compose passes no
+      # build args unless declared.)
       # Arch follows TARGETARCH (amd64 -> x64); the offline store holds x64 tarballs.
-      args: {}
       additional_contexts:
         preinstall: ./workspace/pre-installer
     init: true
@@ -19,6 +20,9 @@ services:
     cpus: 2
     restart: unless-stopped
     ports:
+      # Host loopback publish. With OPENCODE_BIND_LOCALHOST=1 the in-container
+      # listener also drops to the container loopback (entrypoint BIND_HOST);
+      # without it the server listens on all interfaces inside the container.
       - "127.0.0.1:4096:4096"
     environment:
       LANG: C.UTF-8
@@ -29,6 +33,7 @@ services:
       OPENCODE_DEPLOY_MODE: ${OPENCODE_DEPLOY_MODE:-dev}
       OPENCODE_BIND_LOCALHOST: ${OPENCODE_BIND_LOCALHOST:-0}
       OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD:-}
+      OPENCODE_SESSION_DIR: ${OPENCODE_SESSION_DIR:-/home/node/workspace/session}
       OPENCODE_CONFIG: /home/node/.config/opencode/opencode.json
       SUMOPOD_API_KEY: ${SUMOPOD_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
@@ -49,11 +54,17 @@ services:
       - opencode-data:/home/node/.local/share/opencode
       - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
-      test: [ "CMD", "curl", "-fsS", "http://[IP_ADDRESS]:4096/" ]
+      # Code-based probe: OpenCode's HTTP surface answers 200 (unauthenticated)
+      # or 401 (basic auth challenge) - both are HEALTHY; only 5xx (or no
+      # connection at all) is a failure. Plain `curl -fsS` false-reds on the
+      # 401 auth challenge. Probe the container loopback (the server binds
+      # 0.0.0.0 in-container; the shipped compose maps host loopback 4096).
+      # start_period 90s: the MCP preflight can exceed 30s on cold boot.
+      test: ["CMD-SHELL", "code=$$(curl -s -o /dev/null -w '%{http_code}' http://[IP_ADDRESS]:4096/) && [ \"$$code\" -lt 500 ] || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: 90s
     group_add:
       - "${DOCKER_GID:-101}"
   opencode-preinstall:

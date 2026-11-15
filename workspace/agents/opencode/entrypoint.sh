@@ -15,17 +15,40 @@ mkdir -p /tmp/opencode/uploads 2>/dev/null || true
 # the archive dir. Idempotent: existing files are never overwritten.
 # -----------------------------------------------------------------------------
 SESSION_DIR="${OPENCODE_SESSION_DIR:-/home/node/workspace/session}"
-if [ ! -f "$SESSION_DIR/contract.json" ]; then
-  mkdir -p "$SESSION_DIR/archive"
-  if [ -f /opt/engine/contract/contract.template.json ]; then
-    cp /opt/engine/contract/contract.template.json "$SESSION_DIR/contract.json"
+# Seeding is best-effort (M6): an unwritable session dir must warn and skip,
+# not crash-loop the container under set -eu. Healing is per-item (L6): a
+# pre-existing contract.json does not imply archive/ or state.md exist, so
+# each is (re-)created on its own when missing.
+if ! mkdir -p "$SESSION_DIR" 2>/dev/null; then
+  echo "[entrypoint] WARN: session dir not writable; skipping seeding" >&2
+else
+  seeded=0
+  if [ ! -f "$SESSION_DIR/contract.json" ]; then
+    if [ -f /opt/engine/contract/contract.template.json ]; then
+      if cp /opt/engine/contract/contract.template.json "$SESSION_DIR/contract.json" 2>/dev/null; then
+        seeded=1
+      else
+        echo "[entrypoint] WARN: could not copy contract template; skipping contract.json seeding" >&2
+      fi
+    else
+      echo "[entrypoint] WARN: engine contract template not found; session/contract.json not seeded" >&2
+    fi
+  fi
+  if [ ! -d "$SESSION_DIR/archive" ] && ! mkdir -p "$SESSION_DIR/archive" 2>/dev/null; then
+    echo "[entrypoint] WARN: could not create $SESSION_DIR/archive" >&2
+  fi
+  if [ ! -f "$SESSION_DIR/state.md" ] && [ -f /opt/engine/contract/state.template.md ]; then
+    if cp /opt/engine/contract/state.template.md "$SESSION_DIR/state.md" 2>/dev/null; then
+      seeded=1
+    else
+      echo "[entrypoint] WARN: could not copy state template; skipping state.md seeding" >&2
+    fi
+  fi
+  if [ "$seeded" -eq 1 ]; then
+    echo "[entrypoint] session state seeded at $SESSION_DIR"
   else
-    echo "[entrypoint] WARN: engine contract template not found; session/contract.json not seeded" >&2
+    echo "[entrypoint] session state ensured at $SESSION_DIR"
   fi
-  if [ -f /opt/engine/contract/state.template.md ] && [ ! -f "$SESSION_DIR/state.md" ]; then
-    cp /opt/engine/contract/state.template.md "$SESSION_DIR/state.md"
-  fi
-  echo "[entrypoint] session state seeded at $SESSION_DIR"
 fi
 
 # -----------------------------------------------------------------------------
@@ -141,11 +164,32 @@ configure_opencode_auth
 #     Anything else fails fast BEFORE MCP checks and server start.
 # -----------------------------------------------------------------------------
 OPENCODE_DEPLOY_MODE="${OPENCODE_DEPLOY_MODE:-dev}"
+# Strict validation (fail closed, sec-L3): anything outside dev|production is
+# a config error, not a silent fallback to dev.
+case "$OPENCODE_DEPLOY_MODE" in
+  dev|production) : ;;
+  *)
+    echo "[entrypoint] FATAL: OPENCODE_DEPLOY_MODE must be 'dev' or 'production' (got '$OPENCODE_DEPLOY_MODE')" >&2
+    exit 1
+    ;;
+esac
 if [ "$OPENCODE_DEPLOY_MODE" = "production" ]; then
   if [ -z "${OPENCODE_SERVER_PASSWORD:-}" ] && [ "${OPENCODE_BIND_LOCALHOST:-0}" != "1" ]; then
     echo "[entrypoint] FATAL: production mode requires OPENCODE_SERVER_PASSWORD or OPENCODE_BIND_LOCALHOST=1" >&2
     exit 1
   fi
+fi
+
+# Launch binding (S5/P2-11, implements OPENCODE_BIND_LOCALHOST): production +
+# OPENCODE_BIND_LOCALHOST=1 binds the server to the container loopback instead
+# of all interfaces. Only meaningful if the operator ALSO publishes the host
+# port on loopback - add to the compose service (default publishes host
+# loopback already):
+#   ports: ["[IP_ADDRESS]:4096:4096"]   # loopback-scoped publish example
+BIND_HOST=0.0.0.0
+if [ "$OPENCODE_DEPLOY_MODE" = "production" ] && [ "${OPENCODE_BIND_LOCALHOST:-0}" = "1" ]; then
+  BIND_HOST=127.0.0.1
+  echo "[entrypoint] OPENCODE_BIND_LOCALHOST=1: binding $BIND_HOST - operator must also map host ports on loopback (ports: [\"127.0.0.1:4096:4096\"])"
 fi
 
 # OpenCode reads the credential from auth.json.
@@ -221,11 +265,11 @@ fi
 # instead of crash-looping the container.
 
 if opencode serve --help >/dev/null 2>&1; then
-  echo "[entrypoint] starting: opencode serve --hostname 0.0.0.0 --port 4096"
-  exec opencode serve --hostname 0.0.0.0 --port 4096
+  echo "[entrypoint] starting: opencode serve --hostname $BIND_HOST --port 4096"
+  exec opencode serve --hostname "$BIND_HOST" --port 4096
 elif opencode web --help >/dev/null 2>&1; then
-  echo "[entrypoint] starting: opencode web --hostname 0.0.0.0 --port 4096"
-  exec opencode web --hostname 0.0.0.0 --port 4096
+  echo "[entrypoint] starting: opencode web --hostname $BIND_HOST --port 4096"
+  exec opencode web --hostname "$BIND_HOST" --port 4096
 else
   echo "[entrypoint] WARN: neither serve nor web accepted; falling back to bare serve" >&2
   exec opencode serve
