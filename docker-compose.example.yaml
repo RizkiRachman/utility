@@ -7,7 +7,11 @@ services:
       bpg.type: agents
     build:
       context: workspace/agents/opencode
-      dockerfile: Dockerfile
+      # Version pins intentionally absent: the Dockerfile ARG defaults are
+      # empty (latest), and the offline store globs are the real lockfile.
+      # Add e.g. OPENCODE_VERSION: "2.3.0" here only to pin deliberately.
+      # Arch follows TARGETARCH (amd64 -> x64); the offline store holds x64 tarballs.
+      args: {}
       additional_contexts:
         preinstall: ./workspace/pre-installer
     init: true
@@ -22,6 +26,8 @@ services:
       TERM: xterm-256color
       OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
       OPENCODE_AUTH_REQUIRED: "true"
+      OPENCODE_DEPLOY_MODE: ${OPENCODE_DEPLOY_MODE:-dev}
+      OPENCODE_BIND_LOCALHOST: ${OPENCODE_BIND_LOCALHOST:-0}
       OPENCODE_SERVER_PASSWORD: ${OPENCODE_SERVER_PASSWORD:-}
       OPENCODE_CONFIG: /home/node/.config/opencode/opencode.json
       SUMOPOD_API_KEY: ${SUMOPOD_API_KEY:-}
@@ -42,6 +48,12 @@ services:
       - ./workspace/agents/opencode/rag:/opt/rag:ro
       - opencode-data:/home/node/.local/share/opencode
       - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://[IP_ADDRESS]:4096/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     group_add:
       - "${DOCKER_GID:-101}"
   opencode-preinstall:
@@ -91,7 +103,6 @@ services:
       bpg.type: agents
     build:
       context: workspace/agents/openui/app
-      dockerfile: Dockerfile
     init: true
     mem_limit: 2g
     cpus: 2

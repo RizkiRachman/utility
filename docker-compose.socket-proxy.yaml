@@ -1,0 +1,33 @@
+# Opt-in docker socket confinement (S1/P2-10). Base compose stays direct-mount.
+#
+# Activate:
+#   docker compose -f docker-compose.example.yaml -f docker-compose.socket-proxy.yaml up -d
+#
+# Requires compose v2.24+ for the !override volumes tag. The proxy exposes a
+# filtered docker API (CONTAINERS/IMAGES/NETWORKS only, no EXEC, no VOLUMES,
+# POST limited to container lifecycle); the opencode container reaches docker
+# over the compose network and the host socket mount is dropped from it.
+# Pin the proxy image deliberately via DOCKER_SOCKET_PROXY_IMAGE before prod.
+services:
+  docker-socket-proxy:
+    image: ${DOCKER_SOCKET_PROXY_IMAGE:-tecnativa/docker-socket-proxy:latest}
+    restart: unless-stopped
+    init: true
+    environment:
+      CONTAINERS: 1
+      IMAGES: 1
+      NETWORKS: 1
+      VOLUMES: 0
+      EXEC: 0
+      POST: 1
+      ALLOW_RESTARTS: 1
+  opencode:
+    environment:
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
+    volumes: !override
+      - ./workspace:/home/node/workspace
+      - ./workspace/agents/opencode/config/opencode.json:/home/node/.config/opencode/opencode.json:ro
+      - ./workspace/agents/opencode/rag:/opt/rag:ro
+      - opencode-data:/home/node/.local/share/opencode
+volumes:
+  opencode-data:

@@ -7,6 +7,28 @@ set -eu
 mkdir -p /tmp/opencode/uploads 2>/dev/null || true
 
 # -----------------------------------------------------------------------------
+# Session state seeding (D16/P2-12)
+#
+# The workflow engine project-root session/ (the container global session dir
+# under /home/node/workspace) must exist before agents run: contract.json
+# seeded from the engine contract template, state.md from its example, plus
+# the archive dir. Idempotent: existing files are never overwritten.
+# -----------------------------------------------------------------------------
+SESSION_DIR="${OPENCODE_SESSION_DIR:-/home/node/workspace/session}"
+if [ ! -f "$SESSION_DIR/contract.json" ]; then
+  mkdir -p "$SESSION_DIR/archive"
+  if [ -f /opt/engine/contract/contract.template.json ]; then
+    cp /opt/engine/contract/contract.template.json "$SESSION_DIR/contract.json"
+  else
+    echo "[entrypoint] WARN: engine contract template not found; session/contract.json not seeded" >&2
+  fi
+  if [ -f /opt/engine/contract/state.template.md ] && [ ! -f "$SESSION_DIR/state.md" ]; then
+    cp /opt/engine/contract/state.template.md "$SESSION_DIR/state.md"
+  fi
+  echo "[entrypoint] session state seeded at $SESSION_DIR"
+fi
+
+# -----------------------------------------------------------------------------
 # OpenCode authentication
 # -----------------------------------------------------------------------------
 
@@ -107,6 +129,24 @@ NODE
 }
 
 configure_opencode_auth
+
+# -----------------------------------------------------------------------------
+# Server exposure preflight (S5/P2-11)
+#
+# OPENCODE_DEPLOY_MODE:
+#   dev (default): current behavior - empty OPENCODE_SERVER_PASSWORD is
+#     allowed; the server accepts unauthenticated peers on its port.
+#   production: require OPENCODE_SERVER_PASSWORD, or an explicit
+#     OPENCODE_BIND_LOCALHOST=1 to accept the loopback-only trade-off.
+#     Anything else fails fast BEFORE MCP checks and server start.
+# -----------------------------------------------------------------------------
+OPENCODE_DEPLOY_MODE="${OPENCODE_DEPLOY_MODE:-dev}"
+if [ "$OPENCODE_DEPLOY_MODE" = "production" ]; then
+  if [ -z "${OPENCODE_SERVER_PASSWORD:-}" ] && [ "${OPENCODE_BIND_LOCALHOST:-0}" != "1" ]; then
+    echo "[entrypoint] FATAL: production mode requires OPENCODE_SERVER_PASSWORD or OPENCODE_BIND_LOCALHOST=1" >&2
+    exit 1
+  fi
+fi
 
 # OpenCode reads the credential from auth.json.
 # Remove the original token from the environment inherited by plugins and MCPs.
