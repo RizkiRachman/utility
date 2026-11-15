@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "sumopod/glm-5.3-flash",
+  "model": "openrouter/z-ai/glm-5.3-flash",
   "default_agent": "orchestrator",
   "update": "disable",
   "lsp": false,
@@ -129,6 +129,16 @@
       "action": "edit",
       "resource": "**/.env*",
       "effect": "deny"
+    },
+    {
+      "action": "cocoindex-code_*",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
+      "action": "cocoindex_*",
+      "resource": "*",
+      "effect": "allow"
     }
   ],
   "plugins": [
@@ -144,10 +154,35 @@
       },
       "models": {
         "deepseek-flash": {
-          "name": "DeepSeek Flash"
+          "name": "DeepSeek Flash (INACTIVE: no API key, declared fallback only)"
         },
         "glm-5.3-flash": {
-          "name": "GLM 5.3 Flash"
+          "name": "GLM 5.3 Flash (INACTIVE: no API key, declared fallback only)"
+        }
+      }
+    },
+    "openrouter": {
+      "name": "OpenRouter",
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://openrouter.ai/api/v1",
+        "apiKey": "{env:OPENROUTER_API_KEY}"
+      },
+      "models": {
+        "z-ai/glm-5.3-flash": {
+          "name": "GLM 5.3 Flash (primary; 1M ctx)"
+        },
+        "~z-ai/glm-flash-latest": {
+          "name": "GLM Flash Latest (alias of z-ai/glm-5.3-flash)"
+        },
+        "deepseek/deepseek-v4.1-flash": {
+          "name": "DeepSeek V4.1 Flash (reviewer + first fallback; 1M ctx)"
+        },
+        "gpt-6-luna": {
+          "name": "GPT 6 Luna (fallback)"
+        },
+        "qwen/qwen3.8-flash": {
+          "name": "Qwen 3.8 Flash (fallback; 1M ctx)"
         }
       }
     }
@@ -155,7 +190,7 @@
   "agents": {
     "build": {
       "mode": "primary",
-      "model": "opencode/big-pickle",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "permissions": [
         {
           "action": "read",
@@ -175,9 +210,9 @@
       ]
     },
     "orchestrator": {
-      "description": "Scrum team lead and primary orchestrator - delegates to the team, runs the scoring pipeline, drives the state machine.",
+      "description": "Scrum team lead and primary orchestrator — delegates to the team, runs the scoring pipeline, drives the state machine.",
       "mode": "all",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 50,
       "permissions": [
         {
@@ -228,9 +263,9 @@
       ]
     },
     "design-orchestrator": {
-      "description": "UI/UX specialist orchestrator - enforces 4-layer design pipeline (Exemplar > Generator > Taste > Gate).",
+      "description": "UI/UX specialist orchestrator — enforces 4-layer design pipeline (Exemplar > Generator > Taste > Gate).",
       "mode": "all",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 50,
       "permissions": [
         {
@@ -291,9 +326,9 @@
       ]
     },
     "product-manager": {
-      "description": "Owns requirements and the acceptance-criteria backlog. Turns user intent into testable Given-When-Then criteria. Read-only - no edits.",
+      "description": "Owns requirements and the acceptance-criteria backlog. Turns user intent into testable Given-When-Then criteria. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/deepseek-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 40,
       "permissions": [
         {
@@ -349,9 +384,9 @@
       ]
     },
     "scrum-master": {
-      "description": "Process owner. Guards the contract, state machine, and workflow on every transition; unblocks BLOCKED sessions and drives retros. Read-only - no edits.",
+      "description": "Process owner. Guards the contract, state machine, and workflow on every transition; unblocks BLOCKED sessions and drives retros. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/deepseek-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 40,
       "permissions": [
         {
@@ -409,7 +444,7 @@
     "system-analyst": {
       "description": "Analyzes requests, traces impact across the codebase, identifies edge cases, and produces a structured implementation plan or GWT spec.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 80,
       "permissions": [
         {
@@ -465,9 +500,9 @@
       ]
     },
     "software-architect": {
-      "description": "Strategic architecture advisor and independent design reviewer - trade-offs, system-level debugging, YAGNI enforcement. Read-only - no edits.",
+      "description": "Strategic architecture advisor and independent design reviewer — trade-offs, system-level debugging, YAGNI enforcement. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "openrouter/deepseek/deepseek-v4.1-flash",
       "steps": 60,
       "permissions": [
         {
@@ -525,7 +560,7 @@
     "developer": {
       "description": "Implements the plan task by task following project conventions, writing tests alongside code.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 100,
       "permissions": [
         {
@@ -583,7 +618,7 @@
     "devops-engineer": {
       "description": "Builds and validates CI/CD, containerization, deployment, migrations, observability, and rollback plans. Read/write within scope.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 60,
       "permissions": [
         {
@@ -639,9 +674,9 @@
       ]
     },
     "quality-analyst": {
-      "description": "Independent quality reviewer - code quality, edge cases, tests, performance, and DB/DevOps operability. Cross-model reviewer. Read-only - no edits.",
+      "description": "Independent quality reviewer — code quality, edge cases, tests, performance, and DB/DevOps operability. Cross-model reviewer. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/deepseek-flash",
+      "model": "openrouter/deepseek/deepseek-v4.1-flash",
       "steps": 80,
       "permissions": [
         {
@@ -697,9 +732,9 @@
       ]
     },
     "security-engineer": {
-      "description": "Independent security reviewer - threat modeling, vulnerability assessment, secrets/trust-boundary review. Cross-model reviewer. Read-only - no edits.",
+      "description": "Independent security reviewer — threat modeling, vulnerability assessment, secrets/trust-boundary review. Cross-model reviewer. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/deepseek-flash",
+      "model": "openrouter/deepseek/deepseek-v4.1-flash",
       "steps": 60,
       "permissions": [
         {
@@ -755,9 +790,9 @@
       ]
     },
     "explorer": {
-      "description": "Codebase search specialist for discovering unknowns. Read-only - no edits.",
+      "description": "Codebase search specialist for discovering unknowns. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 30,
       "permissions": [
         {
@@ -813,9 +848,9 @@
       ]
     },
     "librarian": {
-      "description": "External documentation and library research specialist. Read-only - no edits.",
+      "description": "External documentation and library research specialist. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 30,
       "permissions": [
         {
@@ -871,9 +906,9 @@
       ]
     },
     "council": {
-      "description": "Multi-model consensus engine for high-stakes decisions and cross-model enforcement. Read-only - no edits.",
+      "description": "Multi-model consensus engine for high-stakes decisions and cross-model enforcement. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 30,
       "permissions": [
         {
@@ -929,9 +964,9 @@
       ]
     },
     "observer": {
-      "description": "Visual analysis specialist for images, PDFs, and diagrams. Read-only - no edits.",
+      "description": "Visual analysis specialist for images, PDFs, and diagrams. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 30,
       "permissions": [
         {
@@ -989,7 +1024,7 @@
     "fixer": {
       "description": "Fast implementation specialist for well-defined bounded tasks and review fixes. Scoped edits only.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 40,
       "permissions": [
         {
@@ -1045,9 +1080,9 @@
       ]
     },
     "learner": {
-      "description": "Post-execution retro facilitator. Extracts lessons, patterns, and gotchas after completion to make the system smarter. Read-only - no edits.",
+      "description": "Post-execution retro facilitator. Extracts lessons, patterns, and gotchas after completion to make the system smarter. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "openrouter/z-ai/glm-5.3-flash",
       "steps": 40,
       "permissions": [
         {
@@ -1103,17 +1138,54 @@
       ]
     },
     "plan": {
-      "model": "sumopod/glm-5.3-flash"
+      "model": "openrouter/z-ai/glm-5.3-flash",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "write",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ]
     },
     "general": {
-      "model": "sumopod/glm-5.3-flash"
+      "model": "openrouter/z-ai/glm-5.3-flash",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "write",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ]
     },
     "explore": {
-      "model": "sumopod/glm-5.3-flash"
+      "model": "openrouter/z-ai/glm-5.3-flash",
+      "permissions": [
+        {
+          "action": "edit",
+          "resource": "*",
+          "effect": "deny"
+        },
+        {
+          "action": "write",
+          "resource": "*",
+          "effect": "deny"
+        }
+      ]
     }
   },
   "instructions": [
-    "/opt/engine/agent.md"
+    "/opt/engine/agent.md",
+    "/opt/engine/config/rag-usage.md"
   ],
   "compaction": {
     "auto": true,

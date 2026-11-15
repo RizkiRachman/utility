@@ -300,13 +300,15 @@
       "desc": "Per-phase model separation and independent (cross-model) review enforcement.",
       "model_tiers": {
         "executor": [
-          "opencode/big-pickle"
+          "openrouter/z-ai/glm-5.3-flash"
         ],
         "default": [
-          "sumopod/glm-5.3-flash"
+          "openrouter/z-ai/glm-5.3-flash"
         ],
         "fallback": [
-          "sumopod/deepseek-flash"
+          "openrouter/deepseek/deepseek-v4.1-flash",
+          "openrouter/gpt-6-luna",
+          "openrouter/qwen/qwen3.8-flash"
         ],
         "separation_rule": "reviewer primary/default must differ from executor primary and executor fallback"
       },
@@ -359,7 +361,7 @@
         "judge": {
           "owner": "orchestrator",
           "tier": "reviewer",
-          "model": "sumopod/deepseek-flash",
+          "model": "openrouter/deepseek/deepseek-v4.1-flash",
           "desc": "Tier-2 LLM-as-judge scoring subtask; runs on a model different from the orchestrator's own model. A run without a judge response is labeled tier1_only."
         }
       },
@@ -392,6 +394,15 @@
           "oauth",
           "crypto"
         ]
+      },
+      "degraded_mode": {
+        "version": "0.8.1",
+        "enabled": true,
+        "desc": "When the reviewer tier collapses onto the executor model family after fallback, set governance.cross_model_degraded=true and cap the combined verdict at RETRY. Never PASS under degraded mode. Cross-model separation is provider-wide (GLM executor vs DeepSeek reviewer on OpenRouter); this mode covers single-family collapse.",
+        "trigger": "reviewer model collapses onto the executor model family (GLM) after fallback",
+        "cap_verdict": "RETRY",
+        "require_reviewer_model": "openrouter/deepseek/deepseek-v4.1-flash",
+        "degraded_reviewer_model": "openrouter/z-ai/glm-5.3-flash"
       }
     },
     "runtime_timeout": {
@@ -438,9 +449,9 @@
       "violation_action": "warn_then_BLOCKED_on_repeat"
     },
     "subagent_limits": {
-      "max_depth": 2,
+      "max_depth": 1,
       "max_delegations_per_session": 20,
-      "desc": "N16: depth-3 chains and runaway fan-out are rejected by state-guard"
+      "desc": "N16 revised: the platform refuses nested subagents below depth 1 (an orchestrator running as a subagent already sits at depth 1); delegation plans must include a self-execution fallback."
     }
   },
   "resilience": {
