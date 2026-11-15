@@ -7,13 +7,9 @@ services:
       bpg.type: agents
     build:
       context: workspace/agents/opencode
+      dockerfile: Dockerfile
       additional_contexts:
         preinstall: ./workspace/pre-installer
-      args:
-        # Version pins intentionally absent: the Dockerfile ARG defaults are
-        # empty (latest), and the offline store globs are the real lockfile.
-        # Add e.g. OPENCODE_VERSION: "2.3.0" here only to pin deliberately.
-        # arch follows TARGETARCH (amd64 -> x64); the offline store holds x64 tarballs
     init: true
     mem_limit: 3g
     cpus: 2
