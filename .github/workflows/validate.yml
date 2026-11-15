@@ -51,6 +51,13 @@ jobs:
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/validate-contract.sh --file engine/contract/contract.template.json --score
 
+      # DIGEST POLICY: this gate is READ-ONLY verification (--verify-digests
+      # hashes the store against pre-install/digests.sha256; nothing is
+      # written, uploaded, or populated). Digest DEPLOYMENT (the Cloudflare
+      # Pages source digest) and artifact-digest POPULATION (--update-digests,
+      # a maintainer local run) never happen on pull_request or feature-branch
+      # events: deployment runs only on push to refs/heads/main in
+      # .github/workflows/deploy-digest.yml.
       # Digest gate (S3/P2-9): the offline store is gitignored, so CI runs the
       # offline verify only when a populated store happens to exist
       # (self-hosted runners). With 0 pins (comment-only manifest) the step

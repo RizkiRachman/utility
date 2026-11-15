@@ -60,7 +60,7 @@ docker compose -f docker-compose.example.yaml up -d --build
 open http://[IP_ADDRESS]:4096                         # pairing screen, enter your key once
 ```
 
-The first command fills the offline package store; repeat it to update the stack. The second builds the image and starts opencode and openui. Add --profile scheduler for the daily maintenance containers.
+The first command fills the offline package store; repeat it to update the stack. The second builds the image and starts opencode and openui. Add --profile scheduler for the daily maintenance containers. On a shared host, add the [socket proxy overlay](workspace/agents/opencode/README.md#socket-proxy-overlay) to keep the Docker API behind a filtered read-only proxy (opt-in; nothing breaks without it).
 
 ## Configuration at a glance
 
@@ -95,7 +95,7 @@ utility/
 
 | Path | Covers |
 |---|---|
-| workspace/agents/opencode/ | The product: quick start, configuration, MCP servers, model policy, security notes |
+| workspace/agents/opencode/ | The product: quick start, configuration, MCP servers, model policy, security notes, socket proxy overlay |
 | workspace/agents/opencode/engine/ | Workflow State Engine reference: state machine, agents, scripts, scoring |
 | workspace/agents/opencode/docs/opencode-workflow.md | Diagrams: offline store to runtime build flow, orchestration state machine |
 | workspace/agents/openui/ | Generative-UI sidecar and its MCP bridge |

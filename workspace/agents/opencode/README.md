@@ -18,17 +18,18 @@ This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as 
 1. [Quick Start](#quick-start)
 2. [Configuration](#configuration)
 3. [Ports and Volumes](#ports-and-volumes)
-4. [MCP Servers](#mcp-servers)
-5. [Health Checks](#health-checks)
-6. [Offline Pre-Install Store](#offline-pre-install-store)
-7. [Components](#components)
-8. [Project Structure](#project-structure)
-9. [Architecture](#architecture)
-10. [Enforcement and Quality Gates](#enforcement-and-quality-gates)
-11. [Troubleshooting](#troubleshooting)
-12. [Known Unknowns](#known-unknowns)
-13. [Local State](#local-state)
-14. [Contributing and License](#contributing-and-license)
+4. [Socket Proxy Overlay](#socket-proxy-overlay)
+5. [MCP Servers](#mcp-servers)
+6. [Health Checks](#health-checks)
+7. [Offline Pre-Install Store](#offline-pre-install-store)
+8. [Components](#components)
+9. [Project Structure](#project-structure)
+10. [Architecture](#architecture)
+11. [Enforcement and Quality Gates](#enforcement-and-quality-gates)
+12. [Troubleshooting](#troubleshooting)
+13. [Known Unknowns](#known-unknowns)
+14. [Local State](#local-state)
+15. [Contributing and License](#contributing-and-license)
 
 ## Quick Start
 
@@ -52,7 +53,7 @@ docker run --rm -it -p 127.0.0.1:4096:4096 \
 open http://127.0.0.1:4096   # OpenCode's own pairing screen, enter your key once
 ```
 
-Both the compose stack and the standalone run above publish OpenCode on `127.0.0.1:4096` (loopback only). The first visit shows OpenCode's own pairing prompt; enter the key there.
+Both the compose stack and the standalone run above publish OpenCode on `127.0.0.1:4096` (loopback only). The first visit shows OpenCode's own pairing prompt; enter the key there. On a shared or production host, route the Docker API through the [socket proxy overlay](#socket-proxy-overlay) instead of the direct socket mount.
 
 The entrypoint boot chain: write `OPENCODE_API_KEY` to `auth.json` and unset it, run the MCP readiness preflight, optionally run engine boot checks, then probe launch forms in order: `opencode serve --hostname 0.0.0.0 --port 4096` → `opencode web --hostname 0.0.0.0 --port 4096` → bare `opencode serve`.
 
@@ -107,7 +108,7 @@ Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` 
 | Tier | Model | Notes |
 |---|---|---|
 | Primary + executor (build, orchestrator, system-analyst, developer, fixer, all default agents) | openrouter/z-ai/glm-5.3-flash | Live provider; set OPENROUTER_API_KEY; 1M ctx; $0.0399 in / $0.0784 out (cheapest 1M model) |
-| Fallback chain | deepseek/deepseek-v4.1-flash, then gpt-6-luna, then qwen/qwen3.8-flash | First live fallback wins; ~z-ai/glm-flash-latest is an alias of the primary || openrouter/~z-ai/glm-flash-latest, then| Reviewers (quality-analyst, security-engineer, software-architect, tier-2 judge) | openrouter/deepseek/deepseek-v4.1-flash | Different model family than the GLM executor (genuine cross-model, single provider); 1M ctx; $0.0507 in / $0.2028 out || First live fallback wins |
+| Fallback chain | deepseek/deepseek-v4.1-flash, then gpt-6-luna, then qwen/qwen3.8-flash | First live fallback wins; ~z-ai/glm-flash-latest is an alias of the primary |
 | Reviewers (quality-analyst, security-engineer, software-architect, tier-2 judge) | openrouter/deepseek/deepseek-v4.1-flash | Different model family than the GLM executor (genuine cross-model, single provider); 1M ctx; $0.0507 in / $0.2028 out |
 | Declared fallback (inactive) | sumopod/glm-5.3-flash, sumopod/deepseek-flash | No API key available; display names carry an INACTIVE marker; never primary |
 
@@ -115,13 +116,14 @@ If a reviewer can only run on the same provider family as the executor after fal
 
 ## Security Notes
 
-- docker.sock is mounted into the opencode container (compose group_add DOCKER_GID). That is host-equivalent access, needed for sandbox container management. Treat container compromise as host compromise; prefer a socket proxy in hostile environments.
+- docker.sock is mounted into the opencode container (compose group_add DOCKER_GID). That is host-equivalent access, needed for sandbox container management. Treat container compromise as host compromise; prefer the [socket proxy overlay](#socket-proxy-overlay) in hostile environments.
 - Set OPENCODE_SERVER_PASSWORD in production, or bind the service to localhost. The empty default leaves the server unauthenticated on its port.
 - Gate scripts (validate-contract, state-guard, sdd-gate, snapshot-contract, persist-contract, loop-validate, verify-knowledge, auto-score, detect-parallel-conflicts) are allowlisted in config/lean-ctx-config.toml with per-entry rationale; extend with lean-ctx allow, never by hand-editing the runtime file.
 - The sidecar openui service still defaults to the sumopod provider for its own model calls; it needs the same live-provider treatment as the main config (tracked as follow-up).
 - Artifact integrity (S3): populate-preinstall.sh enforces sha256 digests from pre-install/digests.sha256 on EVERY populate run: pin-count fail-closed (a comments-only manifest fails when the store is non-empty), mismatch quarantines the artifact (moved to .quarantine, invisible to the Dockerfile globs), verify mode reverse-sweeps for unpinned store files, and the run ends with a re-verification of pinned artifacts. The FIRST fetch of a new artifact is trust-on-first-use (TOFU): its digest is recorded at fetch time by --update-digests and enforced from the next run - name that window when reviewing store changes. Maintainers record with: sh populate-preinstall.sh --update-digests. The store build (--verify-digests in the Dockerfile) fails on any mismatch, missing pin, or unpinned artifact once the manifest has entries.
 - Deployment modes (S5): OPENCODE_DEPLOY_MODE=production makes the entrypoint fail fast unless OPENCODE_SERVER_PASSWORD is set or OPENCODE_BIND_LOCALHOST=1 is explicit; BIND_LOCALHOST=1 actually binds the serve/listen host to loopback (the entrypoint BIND_HOST path), not just documents it. Default dev mode keeps current behavior.
-- Socket confinement (S1): opt-in via docker-compose.socket-proxy.yaml - a blast-radius REDUCER, not a security boundary: the proxy gates the API surface (no EXEC/VOLUMES, PING/VERSION read-only) but a determined container escape is out of scope for it. Host socket mount dropped with the !override volumes tag (compose v2.24+). The proxy healthcheck tolerates nothing less than a 200 on /_ping; the opencode healthcheck answers 200 unauthenticated or 401 under basic auth and only 5xx is failure.
+- Socket confinement (S1): opt-in via docker-compose.socket-proxy.yaml (full guide: [Socket Proxy Overlay](#socket-proxy-overlay)) - a blast-radius REDUCER, not a security boundary: the proxy gates the API surface (no EXEC/VOLUMES, PING/VERSION read-only) but a determined container escape is out of scope for it. Host socket mount dropped with the !override volumes tag (compose v2.24+). The proxy healthcheck tolerates nothing less than a 200 on /_ping; the opencode healthcheck answers 200 unauthenticated or 401 under basic auth and only 5xx is failure.
+
 ## Ports and Volumes
 
 | Host | Container | Notes |
@@ -131,6 +133,27 @@ If a reviewer can only run on the same provider family as the executor after fal
 | `config/opencode.json` | `/home/node/.config/opencode/opencode.json` | Read-only bind mount; restart to apply edits |
 | `opencode-data` (named volume) | `/home/node/.local/share/opencode` | Auth, session store, lean-ctx knowledge store, rag index |
 | `../../pre-installer/` (workspace root) | build context `preinstall` | Offline package store, consumed at build time |
+
+## Socket Proxy Overlay
+
+`docker-compose.socket-proxy.yaml` (repository root) is an opt-in compose overlay that puts the Docker API behind [tecnativa/docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy) instead of handing opencode the host socket directly. opencode holds the raw `/var/run/docker.sock` mount today; the overlay replaces that mount with a filtered TCP endpoint (`DOCKER_HOST=tcp://docker-socket-proxy:2375`).
+
+**When to use it.** Production and shared-host deployments, where anything reaching the opencode container could otherwise talk to the full Docker API; multi-service stacks that want least privilege on the socket. Not needed for single-user development on a trusted machine: skip it there and keep the base compose file.
+
+**Why.** Blast-radius reduction. The shipped default profile is observational/read-only: `POST: 0`, `ALLOW_RESTARTS: 0`, `EXEC: 0`, `VOLUMES: 0` leave the API read-only (`docker ps`, `images`, `inspect`; events, ping, and version handshakes stay enabled). The common escape routes are the exec API and the volume API (new host bind mounts over the socket), and both stay denied. The create-capable opt-in (`POST: 1`) is documented in the overlay header as host-root-equivalent: a created container can be privileged or bind host paths, so opt in only where the opencode container is already trusted with that power.
+
+**How to activate.** Pin the image by digest first (the overlay header documents the `docker manifest inspect` commands to obtain it; no digest is invented in the repo):
+
+```bash
+DOCKER_SOCKET_PROXY_IMAGE=tecnativa/docker-socket-proxy@sha256:<digest> \
+docker compose -f docker-compose.example.yaml -f docker-compose.socket-proxy.yaml up -d
+```
+
+Compose v2.24+ is required for the `!override` volumes tag that drops the direct socket mount. The proxy runs its own healthcheck on `/_ping`, and opencode `depends_on` it with `condition: service_healthy`, so the stack only starts once the filtered API answers. The proxy sits on a dedicated internal network, off the shared default net.
+
+**What breaks if you skip it.** Nothing: it is opt-in, and the base compose keeps the direct mount.
+
+**Honest boundary.** This is a blast-radius reducer, NOT an escape boundary. A determined container escape is out of scope for it. Threat models that assume an attacker inside opencode should still treat container compromise as host compromise.
 
 ## MCP Servers
 
@@ -353,4 +376,4 @@ The engine reference ([engine/README.md](engine/README.md)) covers internals.
 
 ## Contributing and License
 
-The stack is internal and not open for external contribution. Changes are made in place; the CI workflow at the repository root and a PR template ([.github/PULL_REQUEST_TEMPLATE.md](../../../.github/PULL_REQUEST_TEMPLATE.md)) apply the usual gates automatically. For local commits, enable the pre-commit hook with `git config core.hooksPath engine/.githooks`. No license file ships with this repository.
+The stack is internal and not open for external contribution. Changes are made in place; the CI workflow at the repository root and a PR template ([.github/PULL_REQUEST_TEMPLATE.md](../../../.github/PULL_REQUEST_TEMPLATE.md)) apply the usual gates automatically. For local commits, enable the pre-commit hook with `git config core.hooksPath engine/.githooks`. No license file ships with this repository.

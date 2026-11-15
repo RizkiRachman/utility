@@ -1,3 +1,10 @@
+# DIGEST DEPLOYMENT POLICY: this workflow POPULATES and DEPLOYS the source
+# digest (repomix pack + skills catalog) to Cloudflare Pages. It runs ONLY on
+# push to refs/heads/main and on manual workflow_dispatch. Pull requests and
+# feature branches never deploy or populate digests; PR runs get read-only
+# verification only (validate.yml "Offline store digest gate").
+# Artifact-digest population (--update-digests) is a maintainer local run and
+# is never a CI step in either workflow.
 name: Deploy digest to Cloudflare Pages
 
 on:
