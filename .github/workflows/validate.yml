@@ -49,7 +49,32 @@ jobs:
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/validate-contract.sh --file engine/contract/contract.template.json --score
 
-      - name: Certificates allowlist
+      # Digest gate (S3/P2-9): the offline store is gitignored, so CI runs the
+      # offline verify only when a populated store happens to exist
+      # (self-hosted runners). With 0 pins (comment-only manifest) the step
+      # skips loudly - that is pre-population state, not enforcement. The
+      # authoritative enforcement points are the Dockerfile build gate and
+      # the end-of-run re-verification inside populate-preinstall.sh.
+      - name: Offline store digest gate
+        working-directory: workspace/agents/opencode
+        run: |
+          pins=$(grep -cvE '^[[:space:]]*(#|$)' pre-install/digests.sha256 2>/dev/null || true)
+          if [ -z "$pins" ]; then pins=0; fi
+          if [ "$pins" -eq 0 ]; then
+            echo "digest gate: 0 pins in pre-install/digests.sha256 - SKIPPING (pre-population; run --update-digests once with network access to enable)"
+          elif [ -d ../../pre-installer/npm ] || [ -d ../../pre-installer/pip ]; then
+            echo "digest gate: $pins pin(s) recorded - enforcing (populate-preinstall.sh --verify-digests)"
+            sh populate-preinstall.sh --verify-digests
+          else
+            echo "digest gate: $pins pin(s) recorded but store absent from CI (gitignored) - offline verify deferred to the Dockerfile build gate and populate runs"
+          fi
+
+      # TRACKED-INVENTORY SANITY CHECK: this verifies the cert files committed
+      # to the repo match certs-allowlist.txt. The ENFORCING copy of the same
+      # check runs where certs actually land - at the end of
+      # certs/sync-certs.sh (called by populate-preinstall.sh on every
+      # populate run), which fails the sync on any non-allowlisted cert.
+      - name: Certificates allowlist (tracked-inventory sanity)
         working-directory: workspace
         run: sh certs/check-certs.sh
 

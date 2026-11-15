@@ -10,7 +10,15 @@ fail=0; n=0
 [ -f "$ALLOWLIST" ] || { echo "FAIL: allowlist missing: $ALLOWLIST" >&2; exit 1; }
 check_dir() {
   d=$1
-  [ -d "$d" ] || return 0
+  # L4: a silently-skipped missing dir lets a RENAMED dir pass undetected -
+  # warn loudly (a missing submodule mirror is normal pre-sync; a missing
+  # parent certs/ dir is not). Still non-fatal here: this script is the
+  # tracked-inventory sanity check; the enforcing call runs at the end of
+  # sync-certs.sh where certs actually land.
+  if [ ! -d "$d" ]; then
+    echo "WARN: cert dir missing (renamed? not yet created?): $d - nothing checked there" >&2
+    return 0
+  fi
   for f in "$d"/*.crt; do
     [ -f "$f" ] || continue
     n=$((n + 1)); base=$(basename "$f"); ok=0
