@@ -190,7 +190,12 @@ verify_all_digests() {
            "$STORE_DIR"/apt/*.deb "$STORE_DIR"/dist/*; do
     [ -f "$f" ] || continue
     rel=${f#"$STORE_DIR/"}
-    if grep -qE "[[:space:]]${rel}\$" "$DIGESTS_FILE" 2>/dev/null; then
+    # Exact match (N1): the manifest's path column must equal the store file
+    # name byte-for-byte. A regex here would interpolate the file name into
+    # an ERE - `+`/`[`/`(`/`*` in names false-FAIL validly pinned artifacts
+    # and an unescaped `.` is a wildcard bypass. Same approach as
+    # digest_check above: awk with an exact string comparison.
+    if awk -v r="$rel" '$2==r {found=1; exit} END {exit !found}' "$DIGESTS_FILE" 2>/dev/null; then
       continue
     fi
     if [ "$POPULATE_MODE" = verify ]; then
@@ -223,9 +228,26 @@ mkdir -p "$STORE_DIR/npm" "$STORE_DIR/pip" "$STORE_DIR/bin" "$STORE_DIR/apt" \
 # Best-effort: a failed probe must not abort the store population.
 # The trust block below only installs what is in certs/ - it runs after the
 # detector so a freshly refreshed set is what gets trusted.
+#
+# The cert GATE is enforcing (N3): sync-certs.sh can exit nonzero for benign
+# reasons (the seeding detector hitting an environment error), so the sync
+# itself stays best-effort - but the allowlist CHECK is re-run directly and
+# fails the run when a non-allowlisted cert is present: Dockerfile
+# `COPY certs/` must not be able to trust a smuggled CA. Set
+# CERTS_GATE_REQUIRED=0 to opt out (not recommended).
 echo "==> probing network for TLS interception (cert refresh)"
 sh "$REPO_ROOT/certs/detect-zscaler.sh" "$REPO_ROOT/certs" || true
-sh "$REPO_ROOT/certs/sync-certs.sh" || true
+if ! sh "$REPO_ROOT/certs/sync-certs.sh"; then
+  if ! sh "$REPO_ROOT/certs/check-certs.sh"; then
+    if [ "${CERTS_GATE_REQUIRED:-1}" = "1" ]; then
+      echo "FATAL: certs allowlist check failed - a non-allowlisted cert is present; refusing to populate the store (set CERTS_GATE_REQUIRED=0 to override)" >&2
+      exit 1
+    fi
+    echo "WARN: CERTS_GATE_REQUIRED=0 - continuing despite a non-allowlisted cert" >&2
+  else
+    echo "WARN: cert sync failed for a benign reason (e.g. the detector hit an environment error); the allowlist check passed" >&2
+  fi
+fi
 
 ca_trusted=0
 for crt in "$REPO_ROOT/certs"/*.crt; do
@@ -909,6 +931,14 @@ if [ "$POPULATE_MODE" = update-digests ]; then
   } > "$DIGESTS_FILE"
 fi
 
+# End-of-run digest gate (N5): every normal populate run re-hashes EVERY
+# pinned artifact before declaring success (fetch-guard skips included) and
+# warns on store files with no pin. A mismatch quarantines the file and
+# aborts. This runs BEFORE versions.lock is written so the lock only ever
+# records a state that passed the gate.
+echo "==> digest gate: end-of-run re-verification of pinned artifacts"
+verify_all_digests
+
 # digests-enforced comes from the PIN COUNT (real non-comment entries), not
 # file size - a comment-only manifest is NOT enforcement.
 digest_pins=$(digest_pin_count)
@@ -928,12 +958,6 @@ digest_pins=$(digest_pin_count)
   printf "%s\n" "digests-pins=$digest_pins"
   printf "%s\n" "digests-enforced=$( [ "$digest_pins" -gt 0 ] && echo true || echo false )"
 } > "$LOCK_FILE"
-
-# End-of-run digest gate: every normal populate run re-hashes EVERY pinned
-# artifact before declaring success (fetch-guard skips included) and warns on
-# store files with no pin. A mismatch quarantines the file and aborts.
-echo "==> digest gate: end-of-run re-verification of pinned artifacts"
-verify_all_digests
 
 echo ""
 echo "==> done: ${ADDED} added, ${SKIPPED} skipped - store at ${STORE_DIR}"

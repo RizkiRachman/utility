@@ -23,6 +23,12 @@ if ! mkdir -p "$SESSION_DIR" 2>/dev/null; then
   echo "[entrypoint] WARN: session dir not writable; skipping seeding" >&2
 else
   seeded=0
+  # L1: a dangling symlink at the target path makes cp follow it and write
+  # to the (missing) link target instead of seeding the real file; drop the
+  # symlink so the guard below seeds an actual file.
+  if [ -L "$SESSION_DIR/contract.json" ]; then
+    rm -f "$SESSION_DIR/contract.json"
+  fi
   if [ ! -f "$SESSION_DIR/contract.json" ]; then
     if [ -f /opt/engine/contract/contract.template.json ]; then
       if cp /opt/engine/contract/contract.template.json "$SESSION_DIR/contract.json" 2>/dev/null; then
@@ -36,6 +42,10 @@ else
   fi
   if [ ! -d "$SESSION_DIR/archive" ] && ! mkdir -p "$SESSION_DIR/archive" 2>/dev/null; then
     echo "[entrypoint] WARN: could not create $SESSION_DIR/archive" >&2
+  fi
+  # Same L1 dangling-symlink guard for state.md.
+  if [ -L "$SESSION_DIR/state.md" ]; then
+    rm -f "$SESSION_DIR/state.md"
   fi
   if [ ! -f "$SESSION_DIR/state.md" ] && [ -f /opt/engine/contract/state.template.md ]; then
     if cp /opt/engine/contract/state.template.md "$SESSION_DIR/state.md" 2>/dev/null; then
