@@ -1,4 +1,5 @@
 #!/bin/sh
+grep -q "$(printf '\r')" "$0" 2>/dev/null && { tr -d '\r' < "$0" > "${0%/*}/.$(basename "$0").$$.lf" && exec sh "${0%/*}/.$(basename "$0").$$.lf" "$@"; } # CRLF self-heal: re-exec an LF copy of this script from its own dir when Windows line endings are detected
 # Populate the offline package store (workspace-root pre-installer/) used by
 # the Docker build.
 #
@@ -235,6 +236,17 @@ mkdir -p "$STORE_DIR/npm" "$STORE_DIR/pip" "$STORE_DIR/bin" "$STORE_DIR/apt" \
 # fails the run when a non-allowlisted cert is present: Dockerfile
 # `COPY certs/` must not be able to trust a smuggled CA. Set
 # CERTS_GATE_REQUIRED=0 to opt out (not recommended).
+# CRLF heal: a Windows checkout or editor can save the certs scripts or the
+# allowlist with \r line endings, which dash dies on ("set: Illegal option
+# -"). Normalize in place before anything below runs, so the detector, the
+# sync and the gate all see LF (temp file + mv - no sed -i, which BSD/macOS
+# lacks; tr, not sed 's/\r$//', which BSD/macOS cannot parse).
+for _f in "$REPO_ROOT"/certs/*.sh "$REPO_ROOT"/certs/certs-allowlist.txt; do
+  [ -f "$_f" ] || continue
+  if grep -q "$(printf '\r')" "$_f" 2>/dev/null; then
+    tr -d '\r' < "$_f" > "$_f.$$.lf" && mv "$_f.$$.lf" "$_f" && echo "==> normalized CRLF: $_f"
+  fi
+done
 echo "==> probing network for TLS interception (cert refresh)"
 sh "$REPO_ROOT/certs/detect-zscaler.sh" "$REPO_ROOT/certs" || true
 if ! sh "$REPO_ROOT/certs/sync-certs.sh"; then

@@ -1,4 +1,5 @@
 #!/bin/sh
+grep -q "$(printf '\r')" "$0" 2>/dev/null && { tr -d '\r' < "$0" > "${0%/*}/.$(basename "$0").$$.lf" && exec sh "${0%/*}/.$(basename "$0").$$.lf" "$@"; } # CRLF self-heal: re-exec an LF copy of this script from its own dir when Windows line endings are detected
 # Detect corporate TLS interception (Zscaler and friends) and seed certs/.
 #
 # Behind a TLS-inspecting proxy every HTTPS chain presents the proxy's OWN

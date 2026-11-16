@@ -1,4 +1,5 @@
 #!/bin/sh
+grep -q "$(printf '\r')" "$0" 2>/dev/null && { tr -d '\r' < "$0" > "${0%/*}/.$(basename "$0").$$.lf" && exec sh "${0%/*}/.$(basename "$0").$$.lf" "$@"; } # CRLF self-heal: re-exec an LF copy of this script from its own dir when Windows line endings are detected
 # Mirror the workspace-root certs/ into every submodule cert dir (single source).
 #
 # certs/ at the workspace root is the ONLY place certs are kept and rotated:
@@ -26,6 +27,17 @@ set -eu
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
+
+# CRLF heal: Windows checkouts/editors can save these scripts or the
+# allowlist with \r endings; dash dies on them ("set: Illegal option -").
+# Normalize in place before anything runs (temp file + mv - no sed -i, which
+# BSD/macOS lacks; tr, not sed 's/\r$//', which BSD/macOS cannot parse).
+for _f in "$SCRIPT_DIR"/*.sh "$SCRIPT_DIR"/certs-allowlist.txt; do
+  [ -f "$_f" ] || continue
+  if grep -q "$(printf '\r')" "$_f" 2>/dev/null; then
+    tr -d '\r' < "$_f" > "$_f.$$.lf" && mv "$_f.$$.lf" "$_f" && echo "==> normalized CRLF: $_f"
+  fi
+done
 
 # Count the parent certs without relying on nullglob (POSIX sh).
 parent_certs() {

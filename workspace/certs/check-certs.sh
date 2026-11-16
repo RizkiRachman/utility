@@ -1,4 +1,5 @@
 #!/bin/sh
+grep -q "$(printf '\r')" "$0" 2>/dev/null && { tr -d '\r' < "$0" > "${0%/*}/.$(basename "$0").$$.lf" && exec sh "${0%/*}/.$(basename "$0").$$.lf" "$@"; } # CRLF self-heal: re-exec an LF copy of this script from its own dir when Windows line endings are detected
 # certs/check-certs.sh - CI gate (S2/P2-13): every .crt under the certs dirs
 # must match the tracked allowlist (certs-allowlist.txt). Unexpected files
 # fail the check - a dropped-in CA cannot silently become trusted.
@@ -8,6 +9,14 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 ALLOWLIST="$SCRIPT_DIR/certs-allowlist.txt"
 fail=0; n=0
 [ -f "$ALLOWLIST" ] || { echo "FAIL: allowlist missing: $ALLOWLIST" >&2; exit 1; }
+# CR tolerance: a Windows checkout can save the allowlist with \r endings, so
+# a pattern like "zscaler-autodetected-*.crt\r" would match nothing. Patterns
+# are read from a CR-stripped temp copy. NOT a pipeline (`tr ... | while`):
+# the loop must stay in this shell or the fail=1 flag would be swallowed and
+# the gate would always pass.
+ALLOWLIST_TMP=$(mktemp "${TMPDIR:-/tmp}/certs-allowlist.XXXXXX")
+tr -d '\r' < "$ALLOWLIST" > "$ALLOWLIST_TMP"
+trap 'rm -f "$ALLOWLIST_TMP"' EXIT HUP INT TERM
 check_dir() {
   d=$1
   # L4: a silently-skipped missing dir lets a RENAMED dir pass undetected -
@@ -27,7 +36,7 @@ check_dir() {
       case "$base" in
         $pat) ok=1; break ;;
       esac
-    done < "$ALLOWLIST"
+    done < "$ALLOWLIST_TMP"
     if [ "$ok" -ne 1 ]; then
       echo "FAIL: unexpected cert file: $f (add to certs-allowlist.txt or remove)" >&2
       fail=1
