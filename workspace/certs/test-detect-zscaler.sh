@@ -1,4 +1,5 @@
 #!/bin/sh
+grep -q "$(printf '\r')" "$0" 2>/dev/null && { tr -d '\r' < "$0" > "${0%/*}/.$(basename "$0").$$.lf" && exec sh "${0%/*}/.$(basename "$0").$$.lf" "$@"; } # CRLF self-heal: re-exec an LF copy of this script from its own dir when Windows line endings are detected
 # certs/test-detect-zscaler.sh - unit tests for the cert-detector pure
 # functions via the sourced mode (ZSHARED=1). No network: synthetic certs
 # are generated locally with openssl req -x509. Filesystem assertions.
@@ -7,6 +8,7 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 PASS=0; FAIL=0
 WORK=$(mktemp -d)
 cleanup() { rm -rf "$WORK"; }
+trap cleanup EXIT HUP INT TERM
 pass() { PASS=$((PASS + 1)); echo "PASS: $1"; }
 fail() { FAIL=$((FAIL + 1)); echo "FAIL: $1"; }
 gen_cert() {

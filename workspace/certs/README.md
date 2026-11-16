@@ -25,8 +25,9 @@ directly, because the Dockerfiles `COPY certs/` from them at build time.
 4. [How to add a cert](#how-to-add-a-cert)
 5. [Manual vs autodetected](#manual-vs-autodetected)
 6. [Rotation](#rotation)
-7. [Git policy](#git-policy)
-8. [Contributing and License](#contributing-and-license)
+7. [Cross-platform (macOS / Linux / Windows)](#cross-platform-macos--linux--windows)
+8. [Git policy](#git-policy)
+9. [Contributing and License](#contributing-and-license)
 
 ## Quick Start
 
@@ -110,6 +111,19 @@ keeps the store trusted (this is why populate calls the detector
 unconditionally). Re-run the detector (or `sync-certs.sh`, or
 `populate-preinstall.sh`) to re-derive the autodetected set from the live
 wire; manual certs survive untouched.
+
+## Cross-platform (macOS / Linux / Windows)
+
+All scripts here are POSIX `sh` and must stay LF-only: `.gitattributes`
+enforces `eol=lf` for `*.sh` and `certs-allowlist.txt` (`*.crt` is binary).
+Two runtime safety nets cover checkouts or editors that slip CRLF past git:
+every script detects `\r` in itself and re-execs an LF copy, and the entry
+points (`sync-certs.sh`, the populate script) normalize any CRLF-mangled
+script or the allowlist in place before running them; the allowlist gate
+additionally strips `\r` from patterns while reading. `test-eol-robustness.sh`
+proves the whole chain against deliberately CRLF-mangled copies. Windows is
+supported through Git Bash or WSL only - native cmd/PowerShell cannot run
+`sh`. Nothing else about the pipeline is platform-specific.
 
 ## Git policy
 
