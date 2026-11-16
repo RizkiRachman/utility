@@ -2,3 +2,5 @@
 # Anything else fails check-certs.sh (CI gate). Manual certs: add an entry
 # here AND keep the file out of git (contents are gitignored by design).
 zscaler-autodetected-*.crt
+# manual Zscaler root (exported from the portal - the wire rarely carries it)
+zscaler-root-*.crt

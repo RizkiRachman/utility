@@ -320,6 +320,35 @@ main() {
 
   echo "refreshed: $_fresh cert(s) in $out_dir (merged from $_intercepted intercepted host(s), replaced $_old autodetected)"
   echo "saved: $out_dir/$AUTODETECTED_PREFIX*.crt - populate-preinstall.sh will trust these"
+
+  # Root-presence check: intermediates alone anchor ONLY the probed hosts -
+  # openssl needs a self-signed root (rarely sent on the wire) to trust
+  # anything else. Report which root anchors the set, or warn loudly with the
+  # manual fix (zscaler-root-*.crt is allowlisted; this script never touches
+  # non-prefixed files, so a manual root survives every run).
+  _root_cert=""
+  for _crt in "$out_dir"/*.crt; do
+    [ -f "$_crt" ] || continue
+    _info=$(openssl x509 -noout -subject -issuer -in "$_crt" 2>/dev/null) || continue
+    _subj=$(printf '%s\n' "$_info" | sed -n 's/^subject=//p' | tr 'A-Z' 'a-z')
+    _iss=$(printf '%s\n' "$_info" | sed -n 's/^issuer=//p' | tr 'A-Z' 'a-z')
+    if [ -n "$_subj" ] && [ "$_subj" = "$_iss" ]; then
+      _root_cert=${_crt##*/}
+      break
+    fi
+  done
+  if [ -n "$_root_cert" ]; then
+    case "$_root_cert" in
+      "$AUTODETECTED_PREFIX"*)
+        echo "root captured on the wire: self-signed $_root_cert (full-chain trust)" ;;
+      *)
+        echo "root present: manual self-signed $_root_cert (full-chain trust; fingerprint dedupe keeps wire duplicates out)" ;;
+    esac
+  else
+    warn "no self-signed ROOT in the set - these intermediates anchor ONLY the probed hosts"
+    warn "export the Zscaler Root CA from the portal and save it as $out_dir/zscaler-root-ca.crt (allowlisted; this script never touches it)"
+  fi
+
   return 0
 }
 
