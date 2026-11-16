@@ -81,7 +81,8 @@ RUN --mount=from=preinstall,src=/,dst=/pi,ro \
 # Configure Node.js and Python to trust the corporate CA.
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt \
     SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
-    PIP_CERT=/etc/ssl/certs/ca-certificates.crt
+    PIP_CERT=/etc/ssl/certs/ca-certificates.crt \
+    COCOINDEX_DISABLE_USAGE_TRACKING=1
 
 # Locale + terminal defaults so the TUI and ncurses apps render correctly in
 # `docker exec -it` sessions (which inherit the container env, not the host's).
@@ -165,23 +166,36 @@ RUN --mount=from=preinstall,src=/,dst=/pi,ro \
 
 # Docker CLI (client only - talks to the host daemon via the compose socket mount).
 # TARGETARCH is declared in the top ARG block and used here for the download arch.
-# Network-only package (no store artifact): resolve the latest release at build
-# time; the ARG is the fallback when the GitHub API is unreachable.
+# Store-first: populate-preinstall.sh bakes the static client binary into the
+# store (bin/docker) at the pinned DOCKER_CLI_VERSION; this build installs it
+# without touching the network. The network tier below is the fallback for
+# stores populated before this artifact existed: resolve latest at build time,
+# ARG is the last-resort fallback when the GitHub API is unreachable.
 ARG DOCKER_CLI_VERSION=27.3.1
-RUN set -eux; \
-    DC_LATEST=$(curl -fsSL https://api.github.com/repos/docker/cli/releases/latest 2>/dev/null \
-      | sed -n 's/.*"tag_name": "v\([^"]*\)".*/\1/p' | head -1); \
-    DOCKER_CLI_VERSION="${DC_LATEST:-$DOCKER_CLI_VERSION}"; \
-    echo "docker CLI: ${DOCKER_CLI_VERSION}"; \
-    case "${TARGETARCH}" in \
-      arm64) DC_ARCH=aarch64 ;; \
-      amd64) DC_ARCH=x86_64 ;; \
-      *) DC_ARCH=x86_64 ;; \
-    esac; \
-    curl -fsSL "https://download.docker.com/linux/static/stable/${DC_ARCH}/docker-${DOCKER_CLI_VERSION}.tgz" -o /tmp/docker-cli.tgz; \
-    tar -xzf /tmp/docker-cli.tgz -C /tmp; \
-    install -m 0755 /tmp/docker/docker /usr/local/bin/docker; \
-    rm -rf /tmp/docker /tmp/docker-cli.tgz
+RUN --mount=from=preinstall,src=/,dst=/pi,ro \
+    set -eux; \
+    store_ok=false; \
+    if [ -f /pi/bin/docker ]; then \
+      install -m 0755 /pi/bin/docker /usr/local/bin/docker; \
+      docker --version >/dev/null 2>&1 && store_ok=true || rm -f /usr/local/bin/docker; \
+    fi; \
+    if [ "$store_ok" != true ]; then \
+      echo "store docker CLI missing or wrong-arch - fetching from network"; \
+      DC_LATEST=$(curl -fsSL https://api.github.com/repos/docker/cli/releases/latest 2>/dev/null \
+        | sed -n 's/.*"tag_name": "v\([^"]*\)".*/\1/p' | head -1); \
+      DOCKER_CLI_VERSION="${DC_LATEST:-$DOCKER_CLI_VERSION}"; \
+      echo "docker CLI: ${DOCKER_CLI_VERSION}"; \
+      case "${TARGETARCH}" in \
+        arm64) DC_ARCH=aarch64 ;; \
+        amd64) DC_ARCH=x86_64 ;; \
+        *) DC_ARCH=x86_64 ;; \
+      esac; \
+      curl -fsSL "https://download.docker.com/linux/static/stable/${DC_ARCH}/docker-${DOCKER_CLI_VERSION}.tgz" -o /tmp/docker-cli.tgz; \
+      tar -xzf /tmp/docker-cli.tgz -C /tmp; \
+      install -m 0755 /tmp/docker/docker /usr/local/bin/docker; \
+      rm -rf /tmp/docker /tmp/docker-cli.tgz; \
+    fi; \
+    docker --version
 
 # Install the fetch MCP server (wheel-first from the offline store).
 ENV PIPX_HOME=/opt/pipx \
