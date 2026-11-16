@@ -55,6 +55,8 @@ COCOINDEX_CODE_VERSION="${COCOINDEX_CODE_VERSION:-}"
 # @firecrawl/opencode runtime dependency + CLI companion (offline store pins)
 ZOD_VERSION="${ZOD_VERSION:-}"
 FIRECRAWL_CLI_VERSION="${FIRECRAWL_CLI_VERSION:-}"
+# Docker CLI static client (bin/docker). Empty here = resolve latest below.
+DOCKER_CLI_VERSION="${DOCKER_CLI_VERSION:-}"
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
@@ -417,6 +419,12 @@ if [ -z "$FIRECRAWL_CLI_VERSION" ]; then
   resolve_field FIRECRAWL_CLI_VERSION firecrawl-cli 1.26.24 latest_npm firecrawl-cli
 else
   echo "==> FIRECRAWL_CLI_VERSION=$FIRECRAWL_CLI_VERSION (env pin)"
+fi
+
+if [ -z "$DOCKER_CLI_VERSION" ]; then
+  resolve_field DOCKER_CLI_VERSION docker/cli 27.3.1 latest_github docker/cli
+else
+  echo "==> DOCKER_CLI_VERSION=$DOCKER_CLI_VERSION (env pin)"
 fi
 
 ADDED=0
@@ -846,6 +854,44 @@ else
   echo "WARN: lean-ctx binary fetch FAILED - store incomplete; builds fall back to network" >&2
 fi
 
+# Docker CLI static client binary. Store-first: the image build installs it
+# from the store when present and only falls back to the network tier when the
+# store lacks it (re-download costs ~55s per build behind the corporate proxy).
+# Version resolved at populate time (env DOCKER_CLI_VERSION overrides) like
+# every other artifact - the store is the lockfile.
+fetch_docker_cli() {
+  case "$(uname -m)" in
+    x86_64)  DC_ARCH=x86_64 ;;
+    aarch64) DC_ARCH=aarch64 ;;
+    *) echo "WARN: unknown arch $(uname -m) for docker CLI" >&2; return 1 ;;
+  esac
+  curl -fsSL "https://download.docker.com/linux/static/stable/${DC_ARCH}/docker-${DOCKER_CLI_VERSION}.tgz" \
+    -o "$STORE_DIR/bin/docker-cli.tgz" || return 1
+  # The tgz's top-level member is the directory docker/ containing the binary;
+  # extract to a workdir and install just the binary (bin/docker is the store
+  # layout the build expects - a bare binary, same as bin/lean-ctx).
+  rm -rf "$STORE_DIR/bin/.docker-cli-tmp"
+  mkdir -p "$STORE_DIR/bin/.docker-cli-tmp"
+  tar -xzf "$STORE_DIR/bin/docker-cli.tgz" -C "$STORE_DIR/bin/.docker-cli-tmp" || return 1
+  rm -rf "$STORE_DIR/bin/docker"
+  install -m 0755 "$STORE_DIR/bin/.docker-cli-tmp/docker/docker" "$STORE_DIR/bin/docker" || return 1
+  rm -rf "$STORE_DIR/bin/.docker-cli-tmp" "$STORE_DIR/bin/docker-cli.tgz"
+  # Wrong-arch guard: the static binary must be runnable on this host, same
+  # check the build performs on the store copy before trusting it.
+  "$STORE_DIR/bin/docker" --version >/dev/null 2>&1 || return 1
+  test -x "$STORE_DIR/bin/docker"
+}
+
+echo "==> docker CLI binary"
+if [ -e "$STORE_DIR/bin/docker" ]; then
+  mark_skipped "docker-cli ${DOCKER_CLI_VERSION} (binary already in store)"
+elif fetch_docker_cli; then
+  digest_check "$STORE_DIR/bin/docker"
+  mark_added "docker-cli ${DOCKER_CLI_VERSION}"
+else
+  echo "WARN: docker CLI fetch FAILED - builds fall back to network" >&2
+fi
+
 # --------------------------------------------------------------------------
 # apt - .deb closure (root only).
 # --------------------------------------------------------------------------
@@ -966,6 +1012,7 @@ digest_pins=$(digest_pin_count)
   printf '%s\n' "cocoindex-code=$COCOINDEX_CODE_VERSION"
   printf '%s\n' "zod=$ZOD_VERSION"
   printf '%s\n' "firecrawl-cli=$FIRECRAWL_CLI_VERSION"
+  printf '%s\n' "docker-cli=$DOCKER_CLI_VERSION"
   printf "%s\n" "digests-file=pre-install/digests.sha256"
   printf "%s\n" "digests-pins=$digest_pins"
   printf "%s\n" "digests-enforced=$( [ "$digest_pins" -gt 0 ] && echo true || echo false )"
