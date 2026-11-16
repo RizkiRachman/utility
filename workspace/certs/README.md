@@ -90,7 +90,8 @@ of `sync-certs.sh` and inside every populate run.
    `zscaler-autodetected-*.crt` is a manual cert: the detector and the sync
    never modify or remove it.
 2. Add the file name to `certs-allowlist.txt` (one pattern per line; the
-   check fails otherwise).
+   check fails otherwise) - unless it is a Zscaler root named
+   `zscaler-root-*.crt`, which is pre-allowlisted.
 3. Run `sh certs/sync-certs.sh` (or re-run the populate script) to mirror it
    into the submodule cert dirs, then rebuild.
 4. Commit the allowlist entry, never the cert content.
@@ -101,6 +102,15 @@ of `sync-certs.sh` and inside every populate run.
   rewritten on every interception-found run. Never edit.
 - Any other `*.crt`: manual certs (exported corporate roots). Never touched
   by the detector or the sync; survive rotation.
+- `zscaler-root-*.crt`: the manually exported Zscaler ROOT CA - keep at
+  least one. The proxy rarely sends the root on the wire, so the
+  autodetected set is usually intermediates only, and intermediates alone
+  anchor just the probed hosts. Export the root once, save it under this
+  name, and it survives every detector run; the detector prints which
+  root anchors the set and warns loudly when there is none. If you
+  previously dropped a root as `zscaler-autodetected-*.crt`, RENAME it
+  (e.g. to `zscaler-root-ca.crt`) - the detector deletes that whole
+  prefix on every run.
 
 ## Rotation
 
