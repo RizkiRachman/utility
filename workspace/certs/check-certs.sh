@@ -41,6 +41,24 @@ check_dir() {
       echo "FAIL: unexpected cert file: $f (add to certs-allowlist.txt or remove)" >&2
       fail=1
     fi
+    # Expiry sweep (only when openssl exists): an EXPIRED cert is invalid -
+    # fail. One expiring within 30 days warns: zscaler rotates its tier-2
+    # intermediate about every two weeks, so a soon-expiry WARN is the early
+    # signal the autodetected set is rotting (re-run the detector; a manual
+    # zscaler-root-*.crt never expires this way).
+    if command -v openssl >/dev/null 2>&1; then
+      if ! openssl x509 -in "$f" -noout -subject >/dev/null 2>&1; then
+        echo "FAIL: not a parsable certificate: $f" >&2
+        fail=1
+      elif ! openssl x509 -checkend 2592000 -noout -in "$f" >/dev/null 2>&1; then
+        if openssl x509 -checkend 0 -noout -in "$f" >/dev/null 2>&1; then
+          echo "WARN: cert expires within 30 days: $f (re-run detect-zscaler.sh)" >&2
+        else
+          echo "FAIL: cert EXPIRED: $f" >&2
+          fail=1
+        fi
+      fi
+    fi
   done
 }
 check_dir "$SCRIPT_DIR"

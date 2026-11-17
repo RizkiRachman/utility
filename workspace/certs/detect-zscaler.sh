@@ -7,8 +7,8 @@ grep -q "$(printf '\r')" "$0" 2>/dev/null && { tr -d '\r' < "$0" > "${0%/*}/.$(b
 # read straight off the wire, no manual copying required. Zscaler names itself
 # in the subject/issuer of every cert it presents; the chain usually carries
 # only its INTERMEDIATE (the root is rarely sent), and one trusted intermediate
-# is a sufficient trust anchor for openssl/curl. All chain certs that mention
-# Zscaler are saved.
+# is a sufficient trust anchor for openssl/curl. Zscaler CA certs are saved
+# (per-site LEAF certs are skipped - see the pass-2 filter).
 #
 # MULTI-HOST PROBE: zscaler presents DIFFERENT issuer chains per site, so a
 # single probe host under-covers what clients actually contact. Probing only
@@ -108,7 +108,9 @@ extract_zscaler_certs() {
       '/-----BEGIN CERTIFICATE-----/' '{*}' >/dev/null 2>&1 ) || true
 
   # Pass 1: self-signed-looking Zscaler certs (issuer == subject) - the closest
-  # thing to a root the proxy sends. Pass 2: everything else that names Zscaler.
+  # thing to a root the proxy sends. Pass 2: certs naming Zscaler whose CN
+# names zscaler AND that carry BasicConstraints CA:TRUE (the real
+# intermediates; per-site leaves fail one or the other).
   for _pass in root other; do
     for _cand in "$_work"/cert*; do
       [ -f "$_cand" ] || continue
@@ -123,6 +125,20 @@ extract_zscaler_certs() {
         [ "$_subj" = "$_iss" ] || continue
       else
         [ "$_subj" = "$_iss" ] && continue
+        # Zscaler-CN check: the per-site leaves zscaler mints carry the
+        # WEBSITE's CN (github.com, pytorch.org, *.eclipse.org) - only the
+        # CA certs carry a zscaler CN. Greedy CN grab takes the CN value and
+        # everything after it, which still contains the CN text.
+        _cn=$(printf '%s\n' "$_info" | sed -n 's/^subject=//p' | sed 's/.*CN *= *//' | sed 's/,[A-Za-z][A-Za-z0-9.]* *=.*//' | tr -d '"' | tr 'A-Z' 'a-z')
+        case "$_cn" in
+          *zscaler*) ;;
+          *) continue ;;
+        esac
+        # CA:TRUE check: a leaf for a zscaler-owned domain (*.zscloud.net)
+        # would pass the CN test but is still CA:FALSE, worthless as an
+        # anchor, and replaced every ~2 weeks. Only CA certs get stored.
+        _txt=$(openssl x509 -noout -text -in "$_cand" 2>/dev/null) || continue
+        printf '%s\n' "$_txt" | grep -q 'CA:TRUE' || continue
       fi
 
       # Fingerprint dedupe: only the SURVIVING certs count - manual certs in

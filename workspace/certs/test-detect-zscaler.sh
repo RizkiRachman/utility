@@ -35,6 +35,34 @@ out3="$WORK/out3"; mkdir -p "$out3"; cp "$WORK/zroot.crt" "$out3/manual-root.crt
 cat "$WORK/zroot.crt" > "$WORK/chain3.pem"
 extract_zscaler_certs "$WORK/chain3.pem" "$out3" 2>/dev/null
 if [ "$(count_files "$out3")" -eq 1 ]; then pass "fingerprint dedupe suppresses manual duplicate"; else fail "dedupe failed (manual dup re-extracted)"; fi
+# LEAF FILTER: pass-2 stores only zscaler-CN, CA:TRUE certs. Two leaf kinds
+# must be rejected: website-CN leaves (github.com) and zscaler-domain leaves
+# (*.zscloud.net - passes the CN test, still CA:FALSE and 2-week-lived).
+gen_signed() {
+  _b=$1; _s=$2; _ca=$3; _ext=$4; _ser=$5
+  openssl req -new -newkey rsa:2048 -nodes -keyout "$WORK/$_b.key" \
+    -out "$WORK/$_b.csr" -subj "$_s" >/dev/null 2>&1
+  printf '%s\n' "$_ext" > "$WORK/$_b.ext"
+  openssl x509 -req -in "$WORK/$_b.csr" -CA "$WORK/$_ca.crt" -CAkey "$WORK/$_ca.key" \
+    -set_serial "$_ser" -days 2 -out "$WORK/$_b.crt" -extfile "$WORK/$_b.ext" >/dev/null 2>&1
+}
+gen_signed leaf1 "/CN=github.com/O=Zscaler Inc/C=US" zroot "basicConstraints=critical,CA:FALSE" 101
+gen_signed leafz "/CN=*.zscloud.net/O=Zscaler Inc/C=US" zroot "basicConstraints=critical,CA:FALSE" 103
+gen_signed int1 "/CN=Zscaler Intermediate Root CA/O=Zscaler Inc/C=US" zroot "basicConstraints=critical,CA:TRUE" 102
+out4="$WORK/out4"; mkdir -p "$out4"
+# wire order: leaves first, like a real zscaler chain
+cat "$WORK/leaf1.crt" "$WORK/leafz.crt" "$WORK/int1.crt" > "$WORK/chain4.pem"
+extract_zscaler_certs "$WORK/chain4.pem" "$out4" 2>/dev/null
+if [ "$(count_files "$out4")" -eq 1 ]; then
+  SUBJ4=$(openssl x509 -in "$out4"/*.crt -noout -subject 2>/dev/null)
+  case "$SUBJ4" in
+    *Intermediate*) pass "leaves (website CN and zscaler-CN CA:FALSE) skipped, CA:TRUE intermediate captured" ;;
+    *) fail "leaf filter broken: stored $SUBJ4" ;;
+  esac
+else
+  fail "leaf filter: expected 1 stored cert, got $(count_files "$out4")"
+fi
+
 cleanup
 echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" -eq 0 ]
