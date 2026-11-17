@@ -99,7 +99,12 @@ of `sync-certs.sh` and inside every populate run.
 ## Manual vs autodetected
 
 - `zscaler-autodetected-*.crt`: output of `detect-zscaler.sh`. Deleted and
-  rewritten on every interception-found run. Never edit.
+  rewritten on every interception-found run. Never edit. The set holds
+  only CA certs: the detector requires a zscaler CN AND BasicConstraints
+  CA:TRUE, skipping the per-site leaf certs zscaler mints for each
+  connection (website CN, CA:FALSE, replaced about every two weeks -
+  storing those is why an autodetected set kept going "invalid"), and
+  check-certs.sh warns when any stored cert is within 30 days of expiry.
 - Any other `*.crt`: manual certs (exported corporate roots). Never touched
   by the detector or the sync; survive rotation.
 - `zscaler-root-*.crt`: the manually exported Zscaler ROOT CA - keep at

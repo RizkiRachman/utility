@@ -27,11 +27,16 @@ cp "$SCRIPT_DIR/certs-allowlist.txt" "$REPO/certs/"
 # while the sync still removes it (exact-mirror semantics are allowlist
 # agnostic - only the parent set survives).
 echo "extra.crt" >> "$REPO/certs/certs-allowlist.txt"
-# Dummy cert: the NAME matches the allowlist glob; content is irrelevant here.
-echo "dummy cert content - irrelevant to these scripts" > "$REPO/certs/zscaler-autodetected-1.crt"
-# Stale mirror cert: sync must remove it from every target dir.
-echo "stale cert that sync must remove" > "$REPO/agents/opencode/certs/extra.crt"
-echo "stale cert that sync must remove" > "$REPO/agents/openui/app/certs/extra.crt"
+# Real certs (self-generated, no network): the gate parsability-checks and
+# expiry-checks cert contents, so fixtures must be genuine certificates.
+# Names match the allowlist globs; sync must remove the stale mirror copies.
+openssl req -x509 -newkey rsa:2048 -nodes -days 365 -keyout "$WORK/k1.key" \
+  -out "$REPO/certs/zscaler-autodetected-1.crt" \
+  -subj "/CN=Zscaler Root CA/O=Zscaler Inc/C=US" >/dev/null 2>&1
+openssl req -x509 -newkey rsa:2048 -nodes -days 365 -keyout "$WORK/k2.key" \
+  -out "$REPO/agents/opencode/certs/extra.crt" \
+  -subj "/CN=Extra Stale CA/O=Example/C=US" >/dev/null 2>&1
+cp "$REPO/agents/opencode/certs/extra.crt" "$REPO/agents/openui/app/certs/extra.crt"
 
 # Mangle exactly what a Windows checkout mangles: both entry scripts and the
 # allowlist. detect-zscaler.sh stays LF - the dummy parent cert means the
