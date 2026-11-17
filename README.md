@@ -23,7 +23,7 @@ Containerized AI coding agents that plan, build, and ship under a scored, gated 
 
 ## What this is
 
-A Docker Compose stack where AI coding agents do real work. The product is the OpenCode container under workspace/agents/opencode: it ships the Workflow State Engine (17 agents, 45 skills, contract-driven scoring), lean-ctx code intelligence, and six MCP servers, pre-populated for offline builds. A sidecar container (workspace/agents/openui) serves generative UI over the same GLM models and is reachable from the agents through an MCP bridge. Scratch work lives in workspace/sandbox, one folder per session.
+A Docker Compose stack where AI coding agents do real work. The product is the OpenCode container under workspace/agents/opencode: it ships the Workflow State Engine (17 agents, 46 skills, contract-driven scoring), lean-ctx code intelligence, and six MCP servers, pre-populated for offline builds. A sidecar container (workspace/agents/openui) serves generative UI over the same GLM models and is reachable from the agents through an MCP bridge. Scratch work lives in workspace/sandbox, one folder per session.
 
 The stack runs without network access after the first pull: rules, skills, MCP servers, plugins, and a package store travel inside the image. Versions resolve once at populate time and land in an audit manifest; the offline store is the lockfile.
 
