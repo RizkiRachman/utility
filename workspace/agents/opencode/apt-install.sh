@@ -26,9 +26,17 @@ manifest=$1
 store=$2
 
 manifest_pkgs() {
-  grep -vE '^[[:space:]]*(#|$)' "$manifest"
+  # A Windows checkout can carry this manifest with CRLF (git autocrlf; the
+  # .gitattributes pin only fixes fresh checkouts, not existing trees).
+  # 'git\r' exists in no apt index -> 'Unable to locate package' for every
+  # line. Strip CR at the source so names are clean whatever the checkout did.
+  tr -d '\r' < "$manifest" | grep -vE '^[[:space:]]*(#|$)'
 }
 pkg_count=$(manifest_pkgs | wc -l | tr -d ' ')
+if [ "$pkg_count" -eq 0 ]; then
+  echo "FATAL: apt manifest $manifest resolved to 0 packages (empty, all comments, or unreadable)" >&2
+  exit 1
+fi
 
 network_install() {
   echo "apt install: NETWORK tier - apt-get update + install of ${pkg_count} manifest package(s) from $manifest"
