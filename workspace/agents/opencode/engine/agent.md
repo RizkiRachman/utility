@@ -100,13 +100,13 @@ The engine ships inside the container image (`COPY engine/ /opt/engine/`) and is
 ~/.config/opencode/
    ├── opencode.json → (bind-mounted) config/opencode.json
    ├── agent.md   → /opt/engine/agent.md      (instructions[0])
-   ├── /opt/engine/agents/    → /opt/engine/agents/        17 agent instruction files
-   ├── /opt/engine/skills/    → /opt/engine/skills/        46 skill directories
-   ├── /opt/engine/commands/  → /opt/engine/commands/      slash commands
-   ├── /opt/engine/rules/     → /opt/engine/rules/         rules.json (state machine)
-   ├── /opt/engine/contract/  → /opt/engine/contract/      contract.template.json, contract.schema.json, state.template.md
-   ├── /opt/engine/usage/     → /opt/engine/usage/         4 tool usage guides
-   └── /opt/engine/doc/       → /opt/engine/doc/           workflow guides, reports
+   ├── agents/    → /opt/engine/agents/        17 agent instruction files
+   ├── skills/    → /opt/engine/skills/        46 skill directories
+   ├── commands/  → /opt/engine/commands/      slash commands
+   ├── rules/     → /opt/engine/rules/         rules.json (state machine)
+   ├── contract/  → /opt/engine/contract/      contract.template.json, contract.schema.json, state.template.md
+   ├── usage/     → /opt/engine/usage/         4 tool usage guides
+   └── doc/       → /opt/engine/doc/           workflow guides, reports
 ```
 
 Engine changes take effect on container rebuild; the bind-mounted config on restart.
@@ -539,7 +539,7 @@ All skills at `/opt/engine/skills/` (symlinked into the OpenCode config dir). Us
 | `impeccable` | Design director - critique, audit, polish UI; offline slop detector; required before UI tasks are marked done |
 | `design-taste-frontend` | Art direction for frontend builds - design brief, tokens, browser self-check loop |
 | `diagram-design` | 45+ branded HTML/SVG diagram types (architecture, flows, ER, journeys, deployment); Mermaid/drawio/excalidraw import |
-| `drawio-animation` | Animated draw.io diagrams: native flowAnimation connectors, numbered and icon-labelled nodes, animated SVG generator (seamless infinite loop), GIF export paths (native Animated GIF export, Confluence draw.io macro, svg-to-gif / svg-to-video headless) |
+| `drawio-animation` | Animated draw.io diagrams: native flowAnimation connectors, numbered and icon-labelled nodes, animated SVG generator (infinite loop), GIF export paths (native Animated GIF export, Confluence draw.io macro, svg-to-gif / svg-to-video headless) |
 | `design-exemplar` | Exemplar layer - awesome-design-md brand index (84 DESIGN.md files), fetch workflow, when to copy a reference look |
 | `ui-ux-pro-max` | Generator layer - BM25 design-system search (192 industry rules, 79 styles, 192 palettes, 74 font pairings), `--design-system`, `--persist` (MASTER.md) |
 | `banner-design` | Banner/hero art direction for social media, ads, web heroes (companion of ui-ux-pro-max) |
