@@ -123,7 +123,7 @@ CHECKS
   9. Forbidden patterns
      Drift-class sweep over agent-facing docs (README.md excluded: it
      documents Dockerfile build behavior). Flags stale count claims
-     (16 agent, 15-member, 50 directories, 66/67 skills, 8 MCP), bare
+     (16 agent, 15-member, 50 directories, 66/67 skills, 8 MCP, 45 skills), bare
      bash /opt/engine gate phrasing, prose Permissions headings in
      agents/*.md, graphify zombie mentions, and envelope keys missing
      the :task_id namespace.
@@ -507,7 +507,7 @@ check_forbidden_patterns() {
     if [[ -z "$md_files" ]]; then return 0; fi
 
     # 9a. Stale count claims
-    hits=$(grep -rlE '(^|[^0-9])(16 agent|16 Agent|15-member|50 director(y|ies)|66 skills|67 skills|8 MCP)' $md_files 2>/dev/null || true)
+    hits=$(grep -rlE '(^|[^0-9])(16 agent|16 Agent|15-member|50 director(y|ies)|66 skills|67 skills|8 MCP|45 skill|45 Skill|skills-45|skills: 45)' $md_files 2>/dev/null || true)
     if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "stale count claim(s) in: $(echo "$hits" | tr "\n" " ")"; fi
 
     # 9b. Bare bash gate phrasing

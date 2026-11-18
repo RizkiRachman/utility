@@ -28,7 +28,7 @@
 | **Scoring Thresholds** | PASS >= 70, RETRY 50-69 (max 3 attempts), BLOCKED < 50 |
 | **17 Agent Types (scrum team)** | Orchestrator/lead (orchestrator), product (product-manager), process (scrum-master), planners (system-analyst, software-architect), implementers (developer, devops-engineer, fixer, design-orchestrator), reviewers (quality-analyst, security-engineer, learner), support (explorer, librarian, council, observer), bootstrap entrypoint (build) |
 | **Cross-Model Review** | Executors run on `opencode/big-pickle`; reviewers run on an independent model (`sumopod/deepseek-flash`). Conflicting verdicts → `BLOCKED`, arbitrated by `council` (`rules.json → enforcement.cross_model_review`) |
-| **45 Skill Directories** | Runnable skills including java-developer, system-analyst, writing-plans, spec-driven-development, test-driven-development, brainstorming, qa-expert, security-expert, devops-expert, and more |
+| **46 Skill Directories** | Runnable skills including java-developer, system-analyst, writing-plans, spec-driven-development, test-driven-development, brainstorming, qa-expert, security-expert, devops-expert, and more |
 | **Cross-Session Learning** | Lessons, patterns, and gotchas persisted via `ctx_knowledge` -- survives session restarts and spans sessions |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -55,7 +55,7 @@ The toolkit is organized as a **3-layer framework** of agents, skills, and contr
 
 - **`agents/` (17 agents)** -- Specialized instruction files defining role, state machine access, MCP permissions, and post-flight protocol. The orchestrator leads a scrum team (product-manager, scrum-master, system-analyst, software-architect, developer, devops-engineer, fixer, quality-analyst, security-engineer, learner, build + support agents) in a spec-driven development (SDD) flow: Refine -> Plan -> Spec Gate -> Execute -> Review -> Process Gate -> Ship.
 
-- **`skills/` (45 directories)** -- Runnable skill libraries providing deep guidance per domain. Each skill directory contains a `SKILL.md` with workflows, conventions, and quality gates. Loaded on demand via `/skill` when a task matches the skill's domain.
+- **`skills/` (46 directories)** -- Runnable skill libraries providing deep guidance per domain. Each skill directory contains a `SKILL.md` with workflows, conventions, and quality gates. Loaded on demand via `/skill` when a task matches the skill's domain.
 
 - **`contract/` (contract templates)** -- `contract.template.json` is the template for per-session envelopes. Live state lives at `session/contract.json`, which persists state transitions, decisions, scoring results, token budgets, and audit logs. `contract.schema.json` is the canonical API schema. Cross-session memory lives in `ctx_knowledge` for durable pattern learning.
 

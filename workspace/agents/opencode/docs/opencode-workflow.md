@@ -35,7 +35,7 @@ flowchart TB
 
     subgraph RUN["runtime container"]
         direction TB
-        R1["opencode engine<br/>17 agents / 45 skills"]
+        R1["opencode engine<br/>17 agents / 46 skills"]
         R1 --> R2["lean-ctx"]
         R1 --> R3["context7"]
         R1 --> R4["cocoindex-code / ccc<br/>AST semantic search"]

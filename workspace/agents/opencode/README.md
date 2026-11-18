@@ -11,7 +11,7 @@ Self-hosted OpenCode v2 stack in Docker: workflow-state-engine, lean-ctx, six MC
   <img alt="validate workflow" src="https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg">
 </p>
 
-This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (17 agents, 45 skills, contract-driven scoring), lean-ctx as the mandatory access layer, and six MCP servers: lean-ctx, Context7, fetch, rag, OpenUI, and CocoIndex Code. The image is pre-populated from an offline package store, so builds need no network after the first pull. Versions are resolved once at populate time and recorded in `agents/opencode/pre-install/versions.lock`; that manifest is the lockfile, and an env var such as `OPENCODE_VERSION` is the deliberate pin. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md).
+This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (17 agents, 46 skills, contract-driven scoring), lean-ctx as the mandatory access layer, and six MCP servers: lean-ctx, Context7, fetch, rag, OpenUI, and CocoIndex Code. The image is pre-populated from an offline package store, so builds need no network after the first pull. Versions are resolved once at populate time and recorded in `agents/opencode/pre-install/versions.lock`; that manifest is the lockfile, and an env var such as `OPENCODE_VERSION` is the deliberate pin. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md).
 
 ## Table of Contents
 
@@ -256,7 +256,7 @@ opencode/
 └── engine/                      # Workflow-state-engine -> copied to /opt/engine
     ├── agent.md                 # Orchestrator instructions (instructions[0])
     ├── agents/                  # 17 agent instruction files
-    ├── skills/                  # 45 skill directories
+    ├── skills/                  # 46 skill directories
     ├── commands/                # 1 slash command (impeccable)
     ├── rules/                   # rules.json + rules.schema.json
     ├── contract/                # Contract templates + JSON Schema
@@ -320,7 +320,7 @@ entrypoint.sh boot chain:
 opencode serve attaches to:
   - MCP servers: lean-ctx, context7, fetch, rag, cocoindex-code, openui bridge
   - Firecrawl plugin: keyless developer search, alexandria ask-gated
-  - workflow-state-engine: 17 agents, 45 skills, session/, sandbox/
+  - workflow-state-engine: 17 agents, 46 skills, session/, sandbox/
 ```
 
 ## Enforcement and Quality Gates
