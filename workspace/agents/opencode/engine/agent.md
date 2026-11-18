@@ -445,6 +445,12 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 - **Conflicting reviewer verdicts** (PASS vs BLOCK) → `BLOCKED`, arbitrated by `@council` (see `rules.json → enforcement.cross_model_review`)
 - **Security-sensitive changes** (auth, secrets, credentials, config, crypto) auto-require `@security-engineer` review
 
+### Controller guards (C3/C4/C5)
+
+- **Loop guard (C3)**: before each delegation and after every *_SCORED verdict the orchestrator runs `scripts/loop-guard.sh --task <task_id> --phase <state>`; exit 2 (identical attempt hash) means add "changed approach required" to retry.issues[]; exit 3 means state=BLOCKED (max_loop_iterations exceeded, default 12).
+- **Checkpoint (C4)**: the orchestrator runs `scripts/checkpoint.sh --contract session/contract.json` before every delegation; warn (exit 1) runs the Save Session Protocol immediately; critical (exit 2) persists and hands off to a fresh session that resumes from session/contract.json alone.
+- **Memory policy (C5)**: every ctx_knowledge write passes `scripts/knowledge-gate.sh write --category C --key K --source-task T --tag verified|observed-once|dead_end --rationale R` first; exit 0 proceeds with remember; exit 2 updates the existing entry instead of inserting; exit 3 compacts the category first (archive oldest). Contamination rule: tag=dead_end entries are excluded from governance.current_guidance assembly.
+
 ### Code Safety
 - **Never edit without `ctx_impact`** - run impact analysis first
 - **Never commit without `ctx_delta`** - verify scope
