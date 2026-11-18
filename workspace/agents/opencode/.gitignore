@@ -9,3 +9,4 @@ pre-install/**
 !pre-install/**/.gitkeep
 !pre-install/versions.lock
 !pre-install/digests.sha256
+!pre-install/packages-apt.txt

@@ -30,30 +30,27 @@ ARG FIRECRAWL_CLI_VERSION=""
 # Place PEM certificates with the .crt extension under certs/.
 COPY certs/ /usr/local/share/ca-certificates/
 
-# Base packages. The optional `preinstall` additional build context (/pi, see
-# docker-compose files) pre-seeds cached .deb files so repeat builds skip most
-# downloads; the apt cache mounts keep downloaded state out of the image layer.
+# Base packages - OFFLINE-FIRST from the store, like every other tier below.
+# pre-install/packages-apt.txt (git-tracked) is the single source of truth
+# for the package set: populate-preinstall.sh resolves its full transitive
+# .deb closure into store/apt/ (Debian 12 bookworm, the populating host's
+# dpkg arch - pinned in versions.lock) and writes a deps-first
+# install-order.txt. apt-install.sh then installs from the store with one
+# dpkg transaction when the store is present, complete, and arch-matching:
+# no apt-get update, no network, no apt-get upgrade. A missing, partial, or
+# wrong-arch store falls back to the network tier with a loud log line, so
+# builds never silently change behavior. TOFU window: first-fetch debs are
+# unverified until the maintainer --update-digests run records pins (same
+# caveat as every other store tier). Still outside store scope: the FROM
+# base image pull itself.
+COPY apt-install.sh /tmp/apt-install/apt-install.sh
+COPY pre-install/packages-apt.txt /tmp/apt-install/packages-apt.txt
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     --mount=from=preinstall,src=/,dst=/pi,ro \
     set -eux; \
-    cp /pi/apt/*.deb /var/cache/apt/archives/ 2>/dev/null || true; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends \
-      git \
-      curl \
-      sudo \
-      iproute2 \
-      jq \
-      ripgrep \
-      ca-certificates \
-      python3 \
-      pipx \
-      python3-venv \
-      coreutils \
-      procps; \
-    update-ca-certificates; \
-    git config --system --add safe.directory '*'
+    sh /tmp/apt-install/apt-install.sh /tmp/apt-install/packages-apt.txt /pi/apt; \
+    rm -rf /tmp/apt-install
 
 # --- Offline-store digest gate (S3/P2-9) ------------------------------------
 # Enforces ONLY when pre-install/digests.sha256 carries pins (>0 non-comment
