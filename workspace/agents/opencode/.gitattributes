@@ -3,3 +3,7 @@ Dockerfile text eol=lf
 *.json text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
+# Parsed verbatim at build/run time - CR poisons every parsed name/value
+pre-install/packages-apt.txt text eol=lf
+pre-install/versions.lock text eol=lf
+pre-install/digests.sha256 text eol=lf

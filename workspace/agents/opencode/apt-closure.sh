@@ -45,7 +45,9 @@ apt_manifest_pkgs() {
     echo "FATAL: apt manifest missing: $APT_MANIFEST (git-tracked source of the apt tier; restore it)" >&2
     return 1
   fi
-  _pkgs=$(grep -vE '^[[:space:]]*(#|$)' "$APT_MANIFEST" 2>/dev/null) || _pkgs=
+  # Windows checkouts can carry CRLF (autocrlf) - 'git\r' matches no apt
+  # index and poisons the closure and store-tier matching. Strip CR at read.
+  _pkgs=$(tr -d '\r' < "$APT_MANIFEST" | grep -vE '^[[:space:]]*(#|$)' 2>/dev/null) || _pkgs=
   if [ -z "$_pkgs" ]; then
     echo "FATAL: apt manifest holds no packages (comments only): $APT_MANIFEST" >&2
     return 1
