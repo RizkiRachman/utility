@@ -34,6 +34,7 @@ jobs:
                     workspace/agents/opencode/apt-closure.sh \
                     workspace/agents/opencode/apt-install.sh \
                     workspace/agents/opencode/test-apt-offline.sh \
+                    workspace/agents/opencode/engine/scripts/check-docker-context.sh \
                     workspace/certs/*.sh; do
             bash -n "$f"
           done
@@ -87,6 +88,9 @@ jobs:
       # certs/sync-certs.sh (called by populate-preinstall.sh on every
       # populate run), which fails the sync on any non-allowlisted cert.
       - name: Apt offline tests
+      - name: Docker context check
+        run: bash workspace/agents/opencode/engine/scripts/check-docker-context.sh
+
         run: sh workspace/agents/opencode/test-apt-offline.sh
 
       - name: Certificates allowlist (tracked-inventory sanity)

@@ -5,6 +5,7 @@ session
 .session
 pre-install/*
 !pre-install/digests.sha256
+!pre-install/packages-apt.txt
 .env*
 node_modules
 docker-compose.example.yaml
