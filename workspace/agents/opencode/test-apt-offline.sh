@@ -1,10 +1,12 @@
 #!/bin/sh
 grep -q "$(printf '\r')" "$0" 2>/dev/null && { tr -d '\r' < "$0" > "${0%/*}/.$(basename "$0").$$.lf" && exec sh "${0%/*}/.$(basename "$0").$$.lf" "$@"; } # CRLF self-heal: re-exec an LF copy of this script from its own dir when Windows line endings are detected
 # test-apt-offline.sh - unit tests for the offline apt tier. Pure shell, no
-# network, no root, no docker: mock apt-get/dpkg/update-ca-
-# certificates/git binaries on a PATH shim, then drive the real functions
-# from apt-closure.sh (sourced) and the real apt-install.sh (executed).
-# Filesystem + mock-log assertions, mirroring certs/test-detect-zscaler.sh.
+# network, no root, no docker: mock apt-get/dpkg/update-ca-certificates/git
+# binaries on a PATH shim, then drive the real functions from apt-closure.sh
+# (sourced) and the real apt-install.sh (executed). The dpkg mock enforces
+# Pre-Depends at unpack time (the prerequisite must be configured first),
+# which is the exact rule that broke the v1 unpack-only order. Filesystem +
+# mock-log assertions, mirroring certs/test-detect-zscaler.sh.
 set -u
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 PASS=0; FAIL=0
@@ -26,8 +28,14 @@ mkdir -p "$MOCKDIR"
 MOCK_LOG=$WORK/mock.log
 : >"$MOCK_LOG"
 export MOCK_LOG
+MOCK_DPKG_STATE=$WORK/dpkg.state
+: >"$MOCK_DPKG_STATE"
+export MOCK_DPKG_STATE
+MOCK_PREDEPS=$WORK/predeps.txt
+printf 'libb:liba\napp:libb\n' >"$MOCK_PREDEPS"
+export MOCK_PREDEPS
 
-cat > "$MOCKDIR/apt-get" <<'EOF'
+cat > "$MOCKDIR/apt-get" <<'MOCKEOF'
 #!/bin/sh
 echo "apt-get $*" >> "$MOCK_LOG"
 case "$1" in update) exit 0 ;; esac
@@ -40,7 +48,7 @@ for a in "$@"; do
     Dir::State::status=*) : ;;
     Dir::Cache::archives=*) _dir=${a#Dir::Cache::archives=} ;;
     install|-y|--no-install-recommends|--reinstall) : ;;
-    *) : ;;  # manifest roots - the solver expands them, not the mock
+    *) : ;;  # manifest roots / -f repair - the solver handles them, not the mock
   esac
 done
 if [ "$_sim" = "1" ]; then
@@ -56,13 +64,36 @@ if [ "$_dl" = "1" ]; then
   done
 fi
 exit 0
-EOF
+MOCKEOF
 
-cat > "$MOCKDIR/dpkg" <<'EOF'
+cat > "$MOCKDIR/dpkg" <<'MOCKEOF'
 #!/bin/sh
 echo "dpkg $*" >> "$MOCK_LOG"
 case "$1" in
   --print-architecture) echo "${MOCK_DPKG_ARCH:-amd64}" ;;
+  --unpack)
+    f=${2##*/}
+    p=${f%%_*}
+    # Pre-Depends rule: the prerequisite must already be CONFIGURED when
+    # the dependent is unpacked - exactly what broke the v1 order.
+    while IFS= read -r d || [ -n "$d" ]; do
+      [ -n "$d" ] || continue
+      case "$d" in "$p":*) q=${d#"$p":} ;;
+        *) continue ;;
+      esac
+      grep -qx "configure $q" "$MOCK_DPKG_STATE" 2>/dev/null || {
+        echo "dpkg: regarding $f, pre-dependency problem:" >&2
+        echo " $p pre-depends on $q (not configured)" >&2
+        exit 100
+      }
+    done < "${MOCK_PREDEPS:-/dev/null}"
+    ;;
+  --configure)
+    case "$2" in
+      -a) : ;;
+      *) echo "configure $2" >> "$MOCK_DPKG_STATE" ;;
+    esac
+    ;;
   -i)
     if [ "${MOCK_DPKG_RC:-0}" != "0" ]; then
       echo "mock dpkg: simulated failure" >&2
@@ -71,7 +102,7 @@ case "$1" in
     ;;
 esac
 exit 0
-EOF
+MOCKEOF
 
 for m in update-ca-certificates git; do
   printf '#!/bin/sh\necho "%s $*" >> "$MOCK_LOG"\nexit 0\n' "$m" > "$MOCKDIR/$m"
@@ -112,9 +143,12 @@ MOCK_PLAN=$WORK/plan.txt
 export MOCK_PLAN
 cat >"$MOCK_PLAN" <<'EOF'
 Inst liba (1.0-1 Debian:12/bookworm [amd64])
+Conf liba (1.0-1 Debian:12/bookworm [amd64])
 Inst alt1 (1.0-1 Debian:12/bookworm [amd64])
 Inst libb (1.0-1 Debian:12/bookworm [amd64])
+Conf libb (1.0-1 Debian:12/bookworm [amd64])
 Inst app (1.0-1 Debian:12/bookworm [amd64])
+Conf app (1.0-1 Debian:12/bookworm [amd64])
 EOF
 write_manifest app
 if apt_resolve_closure; then pass "closure: resolver runs"; else fail "closure: resolver runs"; fi
@@ -124,6 +158,14 @@ libb
 app
 "
 assert "closure: APT_ALL mirrors APT_ORDER" "$APT_ALL" "$APT_ORDER"
+assert "closure: schedule keeps configure checkpoints (APT_SCHEDULE)" "$APT_SCHEDULE" "u liba
+c liba
+u alt1
+u libb
+c libb
+u app
+c app
+"
 
 # regression (populate failure 2026-11-18): apt-cache depends prints every
 # OR-alternative as its own unmarked 'Depends:' line, so the old walk added
@@ -141,17 +183,27 @@ case "$APT_ALL" in
   *libelogind0*) fail "closure: no walk-added alternatives (Conflicts pair)" ;;
   *) pass "closure: no walk-added alternatives (Conflicts pair)" ;;
 esac
+assert "closure: Conf-less plan yields unpack-only schedule" "$APT_SCHEDULE" "u libsystemd0
+u libc6
+u procps
+"
 
-# multi-arch Inst names and duplicate Inst lines
+# multi-arch names, duplicate Inst and Conf lines
 cat >"$MOCK_PLAN" <<'EOF'
 Inst libc6 (2.36-9+deb12u7 Debian:12/bookworm [amd64])
+Conf libc6 (2.36-9+deb12u7 Debian:12/bookworm [amd64])
 Inst pipx:amd64 (1.4.0-1 Debian:12/bookworm [amd64])
 Inst libc6 (2.36-9+deb12u7 Debian:12/bookworm [amd64])
+Conf libc6 (2.36-9+deb12u7 Debian:12/bookworm [amd64])
 EOF
 write_manifest pipx
 apt_resolve_closure
 assert "closure: dedup + ':arch' stripped" "$APT_ORDER" "libc6
 pipx
+"
+assert "closure: schedule deduped across ops" "$APT_SCHEDULE" "u libc6
+c libc6
+u pipx
 "
 
 # simulate failure -> loud FATAL, resolver fails
@@ -165,12 +217,15 @@ if apt_resolve_closure 2>"$WORK/simfail.err"; then fail "closure: sim failure mu
 assert_contains "closure: sim failure FATAL message" "$(cat "$WORK/simfail.err")" "apt-get simulate failed"
 unset MOCK_SIM_RC
 
-# --- 3. fetch_apt_debs end-to-end (staging, order file, regen) ---------------
+# --- 3. fetch_apt_debs end-to-end (staging, schedule file, regen) ------------
 cat >"$MOCK_PLAN" <<'EOF'
 Inst liba (1.0-1 Debian:12/bookworm [amd64])
+Conf liba (1.0-1 Debian:12/bookworm [amd64])
 Inst alt1 (1.0-1 Debian:12/bookworm [amd64])
 Inst libb (1.0-1 Debian:12/bookworm [amd64])
+Conf libb (1.0-1 Debian:12/bookworm [amd64])
 Inst app (1.0-1 Debian:12/bookworm [amd64])
+Conf app (1.0-1 Debian:12/bookworm [amd64])
 EOF
 write_manifest app
 mkdir -p "$STORE_DIR/apt"
@@ -181,7 +236,7 @@ assert "fetch: stale deb regenerated away" "$(ls "$STORE_DIR/apt/stalepkg_"* 2>/
 assert "fetch: 4 debs in store" "$(ls "$STORE_DIR/apt/"*.deb 2>/dev/null | grep -c .)" "4"
 assert "fetch: staging dir removed" "$(ls -d "$STORE_DIR"/apt/.staging.* 2>/dev/null | wc -l | tr -d ' ')" "0"
 order_body=$(grep -v '^#' "$STORE_DIR/apt/install-order.txt" | tr '\n' ' ')
-assert "fetch: install-order.txt deps-first" "$order_body" "liba_1.0-1_amd64.deb alt1_1.0-1_amd64.deb libb_1.0-1_amd64.deb app_1.0-1_amd64.deb "
+assert "fetch: install-order.txt is the u/c schedule" "$order_body" "u liba_1.0-1_amd64.deb c liba u alt1_1.0-1_amd64.deb u libb_1.0-1_amd64.deb c libb u app_1.0-1_amd64.deb c app "
 assert_contains "fetch: download-only against an empty dpkg status" "$(cat "$MOCK_LOG")" "Dir::State::status="
 dl_line=$(grep -- '--download-only' "$MOCK_LOG" | tail -n 1)
 case "$dl_line" in
@@ -195,28 +250,34 @@ esac
 
 # --- 4. coverage guard --------------------------------------------------------
 write_manifest app libb liba alt1   # full manifest: coverage must reflect every name
-if apt_store_covers_manifest; then pass "coverage: complete store covers manifest"; else fail "coverage: complete store covers manifest"; fi
+if apt_store_covers_manifest; then pass "coverage: complete v2 store covers manifest"; else fail "coverage: complete v2 store covers manifest"; fi
 rm -f "$STORE_DIR/apt/liba_"*.deb
 if apt_store_covers_manifest; then fail "coverage: missing deb detected"; else pass "coverage: missing deb detected"; fi
 mv "$STORE_DIR/apt/install-order.txt" "$WORK/order.bak"
 if apt_store_covers_manifest; then fail "coverage: missing order file detected"; else pass "coverage: missing order file detected"; fi
 mv "$WORK/order.bak" "$STORE_DIR/apt/install-order.txt"
 printf 'deb' >"$STORE_DIR/apt/liba_1.0-1_amd64.deb"   # restore the full store
+# v1 order file (bare deb names, no u/c schedule): must force a re-stage
+mv "$STORE_DIR/apt/install-order.txt" "$WORK/order.v2"
+printf 'liba_1.0-1_amd64.deb\nalt1_1.0-1_amd64.deb\nlibb_1.0-1_amd64.deb\napp_1.0-1_amd64.deb\n' >"$STORE_DIR/apt/install-order.txt"
+if apt_store_covers_manifest; then fail "coverage: v1 order file must force a re-stage"; else pass "coverage: v1 order file must force a re-stage"; fi
+mv "$WORK/order.v2" "$STORE_DIR/apt/install-order.txt"
 
 # --- 5. apt-install.sh tiers --------------------------------------------------
 export MOCK_DPKG_ARCH=amd64
 write_manifest app libb liba alt1
-: >"$MOCK_LOG"
+: >"$MOCK_LOG"; : >"$MOCK_DPKG_STATE"
 out=$(sh "$SCRIPT_DIR_SAVE/apt-install.sh" "$APT_MANIFEST" "$STORE_DIR/apt" 2>&1)
 rc=$?
 assert "install: offline tier exits 0" "$rc" "0"
 assert_contains "install: offline log line" "$out" "OFFLINE - 4 deb(s)"
-dpkg_line=$(grep '^dpkg -i ' "$MOCK_LOG" | tail -n 1)
-assert "install: dpkg order follows install-order.txt" "$dpkg_line" "dpkg -i $STORE_DIR/apt/liba_1.0-1_amd64.deb $STORE_DIR/apt/alt1_1.0-1_amd64.deb $STORE_DIR/apt/libb_1.0-1_amd64.deb $STORE_DIR/apt/app_1.0-1_amd64.deb"
+assert_contains "install: schedule log line" "$out" "schedule from install-order.txt"
+replay=$(grep -E '^dpkg --(unpack|configure)' "$MOCK_LOG" | tr '\n' '|')
+assert "install: replay follows apt's u/c schedule (Pre-Depends-safe)" "$replay" "dpkg --unpack $STORE_DIR/apt/liba_1.0-1_amd64.deb|dpkg --configure liba|dpkg --unpack $STORE_DIR/apt/alt1_1.0-1_amd64.deb|dpkg --unpack $STORE_DIR/apt/libb_1.0-1_amd64.deb|dpkg --configure libb|dpkg --unpack $STORE_DIR/apt/app_1.0-1_amd64.deb|dpkg --configure app|dpkg --configure -a|"
 case "$(cat "$MOCK_LOG")" in *"apt-get update"*) fail "install: offline tier must not run apt-get update" ;; *) pass "install: offline tier must not run apt-get update" ;; esac
 
 # empty store -> network tier
-: >"$MOCK_LOG"
+: >"$MOCK_LOG"; : >"$MOCK_DPKG_STATE"
 rm -f "$STORE_DIR"/apt/*.deb
 out=$(sh "$SCRIPT_DIR_SAVE/apt-install.sh" "$APT_MANIFEST" "$STORE_DIR/apt" 2>&1)
 rc=$?
@@ -229,7 +290,7 @@ case "$apt_install_line" in *"app"*"libb"*) pass "install: network tier installs
 mkdir -p "$STORE_DIR/apt"
 printf 'deb' >"$STORE_DIR/apt/app_1.0-1_amd64.deb"
 printf 'deb' >"$STORE_DIR/apt/libb_1.0-1_amd64.deb"
-: >"$MOCK_LOG"
+: >"$MOCK_LOG"; : >"$MOCK_DPKG_STATE"
 out=$(sh "$SCRIPT_DIR_SAVE/apt-install.sh" "$APT_MANIFEST" "$STORE_DIR/apt" 2>&1)
 assert_contains "install: partial store -> loud fallback" "$out" "store missing deb(s) for:"
 assert_contains "install: partial store -> network repair" "$(cat "$MOCK_LOG")" "apt-get update"
@@ -240,26 +301,49 @@ printf 'deb' >"$STORE_DIR/apt/liba_1.0-1_arm64.deb"
 printf 'deb' >"$STORE_DIR/apt/libb_1.0-1_arm64.deb"
 printf 'deb' >"$STORE_DIR/apt/app_1.0-1_arm64.deb"
 printf 'deb' >"$STORE_DIR/apt/alt1_1.0-1_arm64.deb"
+: >"$MOCK_LOG"; : >"$MOCK_DPKG_STATE"
 out=$(sh "$SCRIPT_DIR_SAVE/apt-install.sh" "$APT_MANIFEST" "$STORE_DIR/apt" 2>&1)
 assert_contains "install: wrong-arch store -> loud fallback" "$out" "store arch arm64 != build arch amd64"
 assert_contains "install: wrong-arch -> network repair" "$(cat "$MOCK_LOG")" "apt-get update"
 
-# dpkg failure -> loud repair over the network
-mv "$STORE_DIR/apt/liba_1.0-1_arm64.deb" "$_tmp.deb" 2>/dev/null || true
+# corrupted schedule (unpack app before its Pre-Depends libb is configured)
+# -> the dpkg mock refuses, the build repairs over the network tier
 rm -f "$STORE_DIR"/apt/*.deb
-# rebuild the amd64 store exactly as the populate fetch leaves it
 for n in liba alt1 libb app; do printf 'deb' >"$STORE_DIR/apt/${n}_1.0-1_amd64.deb"; done
-grep -v '^#' "$STORE_DIR/apt/install-order.txt" >/dev/null 2>&1 || printf 'liba_1.0-1_amd64.deb\nalt1_1.0-1_amd64.deb\nlibb_1.0-1_amd64.deb\napp_1.0-1_amd64.deb\n' >"$STORE_DIR/apt/install-order.txt"
-: >"$MOCK_LOG"
+printf 'u app_1.0-1_amd64.deb\nc libb\nu libb_1.0-1_amd64.deb\nu liba_1.0-1_amd64.deb\nc liba\nu alt1_1.0-1_amd64.deb\nc app\n' >"$STORE_DIR/apt/install-order.txt"
+: >"$MOCK_LOG"; : >"$MOCK_DPKG_STATE"
+out=$(sh "$SCRIPT_DIR_SAVE/apt-install.sh" "$APT_MANIFEST" "$STORE_DIR/apt" 2>&1)
+rc=$?
+assert "install: broken schedule still exits 0 via repair" "$rc" "0"
+assert_contains "install: broken schedule -> loud failure point" "$out" "OFFLINE schedule failed at: unpack app_1.0-1_amd64.deb"
+case "$(cat "$MOCK_LOG")" in
+  *"dpkg --configure -a"*"apt-get -f install"*) pass "install: repair ladder (configure -a + apt-get -f) runs first" ;;
+  *) fail "install: repair ladder (configure -a + apt-get -f) runs first" ;;
+esac
+apt_install_line=$(grep '^apt-get install ' "$MOCK_LOG" | tail -n 1)
+case "$apt_install_line" in *"app"*) pass "install: repair ends in a manifest install" ;; *) fail "install: repair ends in a manifest install ($apt_install_line)" ;; esac
+
+# v1 order file (bare deb names): single dpkg -i transaction (legacy path)
+printf 'liba_1.0-1_amd64.deb\nalt1_1.0-1_amd64.deb\nlibb_1.0-1_amd64.deb\napp_1.0-1_amd64.deb\n' >"$STORE_DIR/apt/install-order.txt"
+: >"$MOCK_LOG"; : >"$MOCK_DPKG_STATE"
+out=$(sh "$SCRIPT_DIR_SAVE/apt-install.sh" "$APT_MANIFEST" "$STORE_DIR/apt" 2>&1)
+rc=$?
+assert "install: v1 order file still exits 0" "$rc" "0"
+dpkg_line=$(grep '^dpkg -i ' "$MOCK_LOG" | tail -n 1)
+assert "install: v1 single dpkg -i transaction" "$dpkg_line" "dpkg -i $STORE_DIR/apt/liba_1.0-1_amd64.deb $STORE_DIR/apt/alt1_1.0-1_amd64.deb $STORE_DIR/apt/libb_1.0-1_amd64.deb $STORE_DIR/apt/app_1.0-1_amd64.deb"
+
+# v1 dpkg failure -> loud repair over the network
+: >"$MOCK_LOG"; : >"$MOCK_DPKG_STATE"
 MOCK_DPKG_RC=100 sh "$SCRIPT_DIR_SAVE/apt-install.sh" "$APT_MANIFEST" "$STORE_DIR/apt" >"$WORK/dpkgfail.out" 2>&1
 rc=$?
-assert "install: dpkg failure still exits 0 via repair" "$rc" "0"
-assert_contains "install: dpkg failure -> loud repair log" "$(cat "$WORK/dpkgfail.out")" "repairing over the network tier"
+assert "install: v1 dpkg failure still exits 0 via repair" "$rc" "0"
+assert_contains "install: v1 dpkg failure -> loud repair log" "$(cat "$WORK/dpkgfail.out")" "repairing over the network tier"
 case "$(cat "$MOCK_LOG")" in *"dpkg -i"*"apt-get update"*) pass "install: repair runs after failed dpkg" ;; *) fail "install: repair runs after failed dpkg" ;; esac
+assert_contains "install: v1 repair ladder runs" "$(cat "$MOCK_LOG")" "apt-get -f install"
 
 # missing order file -> alphabetical fallback (single dpkg transaction)
 rm -f "$STORE_DIR/apt/install-order.txt"
-: >"$MOCK_LOG"
+: >"$MOCK_LOG"; : >"$MOCK_DPKG_STATE"
 out=$(sh "$SCRIPT_DIR_SAVE/apt-install.sh" "$APT_MANIFEST" "$STORE_DIR/apt" 2>&1)
 assert_contains "install: legacy store -> alphabetical fallback WARN" "$out" "alphabetical fallback"
 dpkg_line=$(grep '^dpkg -i ' "$MOCK_LOG" | tail -n 1)

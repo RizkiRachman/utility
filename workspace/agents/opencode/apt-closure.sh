@@ -57,9 +57,14 @@ apt_manifest_pkgs() {
 
 # Full transitive closure of the manifest, planned by apt's OWN solver.
 # Sets:
-#   APT_ALL    newline-separated package names, deduped
-#   APT_ORDER  the same names in apt's plan order (dependencies first) -
-#              consumed as the store's install order
+#   APT_ALL       newline-separated package names, deduped
+#   APT_ORDER     the same names in apt's plan order (dependencies first)
+#   APT_SCHEDULE  the plan as replayable ops: "u <pkg>" (unpack) and
+#                 "c <pkg>" (configure) in apt's own interleaved order -
+#                 Pre-Depends must see the prerequisite CONFIGURED when the
+#                 dependent is unpacked, so the Conf checkpoints are part of
+#                 the order (an unpack-only order made dpkg refuse
+#                 python3-minimal and cascaded 12 broken packages)
 # Returns 1 when the simulation fails (e.g. apt lists missing).
 #
 # Why not a hand walk over `apt-cache depends --recurse`: real apt
@@ -76,6 +81,7 @@ apt_manifest_pkgs() {
 apt_resolve_closure() {
   APT_ALL=
   APT_ORDER=
+  APT_SCHEDULE=
   _roots=$(apt_manifest_pkgs | tr '\n' ' ') || return 1
   _status=$(mktemp "${TMPDIR:-/tmp}/apt-status.XXXXXX")
   _tmp=$(mktemp "${TMPDIR:-/tmp}/apt-closure.XXXXXX")
@@ -86,64 +92,108 @@ apt_resolve_closure() {
     echo "FATAL: apt-get simulate failed (apt lists present? populate runs apt-get update first)" >&2
     return 1
   fi
-  # Inst lines come out in apt's own dependency-respecting plan order.
-  for _n in $(sed -n 's/^Inst \([^ ]*\).*/\1/p' "$_tmp"); do
-    _n=${_n%%:*}  # strip a multi-arch ':arch' suffix (':' is illegal in names)
-    case "
-$APT_ORDER
+  # Walk Inst (unpack) and Conf (configure) lines in apt's plan order: the
+  # interleaving IS the install schedule. Only Inst lines join the closure;
+  # Conf lines become configure checkpoints in APT_SCHEDULE - dpkg refuses
+  # to unpack a package whose Pre-Depends is merely unpacked, so the
+  # configure steps are load-bearing.
+  _conf=
+  while IFS= read -r _line; do
+    case "$_line" in
+      'Inst '*) _op=u; _rest=${_line#'Inst '} ;;
+      'Conf '*) _op=c; _rest=${_line#'Conf '} ;;
+      *) continue ;;
+    esac
+    _n=${_rest%% *}             # first field: the package name
+    _n=${_n%%:*}                # strip a multi-arch ':arch' suffix (':' is illegal in names)
+    [ -n "$_n" ] || continue
+    if [ "$_op" = u ]; then
+      case "
+$APT_ALL
 " in *"
 $_n
-"*) : ;; *) APT_ORDER="$APT_ORDER$_n
-"; APT_ALL="$APT_ALL$_n
-" ;; esac
-  done
+"*) continue ;; esac
+      APT_ORDER="$APT_ORDER$_n
+"
+      APT_ALL="$APT_ALL$_n
+"
+    else
+      case "
+$_conf
+" in *"
+$_n
+"*) continue ;; esac
+      _conf="$_conf$_n
+"
+    fi
+    APT_SCHEDULE="$APT_SCHEDULE$_op $_n
+"
+  done <"$_tmp"
   rm -f "$_tmp" "$_status"
   [ -n "$APT_ALL" ] || { echo "FATAL: apt simulate planned no packages" >&2; return 1; }
 }
 
-# Write store/apt/install-order.txt: the deps-first order of the staged debs
-# (base names, one per line, #-prefixed header), consumed by apt-install.sh
-# as a single dpkg -i transaction. Every closure name must map to a staged
-# deb - a name without one means resolution was incomplete and the offline
-# install would fail at dpkg time; failing HERE is cheap, failing at build
+# Write store/apt/install-order.txt: the plan schedule as replayable ops -
+# "u <deb-base-name>" (dpkg --unpack) and "c <pkg-name>" (dpkg --configure)
+# in apt's own interleaved order, #-prefixed header. Consumed by
+# apt-install.sh: Pre-Depends must see the prerequisite CONFIGURED when the
+# dependent is unpacked, so configure checkpoints are kept between unpack
+# steps. Every unpack op must map to a staged deb - a name without one
+# means resolution was incomplete; failing HERE is cheap, failing at build
 # time is not. Deb names are <name>_<version>_<arch>.deb; apt stages exactly
 # one candidate version per name into the fresh staging dir, so the sort
 # below only disambiguates unexpected leftovers.
 apt_write_install_order() { # $1 = staging dir with debs, $2 = output file
   _stage=$1
   _outf=$2
-  _order=${APT_ORDER:-$(printf '%s\n' "$APT_ALL" | LC_ALL=C sort)}
   _body=
   _missing=0
-  for _n in $_order; do
-    [ -n "$_n" ] || continue
-    _deb=$(ls "$_stage/${_n}_"*.deb 2>/dev/null | LC_ALL=C sort | tail -n 1)
-    if [ -z "$_deb" ]; then
-      echo "FATAL: no .deb staged for closure package $_n (resolution incomplete?)" >&2
-      _missing=1
-      continue
+  _schedf=$(mktemp "${TMPDIR:-/tmp}/apt-sched.XXXXXX")
+  printf '%s\n' "${APT_SCHEDULE:-}" >"$_schedf"
+  while IFS= read -r _line; do
+    [ -n "$_line" ] || continue
+    _op=${_line%% *}
+    _n=${_line#* }
+    if [ "$_op" = u ]; then
+      _deb=$(ls "$_stage/${_n}_"*.deb 2>/dev/null | LC_ALL=C sort | tail -n 1)
+      if [ -z "$_deb" ]; then
+        echo "FATAL: no .deb staged for closure package $_n (resolution incomplete?)" >&2
+        _missing=1
+        continue
+      fi
+      _line="u ${_deb##*/}"
     fi
-    _body="$_body${_deb##*/}
+    _body="$_body$_line
 "
-  done
+  done <"$_schedf"
+  rm -f "$_schedf"
   if [ "$_missing" -ne 0 ]; then
     echo "FATAL: apt closure incomplete - store apt tier NOT updated" >&2
     return 1
   fi
+  if [ -z "$_body" ]; then
+    echo "FATAL: apt schedule is empty - store apt tier NOT updated" >&2
+    return 1
+  fi
   {
-    printf '%s\n' "# deps-first install order for store/apt/*.deb (single dpkg -i transaction)"
-    printf '%s\n' "# written by populate-preinstall.sh from pre-install/packages-apt.txt;"
+    printf '%s\n' "# install schedule for store/apt/*.deb (u=dpkg --unpack, c=dpkg --configure)"
+    printf '%s\n' "# written by populate-preinstall.sh from apt's plan (Inst/Conf interleaved);"
     printf '%s\n' "# consumed by apt-install.sh at build time. Regenerated on every apt fetch."
     printf '%s' "$_body"
   } >"$_outf"
 }
 
 # Skip-path guard: true when the store already covers the CURRENT manifest
-# (install order present AND every manifest package has a deb). The apt
+# (schedule-v2 order present AND every manifest package has a deb). The apt
 # analogue of same_version_in_store - a store built from an older manifest
 # self-heals on the next populate run instead of staying stale forever.
 apt_store_covers_manifest() {
-  [ -f "$STORE_DIR/apt/install-order.txt" ] || return 1
+  _ord=$STORE_DIR/apt/install-order.txt
+  [ -f "$_ord" ] || return 1
+  # Schedule-v2 guard: a v1 order file (bare deb names, unpack-only) fails
+  # Pre-Depends at dpkg time; a v1 store self-heals by re-staging on the
+  # next populate run instead of being trusted forever.
+  grep -q '^u ' "$_ord" || return 1
   _pkgs=$(apt_manifest_pkgs) || return 1
   for _p in $_pkgs; do
     ls "$STORE_DIR/apt/${_p}_"*.deb >/dev/null 2>&1 || return 1
@@ -151,9 +201,9 @@ apt_store_covers_manifest() {
   return 0
 }
 
-# Fetch the full closure into a staging dir, write the install order, then
-# swap it in. store/apt/*.deb is REGENERATED per fetch - one closure, one
-# consistent version set (two versions of a package in one dpkg -i
+# Fetch the full closure into a staging dir, write the install schedule,
+# then swap it in. store/apt/*.deb is REGENERATED per fetch - one closure,
+# one consistent version set (two versions of a package in one dpkg
 # transaction are a hard error) - while the pip/npm tiers keep their
 # add-only dependency policy. Requires root and network (populate tier).
 fetch_apt_debs() {

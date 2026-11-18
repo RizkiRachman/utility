@@ -899,9 +899,10 @@ fi
 # apt package set: the Dockerfile's network fallback (apt-install.sh)
 # installs exactly these names, and apt-closure.sh (sourced below) resolves
 # their full transitive closure into store/apt/ plus a deps-first
-# install-order.txt so the offline build needs no apt resolver, no update,
-# no network. Resolution is independent of THIS container's apt state
-# (every closure member is force-downloaded with --reinstall): the populate
+# install-order.txt (apt's plan schedule: u=dpkg --unpack, c=dpkg
+# --configure) so the offline build needs no apt resolver, no update, no
+# network. Resolution is independent of THIS container's apt state (plan +
+# download run against an EMPTY dpkg status): the populate
 # container installs curl/git/python3/... on top of the base image, and a
 # download-only run against live state would silently drop exactly those
 # debs. REFRESH_APT=1 forces a refetch, mirroring REFRESH_ML.
