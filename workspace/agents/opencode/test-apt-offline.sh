@@ -1,7 +1,7 @@
 #!/bin/sh
 grep -q "$(printf '\r')" "$0" 2>/dev/null && { tr -d '\r' < "$0" > "${0%/*}/.$(basename "$0").$$.lf" && exec sh "${0%/*}/.$(basename "$0").$$.lf" "$@"; } # CRLF self-heal: re-exec an LF copy of this script from its own dir when Windows line endings are detected
 # test-apt-offline.sh - unit tests for the offline apt tier. Pure shell, no
-# network, no root, no docker: mock apt-cache/apt-get/dpkg/update-ca-
+# network, no root, no docker: mock apt-get/dpkg/update-ca-
 # certificates/git binaries on a PATH shim, then drive the real functions
 # from apt-closure.sh (sourced) and the real apt-install.sh (executed).
 # Filesystem + mock-log assertions, mirroring certs/test-detect-zscaler.sh.
@@ -27,41 +27,34 @@ MOCK_LOG=$WORK/mock.log
 : >"$MOCK_LOG"
 export MOCK_LOG
 
-cat > "$MOCKDIR/apt-cache" <<'EOF'
-#!/bin/sh
-case "$1" in
-  depends) cat "$MOCK_GRAPH" ;;
-  policy)
-    case "${MOCK_REAL:-|}" in
-      *"|$2|"*) printf 'Package: %s\nCandidate: 1.0-1\n' "$2" ;;
-      *) printf 'N: Unable to locate package %s\nCandidate:\n' "$2" ;;
-    esac ;;
-  *) exit 0 ;;
-esac
-exit 0
-EOF
-
 cat > "$MOCKDIR/apt-get" <<'EOF'
 #!/bin/sh
 echo "apt-get $*" >> "$MOCK_LOG"
-case "$1" in
-  update) exit 0 ;;
-  install)
-    dir=
-    names=
-    for a in "$@"; do
-      case "$a" in
-        install|--reinstall|--download-only|-y|--no-install-recommends|-o) : ;;
-        Dir::Cache::archives=*) dir=${a#Dir::Cache::archives=} ;;
-        *) names="$names $a" ;;
-      esac
-    done
-    if [ -n "$dir" ]; then
-      mkdir -p "$dir/partial"
-      for n in $names; do printf 'deb' > "$dir/${n}_1.0-1_amd64.deb"; done
-    fi
-    ;;
-esac
+case "$1" in update) exit 0 ;; esac
+_sim=0; _dl=0; _dir=
+for a in "$@"; do
+  case "$a" in
+    -s) _sim=1 ;;
+    --download-only) _dl=1 ;;
+    -o) : ;;
+    Dir::State::status=*) : ;;
+    Dir::Cache::archives=*) _dir=${a#Dir::Cache::archives=} ;;
+    install|-y|--no-install-recommends|--reinstall) : ;;
+    *) : ;;  # manifest roots - the solver expands them, not the mock
+  esac
+done
+if [ "$_sim" = "1" ]; then
+  [ "${MOCK_SIM_RC:-0}" = "0" ] || exit "$MOCK_SIM_RC"
+  cat "$MOCK_PLAN"
+  exit 0
+fi
+if [ "$_dl" = "1" ]; then
+  # same solver inputs -> stages exactly the planned closure
+  mkdir -p "$_dir/partial"
+  for n in $(sed -n 's/^Inst \([^ ]*\).*/\1/p' "$MOCK_PLAN"); do
+    printf 'deb' > "$_dir/${n}_1.0-1_amd64.deb"
+  done
+fi
 exit 0
 EOF
 
@@ -93,7 +86,6 @@ SCRIPT_DIR_SAVE=$SCRIPT_DIR
 SCRIPT_DIR=$WORK                    # apt-closure.sh derives APT_MANIFEST from it
 APT_MANIFEST=$WORK/manifest.txt     # explicit, env wins
 STORE_DIR=$WORK/store
-export MOCK_REAL="|app|libb|liba|alt1|alt2|"
 . "$SCRIPT_DIR_SAVE/apt-closure.sh"
 SCRIPT_DIR=$SCRIPT_DIR_SAVE
 
@@ -115,79 +107,71 @@ APT_MANIFEST_SAVE=$APT_MANIFEST; APT_MANIFEST=$APT_MISSING
 if apt_manifest_pkgs >/dev/null 2>&1; then fail "manifest: missing file must fail"; else pass "manifest: missing file must fail"; fi
 APT_MANIFEST=$APT_MANIFEST_SAVE
 
-# --- 2. closure walk (virtuals, alternatives, constraints, dedup) -----------
-MOCK_GRAPH=$WORK/graph.txt
-export MOCK_GRAPH
-cat >"$MOCK_GRAPH" <<'EOF'
-app
-  Depends: libb
-  Depends: <virt>
-    realprov
-    otherprov
-  Depends: liba (>= 2.0)
-libb
-  Depends: liba
-  Depends: alt1 | alt2
-liba
-<virt>
-libb
-app
+# --- 2. closure via apt's solver (empty-status simulation) ------------------
+MOCK_PLAN=$WORK/plan.txt
+export MOCK_PLAN
+cat >"$MOCK_PLAN" <<'EOF'
+Inst liba (1.0-1 Debian:12/bookworm [amd64])
+Inst alt1 (1.0-1 Debian:12/bookworm [amd64])
+Inst libb (1.0-1 Debian:12/bookworm [amd64])
+Inst app (1.0-1 Debian:12/bookworm [amd64])
 EOF
 write_manifest app
 if apt_resolve_closure; then pass "closure: resolver runs"; else fail "closure: resolver runs"; fi
-all=$(printf '%s' "$APT_ALL" | LC_ALL=C sort | tr '\n' ' ')
-assert "closure: real members" "$all" "alt1 app liba libb "
-assert_contains "closure: alternative alt2 not fetched (picked alt1)" "$APT_ALL" "alt1"
-case "$APT_ALL" in *"alt2"*|*"virt"*|*"realprov"*|*"otherprov"*) fail "closure: virtuals/providers/lost-alternatives excluded" ;; *) pass "closure: virtuals/providers/lost-alternatives excluded" ;; esac
-edges=$(printf '%s' "$APT_EDGES" | LC_ALL=C sort | tr '\n' ' ')
-assert "closure: edges (Depends + PreDepends, deduped)" "$edges" "alt1:libb liba:app liba:libb libb:app "
+assert "closure: members in apt's plan order (APT_ORDER)" "$APT_ORDER" "liba
+alt1
+libb
+app
+"
+assert "closure: APT_ALL mirrors APT_ORDER" "$APT_ALL" "$APT_ORDER"
 
-# --- 3. topo order ----------------------------------------------------------
-order=$(apt_topo_order "$APT_ALL" "$APT_EDGES")
-pos() { case "
-$1
-" in *"
-$2
-"*) echo 1 ;; *) echo 0 ;; esac; }
-l=$(printf '%s' "$order" | grep -n '^liba$' | cut -d: -f1)
-b=$(printf '%s' "$order" | grep -n '^libb$' | cut -d: -f1)
-a=$(printf '%s' "$order" | grep -n '^app$' | cut -d: -f1)
-t=$(printf '%s' "$order" | grep -n '^alt1$' | cut -d: -f1)
-if [ "${l:-999}" -lt "${b:-0}" ] && [ "${t:-999}" -lt "${b:-0}" ] && [ "${b:-999}" -lt "${a:-0}" ]; then
-  pass "topo: deps precede dependants (liba,alt1 < libb < app)"
-else
-  fail "topo: deps precede dependants (order: $(printf '%s' "$order" | tr '\n' ' '))"
-fi
-assert "topo: every name emitted exactly once" "$(printf '%s' "$order" | grep -c .)" "4"
-
-# --- 4. cycle fallback -------------------------------------------------------
-cat >"$MOCK_GRAPH" <<'EOF'
-cyc1
-  Depends: cyc2
-cyc2
-  Depends: cyc1
-leaf
+# regression (populate failure 2026-11-18): apt-cache depends prints every
+# OR-alternative as its own unmarked 'Depends:' line, so the old walk added
+# BOTH branches (libsystemd0 AND libelogind0 - a Conflicts pair) and apt
+# staged nothing. The solver set must be authoritative: nothing added.
+cat >"$MOCK_PLAN" <<'EOF'
+Inst libsystemd0 (255.4-1 Debian:12/bookworm [amd64])
+Inst libc6 (2.36-9+deb12u7 Debian:12/bookworm [amd64])
+Inst procps (2:4.0.2-3 Debian:12/bookworm [amd64])
 EOF
-export MOCK_REAL="|cyc1|cyc2|leaf|"
-write_manifest cyc1
+write_manifest procps
 apt_resolve_closure
-cyc_out=$(apt_topo_order "$APT_ALL" "$APT_EDGES" 2>"$WORK/cyc.err")
-assert "cycle: all names emitted" "$(printf '%s' "$cyc_out" | grep -c .)" "3"
-assert_contains "cycle: loud WARN" "$(cat "$WORK/cyc.err")" "dependency cycle"
+assert "closure: exactly the planned set" "$(printf '%s' "$APT_ALL" | grep -c .)" "3"
+case "$APT_ALL" in
+  *libelogind0*) fail "closure: no walk-added alternatives (Conflicts pair)" ;;
+  *) pass "closure: no walk-added alternatives (Conflicts pair)" ;;
+esac
 
-# --- 5. fetch_apt_debs end-to-end (staging, order file, regen) ---------------
-cat >"$MOCK_GRAPH" <<'EOF'
-app
-  Depends: libb
-  Depends: liba (>= 2.0)
-libb
-  Depends: liba
-  Depends: alt1 | alt2
-liba
-libb
-app
+# multi-arch Inst names and duplicate Inst lines
+cat >"$MOCK_PLAN" <<'EOF'
+Inst libc6 (2.36-9+deb12u7 Debian:12/bookworm [amd64])
+Inst pipx:amd64 (1.4.0-1 Debian:12/bookworm [amd64])
+Inst libc6 (2.36-9+deb12u7 Debian:12/bookworm [amd64])
 EOF
-export MOCK_REAL="|app|libb|liba|alt1|alt2|"
+write_manifest pipx
+apt_resolve_closure
+assert "closure: dedup + ':arch' stripped" "$APT_ORDER" "libc6
+pipx
+"
+
+# simulate failure -> loud FATAL, resolver fails
+MOCK_SIM_RC=100
+export MOCK_SIM_RC
+write_manifest app
+cat >"$MOCK_PLAN" <<'EOF'
+Inst app (1.0-1 Debian:12/bookworm [amd64])
+EOF
+if apt_resolve_closure 2>"$WORK/simfail.err"; then fail "closure: sim failure must fail"; else pass "closure: sim failure must fail"; fi
+assert_contains "closure: sim failure FATAL message" "$(cat "$WORK/simfail.err")" "apt-get simulate failed"
+unset MOCK_SIM_RC
+
+# --- 3. fetch_apt_debs end-to-end (staging, order file, regen) ---------------
+cat >"$MOCK_PLAN" <<'EOF'
+Inst liba (1.0-1 Debian:12/bookworm [amd64])
+Inst alt1 (1.0-1 Debian:12/bookworm [amd64])
+Inst libb (1.0-1 Debian:12/bookworm [amd64])
+Inst app (1.0-1 Debian:12/bookworm [amd64])
+EOF
 write_manifest app
 mkdir -p "$STORE_DIR/apt"
 printf 'stale' >"$STORE_DIR/apt/stalepkg_0.9_amd64.deb"
@@ -198,10 +182,18 @@ assert "fetch: 4 debs in store" "$(ls "$STORE_DIR/apt/"*.deb 2>/dev/null | grep 
 assert "fetch: staging dir removed" "$(ls -d "$STORE_DIR"/apt/.staging.* 2>/dev/null | wc -l | tr -d ' ')" "0"
 order_body=$(grep -v '^#' "$STORE_DIR/apt/install-order.txt" | tr '\n' ' ')
 assert "fetch: install-order.txt deps-first" "$order_body" "liba_1.0-1_amd64.deb alt1_1.0-1_amd64.deb libb_1.0-1_amd64.deb app_1.0-1_amd64.deb "
-assert_contains "fetch: apt-get --reinstall --download-only" "$(cat "$MOCK_LOG")" "--reinstall --download-only"
-case "$(cat "$MOCK_LOG")" in *"libb"*"app"*) pass "fetch: full closure named to apt-get" ;; *) fail "fetch: full closure named to apt-get" ;; esac
+assert_contains "fetch: download-only against an empty dpkg status" "$(cat "$MOCK_LOG")" "Dir::State::status="
+dl_line=$(grep -- '--download-only' "$MOCK_LOG" | tail -n 1)
+case "$dl_line" in
+  *" app"*) pass "fetch: only the manifest roots handed to apt-get" ;;
+  *) fail "fetch: only the manifest roots handed to apt-get ($dl_line)" ;;
+esac
+case "$dl_line" in
+  *"liba"*|*"libb"*|*"alt1"*) fail "fetch: hand-built closure list must not reach apt-get" ;;
+  *) pass "fetch: hand-built closure list must not reach apt-get" ;;
+esac
 
-# --- 6. coverage guard --------------------------------------------------------
+# --- 4. coverage guard --------------------------------------------------------
 write_manifest app libb liba alt1   # full manifest: coverage must reflect every name
 if apt_store_covers_manifest; then pass "coverage: complete store covers manifest"; else fail "coverage: complete store covers manifest"; fi
 rm -f "$STORE_DIR/apt/liba_"*.deb
@@ -211,7 +203,7 @@ if apt_store_covers_manifest; then fail "coverage: missing order file detected";
 mv "$WORK/order.bak" "$STORE_DIR/apt/install-order.txt"
 printf 'deb' >"$STORE_DIR/apt/liba_1.0-1_amd64.deb"   # restore the full store
 
-# --- 7. apt-install.sh tiers --------------------------------------------------
+# --- 5. apt-install.sh tiers --------------------------------------------------
 export MOCK_DPKG_ARCH=amd64
 write_manifest app libb liba alt1
 : >"$MOCK_LOG"
