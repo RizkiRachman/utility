@@ -3,7 +3,7 @@
 # populate-preinstall.sh. SOURCED, not executed: every name below is a
 # function over its arguments and the sourcing script's globals (STORE_DIR,
 # SCRIPT_DIR; APT_MANIFEST overridable), so test-apt-offline.sh exercises
-# them with mock apt-cache/apt-get/dpkg binaries on PATH - no network, no
+# them with mock apt-get/dpkg binaries on PATH - no network, no
 # root, no docker.
 #
 # Single source of truth for the image's apt package set is
@@ -17,10 +17,10 @@
 # populate container installs extra packages on top of the base image
 # (curl, git, python3, openssl, ...) that a fresh build image does not
 # have, so a plain `apt-get install --download-only` against live state
-# would silently drop exactly those debs. Instead the closure is WALKED
-# with `apt-cache depends --recurse` (state-independent) and every closure
-# member is force-downloaded via `apt-get install --reinstall
-# --download-only`.
+# would silently drop exactly those debs. Instead the closure is PLANNED
+# by apt's own solver against an EMPTY dpkg status file (apt sees nothing
+# installed and pulls the full dependency tree of the manifest), and the
+# whole plan is downloaded with --download-only into the store.
 #
 # Assumed target (documented, pinned in versions.lock as apt-release and
 # apt-arch): the node:22-bookworm-slim base image (Debian 12 bookworm) at
@@ -55,153 +55,50 @@ apt_manifest_pkgs() {
   printf '%s\n' "$_pkgs"
 }
 
-# Full transitive closure of the manifest. Sets:
-#   APT_ALL    newline-separated REAL package names (virtual <names>
-#              dropped; OR-alternatives collapsed to the first candidate
-#              apt-cache can resolve, mirroring what `apt-get install`
-#              would pick)
-#   APT_EDGES  "dep:dependent" lines from Depends AND PreDepends - the
-#              install order must satisfy pre-depends at dpkg UNPACK time,
-#              not just configure time
-# Returns 1 when apt-cache itself fails (e.g. no apt lists yet).
+# Full transitive closure of the manifest, planned by apt's OWN solver.
+# Sets:
+#   APT_ALL    newline-separated package names, deduped
+#   APT_ORDER  the same names in apt's plan order (dependencies first) -
+#              consumed as the store's install order
+# Returns 1 when the simulation fails (e.g. apt lists missing).
 #
-# apt-cache depends --recurse output (one block per visited package):
-#   git
-#     Depends: libc6
-#     PreDepends: libgcc-s1
-#     Depends: <awk>
-#     gawk                      <- provider continuation under a virtual
-#     Depends: debconf | debconf-2.0
-# Virtuals are satisfied by the base image's already-installed providers
-# (e.g. debconf-2.0 <- debconf) and are deliberately NOT fetched; provider
-# continuations are not walked either. The store therefore carries exactly
-# what a fresh `apt-get install` would resolve - no more, no less.
+# Why not a hand walk over `apt-cache depends --recurse`: real apt
+# (2.6/bookworm) prints every OR-alternative as its own UNMARKED
+# 'Depends:' line, so a walker cannot tell alternatives apart - both
+# branches of `libsystemd0 | libelogind0` entered the closure as a
+# Conflicts pair and apt refused the whole download transaction (E:
+# Unable to correct problems), staging zero debs. The solver cannot have
+# that problem: simulating against an EMPTY dpkg status means apt sees
+# nothing installed and plans the complete closure from the base image's
+# state - alternatives collapsed to one branch, virtual providers
+# resolved, Essential packages included, exactly what the build-time
+# install will want.
 apt_resolve_closure() {
   APT_ALL=
-  APT_EDGES=
+  APT_ORDER=
   _roots=$(apt_manifest_pkgs | tr '\n' ' ') || return 1
+  _status=$(mktemp "${TMPDIR:-/tmp}/apt-status.XXXXXX")
   _tmp=$(mktemp "${TMPDIR:-/tmp}/apt-closure.XXXXXX")
-  if ! apt-cache depends --recurse --important \
-        --no-recommends --no-suggests --no-conflicts --no-breaks \
-        --no-replaces --no-enhances $_roots >"$_tmp" 2>/dev/null; then
-    rm -f "$_tmp"
-    echo "FATAL: apt-cache depends failed (apt lists present? populate runs apt-get update first)" >&2
+  : >"$_status"
+  if ! apt-get -o Dir::State::status="$_status" -s install -y \
+        --no-install-recommends $_roots >"$_tmp" 2>/dev/null; then
+    rm -f "$_tmp" "$_status"
+    echo "FATAL: apt-get simulate failed (apt lists present? populate runs apt-get update first)" >&2
     return 1
   fi
-  _pkg=
-  while IFS= read -r _line; do
-    # strip leading whitespace with sed, then compare: a case pattern for
-    # "leading tab" is a POSIX trap ([\ \t] matches a literal 't', swallowing
-    # node lines that start with t)
-    _trimmed=$(printf '%s' "$_line" | sed 's/^[[:space:]]*//')
-    if [ "$_trimmed" != "$_line" ]; then _ind=1; else _ind=0; fi
-    _line=$_trimmed
-    [ -n "$_line" ] || continue
-    if [ "$_ind" -eq 0 ]; then
-      # node line: the visited package itself (may be <virtual>)
-      _pkg=$_line
-      case "$_line" in
-        '<'*) : ;;
-        *)
-          case "
-$APT_ALL
-" in *"
-$_line
-"*) : ;; *) APT_ALL="$APT_ALL$_line
-" ;; esac
-          ;;
-      esac
-      continue
-    fi
-    case "$_line" in
-      'Depends: '*)    _val=${_line#'Depends: '} ;;
-      'PreDepends: '*) _val=${_line#'PreDepends: '} ;;
-      *) continue ;;
-    esac
-    # drop the version constraint tail "libc6 (>= 2.34)" -> "libc6"
-    _val=${_val%% (*}
-    _picked=
-    for _alt in $(printf '%s' "$_val" | tr '|' ' '); do
-      _alt=$(printf '%s' "$_alt" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-      [ -n "$_alt" ] || continue
-      case "$_alt" in '<'*) continue ;; esac
-      if [ -z "$_picked" ]; then
-        if apt-cache policy "$_alt" 2>/dev/null | grep -q 'Candidate: [0-9]'; then
-          _picked=$_alt
-        elif [ "$(printf '%s' "$_val" | tr -cd '|' | wc -c)" -gt 0 ]; then
-          echo "  apt closure: alternative '$_alt' has no candidate - trying next" >&2
-        fi
-      fi
-    done
-    if [ -n "$_picked" ]; then
-      case "
-$APT_ALL
-" in *"
-$_picked
-"*) : ;; *) APT_ALL="$APT_ALL$_picked
-" ;; esac
-      if [ -n "$_pkg" ]; then
-        _edge="${_picked}:${_pkg}"
-        case "
-$APT_EDGES
-" in *"
-$_edge
-"*) : ;; *) APT_EDGES="$APT_EDGES$_edge
-" ;; esac
-      fi
-    else
-      echo "WARN: apt closure: no resolvable package for edge '$_val' of ${_pkg:-?} - assumed satisfied by the base image" >&2
-    fi
-  done <"$_tmp"
-  rm -f "$_tmp"
-  [ -n "$APT_ALL" ] || { echo "FATAL: apt closure walk produced no packages" >&2; return 1; }
-}
-
-# Dependencies-first ordering (Kahn) over the closure edges, restricted to
-# the closure names. Prints one name per line. On a cycle (none expected in
-# Debian's closure, guarded anyway) falls back to LC_ALL=C sort with a loud
-# WARN: dpkg -i is a single transaction, so a mis-ordered Pre-Depends pair
-# fails the build loudly and apt-install.sh repairs over the network -
-# never silently.
-apt_topo_order() { # $1 = names (newline list), $2 = edges ("dep:pkg" lines)
-  _in() { # _in <newline-list> <item>
+  # Inst lines come out in apt's own dependency-respecting plan order.
+  for _n in $(sed -n 's/^Inst \([^ ]*\).*/\1/p' "$_tmp"); do
+    _n=${_n%%:*}  # strip a multi-arch ':arch' suffix (':' is illegal in names)
     case "
-$1
+$APT_ORDER
 " in *"
-$2
-"*) return 0 ;; *) return 1 ;; esac
-  }
-  _remaining=$1
-  _edges=$2
-  _out=
-  while [ -n "$(printf '%s' "$_remaining" | tr -d '[:space:]')" ]; do
-    _progress=0
-    _next=
-    for _n in $_remaining; do
-      [ -n "$_n" ] || continue
-      _ready=1
-      for _e in $_edges; do
-        [ "${_e#*:}" = "$_n" ] || continue
-        if _in "$_remaining" "${_e%%:*}"; then _ready=0; break; fi
-      done
-      if [ "$_ready" -eq 1 ]; then
-        _out="$_out$_n
-"
-        _progress=1
-      else
-        _next="$_next$_n
-"
-      fi
-    done
-    if [ "$_progress" -eq 0 ]; then
-      echo "WARN: apt closure has a dependency cycle - install order falls back to alphabetical" >&2
-      printf "%s" "$_out"
-      printf '%s\n' "$_remaining" | LC_ALL=C sort
-      return 0
-    fi
-    _remaining=$_next
+$_n
+"*) : ;; *) APT_ORDER="$APT_ORDER$_n
+"; APT_ALL="$APT_ALL$_n
+" ;; esac
   done
-  printf '%s' "$_out"
+  rm -f "$_tmp" "$_status"
+  [ -n "$APT_ALL" ] || { echo "FATAL: apt simulate planned no packages" >&2; return 1; }
 }
 
 # Write store/apt/install-order.txt: the deps-first order of the staged debs
@@ -215,7 +112,7 @@ $2
 apt_write_install_order() { # $1 = staging dir with debs, $2 = output file
   _stage=$1
   _outf=$2
-  _order=$(apt_topo_order "$APT_ALL" "$APT_EDGES")
+  _order=${APT_ORDER:-$(printf '%s\n' "$APT_ALL" | LC_ALL=C sort)}
   _body=
   _missing=0
   for _n in $_order; do
@@ -264,13 +161,24 @@ fetch_apt_debs() {
   rm -rf "$_stage"
   mkdir -p "$_stage/partial"
   apt-get update
-  _names=$(apt_topo_order "$APT_ALL" "$APT_EDGES" | tr "\n" " ")
-  # --reinstall force-downloads EVERY closure member even when this
-  # container already has it installed: the populate container's apt state
-  # is richer than the fresh build image's and must not filter the closure.
-  # shellcheck disable=SC2086
-  apt-get install --reinstall --download-only -y --no-install-recommends \
-    -o Dir::Cache::archives="$_stage" $_names
+  _roots=$(apt_manifest_pkgs | tr '\n' ' ') || return 1
+  _status=$(mktemp "${TMPDIR:-/tmp}/apt-status.XXXXXX")
+  : >"$_status"
+  # Same solver inputs as apt_resolve_closure (manifest roots + empty dpkg
+  # status) -> the download stages exactly the planned closure. apt gets
+  # ONLY the roots: building the closure is the solver's job - the old
+  # hand-built list shipped conflicting OR-alternatives and apt staged
+  # nothing. Nothing is 'installed' in the empty status, so --reinstall
+  # is neither needed nor possible.
+  if ! apt-get -o Dir::State::status="$_status" install -y \
+        --no-install-recommends --download-only \
+        -o Dir::Cache::archives="$_stage" $_roots; then
+    rm -f "$_status"
+    rm -rf "$_stage"
+    echo "FATAL: apt-get download of the apt closure failed (see apt error above)" >&2
+    return 1
+  fi
+  rm -f "$_status"
   apt_write_install_order "$_stage" "$STORE_DIR/apt/install-order.txt" || {
     rm -rf "$_stage"
     return 1
