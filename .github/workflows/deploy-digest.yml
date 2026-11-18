@@ -51,35 +51,10 @@ jobs:
           PYEOF
       - name: Build slim digest
         run: |
-          mkdir -p public
-          npx -y repomix@latest --include "workspace/agents/opencode/**" --ignore "**/node_modules/**,**/skills/**/data/**,**/skills/**/scripts/tests/**,**/*.csv,**/*.html,**/library/**,**/references/**,**/fixtures/**,**/fonts/**" --style plain --output public/repomix-output.txt
-      - name: Split into model-sized parts
+          npx -y repomix@latest --include "workspace/agents/opencode/**" --ignore "**/node_modules/**,**/skills/**/data/**,**/skills/**/scripts/tests/**,**/*.csv,**/*.html,**/library/**,**/references/**,**/fixtures/**,**/fonts/**,**/pre-install/**,**/rag/test/corpus/**,**/.cocoindex_code/**,**/target/**,**/__pycache__/**,**/*.whl,**/*.deb,**/*.tgz,**/*.bin,**/*.tar*" --style plain --output public/repomix-output.txt
+      - name: Build agent digest (shards + llms.txt + manifest + per-file)
         run: |
-          python3 - <<'PYEOF'
-          import re, json, os
-          src = open('public/repomix-output.txt', encoding='utf-8', errors='replace').read()
-          blocks = re.split(r'(?=\n================\nFile:)', src)
-          parts, cur, size = [], [], 0
-          for b in blocks[1:]:
-              if size + len(b) > 600000 and cur:
-                  parts.append(''.join(cur)); cur, size = [], 0
-              cur.append(b); size += len(b)
-          if cur: parts.append(''.join(cur))
-          links = []
-          for i, p in enumerate(parts, 1):
-              fn = f'digest-part-{i:02d}.txt'
-              open(f'public/{fn}', 'w', encoding='utf-8').write(f'# Utility digest - part {i}/{len(parts)} (scope: workspace/agents/opencode)\n' + p)
-              links.append(f'<p><a href="{fn}">{fn}</a> ({len(p)//1024} KB)</p>')
-          nskills = 0
-          if os.path.exists('public/skills.json'):
-              nskills = json.load(open('public/skills.json'))['count']
-          html = '<!doctype html><meta charset="utf-8"><title>utility digest</title><h1>Utility source digest</h1>'
-          html += f'<p>Slim audit digest: {len(parts)} parts (~150k tokens each) | <a href="skills.json">skills.json</a> ({nskills} skills, per-skill pages under /skills/)</p>'
-          html += "".join(links)
-          html += '<p><a href="repomix-output.txt">full single file (for shell agents)</a></p>'
-          open('public/index.html', 'w', encoding='utf-8').write(html)
-          print(f'wrote {len(parts)} parts, catalog {nskills} skills')
-          PYEOF
+          python3 scripts/build-digest-index.py --input public/repomix-output.txt --out public --cap 92160 --budget 1048576
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
