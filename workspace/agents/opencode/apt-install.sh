@@ -33,10 +33,21 @@ pkg_count=$(manifest_pkgs | wc -l | tr -d ' ')
 network_install() {
   echo "apt install: NETWORK tier - apt-get update + install of ${pkg_count} manifest package(s) from $manifest"
   apt-get update
+  # The /var/lib/apt cache mount is SHARED across builds: a build interrupted
+  # mid-update leaves a truncated Packages index there, later builds Hit the
+  # cached InRelease (unchanged), skip re-downloading Packages, and install
+  # fails with 'Unable to locate package' for every name. Self-heal: purge
+  # the lists out of the cache mount, re-update from scratch, retry once.
+  # Zero cost in the healthy path.
   # After a failed offline dpkg this also repairs the half-installed state
   # (apt resolves the manifest against whatever dpkg left behind).
   # shellcheck disable=SC2086
-  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $(manifest_pkgs)
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $(manifest_pkgs) || {
+    echo "apt install failed on the shared lists cache - purging stale indexes and retrying once" >&2
+    rm -rf /var/lib/apt/lists/*
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $(manifest_pkgs)
+  }
   update-ca-certificates
   git config --system --add safe.directory '*'
 }
