@@ -37,6 +37,8 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # JSON merge config
+JSON_OUT=""
+PARALLEL_ELIGIBLE=true
 JSON_MERGE=false
 BASE_FILE=""
 FILE1=""
@@ -113,125 +115,86 @@ extract_files() {
 # Walks two JSON files against a base, identifies conflicts (both agents changed
 # the same key) vs safe merges (only one agent changed a key).
 json_merge_diff() {
-    local base="$1"
-    local file1="$2"
-    local file2="$3"
-    local label1="$4"
-    local label2="$5"
-
-    if [[ ! -f "$base" ]]; then log_fail "Base file not found: $base"; return 1; fi
-    if [[ ! -f "$file1" ]]; then log_fail "File 1 not found: $file1"; return 1; fi
-    if [[ ! -f "$file2" ]]; then log_fail "File 2 not found: $file2"; return 1; fi
-
+    local base="$1" file1="$2" file2="$3" label1="$4" label2="$5"
+    local TAB
+    TAB=$(printf "\t")
+    # Nested scalar-path diff: one jq pass per file emits TSV "path<TAB>value"
+    # (value = tojson, so tabs/newlines are escaped and splicing stays valid).
+    # v1 limitation: keys containing literal dots make "."-joined paths
+    # ambiguous; exact conflict resolution comes with declared rw_sets (C12).
+    for f in "$base" "$file1" "$file2"; do
+        if [[ ! -f "$f" ]]; then log_fail "File not found: $f"; return 1; fi
+    done
     if ! command -v jq >/dev/null 2>&1; then
         log_fail "jq is required for json-merge mode"
         return 1
     fi
-
     echo "=========================================="
-    echo " JSON Merge Conflict Detection"
+    echo " JSON Merge Conflict Detection (nested scalar paths, depth cap 6)"
     echo " Base:  $(basename "$base")"
     echo " Agent: $label1 ($(basename "$file1"))"
     echo " Agent: $label2 ($(basename "$file2"))"
     echo "=========================================="
     echo ""
-
-    # Extract all top-level keys from all three files
-    local base_keys=$(jq -r 'keys[]' "$base" 2>/dev/null | sort)
-    local f1_keys=$(jq -r 'keys[]' "$file1" 2>/dev/null | sort)
-    local f2_keys=$(jq -r 'keys[]' "$file2" 2>/dev/null | sort)
-
-    local all_keys=$(echo -e "$base_keys\n$f1_keys\n$f2_keys" | sort -u)
-
-    local conflicts=()
-    local safe_merges=()
-    local additions=()
-
-    for key in $all_keys; do
-        local base_val
-        local f1_val
-        local f2_val
-        base_val=$(jq -r "if .[\"$key\"] then .[\"$key\"] else \"__NULL__\" end" "$base" 2>/dev/null || echo "__NULL__")
-        f1_val=$(jq -r "if .[\"$key\"] then .[\"$key\"] else \"__NULL__\" end" "$file1" 2>/dev/null || echo "__NULL__")
-        f2_val=$(jq -r "if .[\"$key\"] then .[\"$key\"] else \"__NULL__\" end" "$file2" 2>/dev/null || echo "__NULL__")
-
-        local in_base=false; [[ "$base_val" != "__NULL__" ]] && in_base=true
-        local in_f1=false;   [[ "$f1_val" != "__NULL__" ]] && in_f1=true
-        local in_f2=false;   [[ "$f2_val" != "__NULL__" ]] && in_f2=true
-
-        if $in_base && $in_f1 && $in_f2; then
-            # Key exists in all three — check for divergence
-            if [[ "$f1_val" != "$base_val" && "$f2_val" != "$base_val" && "$f1_val" != "$f2_val" ]]; then
-                conflicts+=("{\"key\":\"$key\",\"base\":$base_val,\"$label1\":$f1_val,\"$label2\":$f2_val}")
-            elif [[ "$f1_val" != "$base_val" ]]; then
-                safe_merges+=("{\"key\":\"$key\",\"changed_by\":\"$label1\",\"base\":$base_val,\"value\":$f1_val}")
-            elif [[ "$f2_val" != "$base_val" ]]; then
-                safe_merges+=("{\"key\":\"$key\",\"changed_by\":\"$label2\",\"base\":$base_val,\"value\":$f2_val}")
+    local path_expr=". as \$doc | [paths(scalars)] | .[] | . as \$p | select(length <= 6) | (\$p | map(tostring) | join(\".\")) + \"\t\" + (\$doc | getpath(\$p) | tojson)"
+    local tmpm; tmpm=$(mktemp -d)
+    jq -r "$path_expr" "$base"  > "$tmpm/base" 2>/dev/null
+    jq -r "$path_expr" "$file1" > "$tmpm/f1"   2>/dev/null
+    jq -r "$path_expr" "$file2" > "$tmpm/f2"   2>/dev/null
+    local all_paths
+    all_paths=$(cat "$tmpm/base" "$tmpm/f1" "$tmpm/f2" | cut -f1 | sort -u | grep -v "^$")
+    local n_conf=0 n_safe=0 n_add=0
+    local conflict_entries=()
+    local conflict_paths=()
+    local p bv v1 v2 in_b in_1 in_2
+    while IFS= read -r p; do
+        [[ -z "$p" ]] && continue
+        bv=$(grep -F -m1 -- "${p}${TAB}" "$tmpm/base" | cut -f2 || true); [[ -z "$bv" ]] && bv="__ABSENT__"
+        v1=$(grep -F -m1 -- "${p}${TAB}" "$tmpm/f1"   | cut -f2 || true); [[ -z "$v1" ]] && v1="__ABSENT__"
+        v2=$(grep -F -m1 -- "${p}${TAB}" "$tmpm/f2"   | cut -f2 || true); [[ -z "$v2" ]] && v2="__ABSENT__"
+        in_b=false; in_1=false; in_2=false
+        [[ "$bv" != "__ABSENT__" ]] && in_b=true
+        [[ "$v1" != "__ABSENT__" ]] && in_1=true
+        [[ "$v2" != "__ABSENT__" ]] && in_2=true
+        if $in_b && $in_1 && $in_2; then
+            if [[ "$v1" != "$bv" && "$v2" != "$bv" && "$v1" != "$v2" ]]; then
+                conflict_entries+=("$(jq -n --arg p "$p" --arg l1 "$label1" --arg l2 "$label2" --argjson b "$bv" --argjson a1 "$v1" --argjson a2 "$v2" "{path:\$p, base:\$b, (\$l1):\$a1, (\$l2):\$a2, resolution:\"frozen-first-written\"}")")
+                conflict_paths+=("$p")
+                n_conf=$((n_conf + 1))
+            elif [[ "$v1" != "$bv" || "$v2" != "$bv" ]]; then
+                n_safe=$((n_safe + 1))
             fi
-        elif ! $in_base && $in_f1 && ! $in_f2; then
-            additions+=("{\"key\":\"$key\",\"added_by\":\"$label1\",\"value\":$f1_val}")
-        elif ! $in_base && ! $in_f1 && $in_f2; then
-            additions+=("{\"key\":\"$key\",\"added_by\":\"$label2\",\"value\":$f2_val}")
-        elif ! $in_base && $in_f1 && $in_f2; then
-            # Both agents added the same key — check if values match
-            if [[ "$f1_val" == "$f2_val" ]]; then
-                safe_merges+=("{\"key\":\"$key\",\"changed_by\":\"both\",\"value\":$f1_val}")
+        elif ! $in_b && $in_1 && ! $in_2; then
+            n_add=$((n_add + 1))
+        elif ! $in_b && ! $in_1 && $in_2; then
+            n_add=$((n_add + 1))
+        elif ! $in_b && $in_1 && $in_2; then
+            if [[ "$v1" == "$v2" ]]; then
+                n_safe=$((n_safe + 1))
             else
-                conflicts+=("{\"key\":\"$key\",\"added_by_both\":true,\"$label1\":$f1_val,\"$label2\":$f2_val}")
+                conflict_entries+=("$(jq -n --arg p "$p" --arg l1 "$label1" --arg l2 "$label2" --argjson a1 "$v1" --argjson a2 "$v2" "{path:\$p, added_by_both:true, (\$l1):\$a1, (\$l2):\$a2, resolution:\"frozen-first-written\"}")")
+                conflict_paths+=("$p")
+                n_conf=$((n_conf + 1))
             fi
         fi
-    done
-
-    # Report
-    local has_issues=false
-
-    if [[ ${#conflicts[@]} -gt 0 ]]; then
-        has_issues=true
-        log_fail "${#conflicts[@]} semantic conflict(s) detected!"
-        echo ""
-        for entry in "${conflicts[@]}"; do
-            local key=$(echo "$entry" | jq -r '.key')
-            echo "  ⚠  Key: $key"
-            echo "      Base:  $(echo "$entry" | jq -c '.base // "__missing__"')"
-            echo "      $label1: $(echo "$entry" | jq -c ".[\"$label1\"] // .added_by_both // .value // \"__missing__\"")"
-            echo "      $label2: $(echo "$entry" | jq -c ".[\"$label2\"] // .added_by_both // .value // \"__missing__\"")"
-            echo ""
-        done
-    fi
-
-    if [[ ${#safe_merges[@]} -gt 0 ]]; then
-        log_info "${#safe_merges[@]} safe merge(s) — only one agent modified the key"
-        if [[ "$VERBOSE" == true ]]; then
-            echo ""
-            for entry in "${safe_merges[@]}"; do
-                local key=$(echo "$entry" | jq -r '.key')
-                local changed_by=$(echo "$entry" | jq -r '.changed_by')
-                echo "  ✓ Key: $key (changed by: $changed_by)"
-            done
-            echo ""
+    done <<< "$all_paths"
+    if [[ $n_conf -gt 0 ]]; then
+        log_fail "$n_conf semantic conflict(s) detected - FROZEN"
+        echo "  FREEZE semantics: first-written value kept at each conflicting path;"
+        echo "  re-delegate the conflicting keys SERIALlY, then re-run this check."
+        for p in "${conflict_paths[@]}"; do echo "  conflict: $p"; done
+        if [[ -n "${JSON_OUT:-}" ]]; then
+            printf "%s\n" "${conflict_entries[@]}" | jq -s "{mode:\"json-merge\", conflicts:., resolution:\"frozen\", policy:\"first-written kept; serial re-delegation required\"}" > "$JSON_OUT"
         fi
+        rm -rf "$tmpm"
+        return 1
     fi
-
-    if [[ ${#additions[@]} -gt 0 ]]; then
-        log_info "${#additions[@]} key addition(s) — no conflict"
-        if [[ "$VERBOSE" == true ]]; then
-            echo ""
-            for entry in "${additions[@]}"; do
-                local key=$(echo "$entry" | jq -r '.key')
-                local added_by=$(echo "$entry" | jq -r '.added_by')
-                echo "  + Key: $key (added by: $added_by)"
-            done
-            echo ""
-        fi
+    log_pass "No semantic conflicts - all JSON changes can be auto-merged (${n_safe} safe, ${n_add} additions)"
+    if [[ -n "${JSON_OUT:-}" ]]; then
+        jq -n "{mode:\"json-merge\", conflicts:[], resolution:\"auto-merge\"}" > "$JSON_OUT"
     fi
-
-    if ! $has_issues; then
-        log_pass "No semantic conflicts — all JSON changes can be auto-merged"
-    else
-        log_warn "Resolve conflicts manually or re-delegate conflicting keys serially"
-    fi
-
-    return $( [[ "$has_issues" == false ]] && echo 0 || echo 1 )
+    rm -rf "$tmpm"
+    return 0
 }
 
 # --- Main ------------------------------------------------------------------
@@ -248,6 +211,8 @@ main() {
             --base) BASE_FILE="$2"; shift 2 ;;
             --file1) FILE1="$2"; shift 2 ;;
             --file2) FILE2="$2"; shift 2 ;;
+            --json-out) JSON_OUT="$2"; shift 2 ;;
+            --parallel-eligible) PARALLEL_ELIGIBLE="$2"; shift 2 ;;
             --verbose) VERBOSE=true; shift ;;
             --help|-h) usage ;;
             *) echo "Unknown option: $1"; usage ;;
@@ -255,6 +220,10 @@ main() {
     done
 
     # Route to json-merge mode
+    if [[ "$PARALLEL_ELIGIBLE" != "true" ]]; then
+        echo "parallel conflict detection: not applicable (scope.parallel_eligible != true)"
+        exit 0
+    fi
     if [[ "$JSON_MERGE" == true ]]; then
         if [[ -z "$BASE_FILE" || -z "$FILE1" || -z "$FILE2" ]]; then
             echo "ERROR: --json-merge requires --base, --file1, and --file2" >&2
