@@ -8,11 +8,12 @@
 # Tiers, mirroring the npm/pip/bin store-first pattern - builds never
 # silently change behavior, every fallback logs loudly:
 #   1. OFFLINE - the store holds debs, covers every manifest package, and
-#      matches the build architecture: one dpkg -i transaction in the
-#      deps-first order recorded by populate-preinstall.sh in
-#      store/apt/install-order.txt. No apt-get update, no network, no
-#      apt-get upgrade.
-#   2. NETWORK - store absent / partial / wrong-arch / dpkg failure:
+#      matches the build architecture: apt's plan schedule from
+#      store/apt/install-order.txt is replayed step by step (dpkg --unpack
+#      / dpkg --configure, interleaved the way apt itself interleaves them
+#      - Pre-Depends need the prerequisite CONFIGURED at unpack time).
+#      No apt-get update, no network, no apt-get upgrade.
+#   2. NETWORK - store absent / partial / wrong-arch / replay failure:
 #      apt-get update + apt-get install of exactly the manifest packages
 #      (pre-install/packages-apt.txt is the single source of truth shared
 #      with the populate-side closure resolution in apt-closure.sh).
@@ -41,14 +42,18 @@ fi
 network_install() {
   echo "apt install: NETWORK tier - apt-get update + install of ${pkg_count} manifest package(s) from $manifest"
   apt-get update
+  # A failed offline replay leaves half-installed packages in dpkg's status
+  # (unpacked but unconfigured) and a plain manifest install then fails on
+  # the residue's Pre-Depends. Repair first: configure everything unpacked,
+  # then let apt -f resolve what remains.
+  DEBIAN_FRONTEND=noninteractive dpkg --configure -a || true
+  DEBIAN_FRONTEND=noninteractive apt-get -f install -y --no-install-recommends
   # The /var/lib/apt cache mount is SHARED across builds: a build interrupted
   # mid-update leaves a truncated Packages index there, later builds Hit the
   # cached InRelease (unchanged), skip re-downloading Packages, and install
   # fails with 'Unable to locate package' for every name. Self-heal: purge
   # the lists out of the cache mount, re-update from scratch, retry once.
   # Zero cost in the healthy path.
-  # After a failed offline dpkg this also repairs the half-installed state
-  # (apt resolves the manifest against whatever dpkg left behind).
   # shellcheck disable=SC2086
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $(manifest_pkgs) || {
     echo "apt install failed on the shared lists cache - purging stale indexes and retrying once" >&2
@@ -106,8 +111,45 @@ deb_count=$(ls "$store"/*.deb | wc -l | tr -d ' ')
 echo "apt install: OFFLINE - ${deb_count} deb(s) from $store (no apt-get update, no network)"
 order_file=$store/install-order.txt
 offline_ok=0
-if [ -f "$order_file" ]; then
-  echo "apt install: deps-first order from install-order.txt ($(grep -cvE '^[[:space:]]*(#|$)' "$order_file" || true) entries)"
+if [ -f "$order_file" ] && grep -q '^u ' "$order_file"; then
+  # Schedule replay: u=dpkg --unpack, c=dpkg --configure, in apt's plan
+  # order. The configure checkpoints are the point: dpkg refuses to unpack
+  # a package whose Pre-Depends is merely unpacked, and apt plans the Conf
+  # lines exactly where they must run.
+  echo "apt install: deps-first schedule from install-order.txt ($(grep -c '^u ' "$order_file") unpack, $(grep -c '^c ' "$order_file") configure step(s))"
+  _fail=
+  while IFS= read -r line; do
+    case "$line" in ''|'#'*) continue ;; esac
+    _op=${line%% *}
+    _arg=${line#* }
+    case "$_op" in
+      u)
+        DEBIAN_FRONTEND=noninteractive dpkg --unpack "$store/$_arg" || { _fail="unpack $_arg"; break; }
+        ;;
+      c)
+        DEBIAN_FRONTEND=noninteractive dpkg --configure "$_arg" || { _fail="configure $_arg"; break; }
+        ;;
+      *)
+        _fail="malformed schedule line: $line"
+        break
+        ;;
+    esac
+  done <"$order_file"
+  if [ -z "$_fail" ]; then
+    # Safety net: anything the schedule left half-configured is a defect.
+    DEBIAN_FRONTEND=noninteractive dpkg --configure -a || _fail="dpkg --configure -a"
+  fi
+  if [ -n "$_fail" ]; then
+    echo "apt install: OFFLINE schedule failed at: $_fail"
+  else
+    offline_ok=1
+  fi
+elif [ -f "$order_file" ]; then
+  # Legacy store (v1 order file: bare deb names, unpack-only, no schedule):
+  # one dpkg -i transaction - a Pre-Depends mis-order fails and lands in
+  # the repair tier below; populate re-stages to schedule v2 on the next
+  # run (the store-skip guard requires v2).
+  echo "WARN: v1 install-order.txt in $store (no u/c schedule) - single dpkg -i transaction, Pre-Depends may fail"
   set --
   while IFS= read -r line; do
     case "$line" in ''|'#'*) continue ;; esac
