@@ -452,6 +452,23 @@
       "max_depth": 1,
       "max_delegations_per_session": 20,
       "desc": "N16 revised: the platform refuses nested subagents below depth 1 (an orchestrator running as a subagent already sits at depth 1); delegation plans must include a self-execution fallback."
+    },
+    "loop_guard": {
+      "version": "0.8.1",
+      "max_loop_iterations": 12,
+      "same_hash_policy": "force-changed-approach",
+      "state_file": "session/loop-state.json",
+      "enforced_by": "controller: scripts/loop-guard.sh (orchestrator, pre-delegation + post-verdict)"
+    },
+    "checkpoint": {
+      "version": "0.8.1",
+      "warn_ratio_from": "token_budget.warning_threshold",
+      "hard_ratio_from": "token_budget.hard_limit",
+      "max_delegations_between_checkpoints": 20,
+      "script": "scripts/checkpoint.sh",
+      "on_warn": "save-session-protocol",
+      "on_critical": "context-reset-required",
+      "schedule": "before every delegation"
     }
   },
   "resilience": {
@@ -769,5 +786,31 @@
     "build": [
       "INIT"
     ]
+  },
+  "memory_policy": {
+    "version": "0.8.1",
+    "write_gate": {
+      "required": [
+        "category",
+        "key",
+        "source_task",
+        "tag",
+        "rationale"
+      ],
+      "tags": [
+        "verified",
+        "observed-once",
+        "dead_end"
+      ],
+      "script": "scripts/knowledge-gate.sh"
+    },
+    "dedup": "recall-before-write; update-instead-of-insert",
+    "compaction": {
+      "max_entries_per_category": 50,
+      "overflow": "compact-oldest-first"
+    },
+    "contamination": {
+      "dead_end_excluded_from_guidance": true
+    }
   }
 }
