@@ -893,37 +893,35 @@ else
 fi
 
 # --------------------------------------------------------------------------
-# apt - .deb closure (root only).
+# apt - full transitive .deb closure of pre-install/packages-apt.txt (root).
+#
+# pre-install/packages-apt.txt is the SINGLE SOURCE OF TRUTH for the image's
+# apt package set: the Dockerfile's network fallback (apt-install.sh)
+# installs exactly these names, and apt-closure.sh (sourced below) resolves
+# their full transitive closure into store/apt/ plus a deps-first
+# install-order.txt so the offline build needs no apt resolver, no update,
+# no network. Resolution is independent of THIS container's apt state
+# (every closure member is force-downloaded with --reinstall): the populate
+# container installs curl/git/python3/... on top of the base image, and a
+# download-only run against live state would silently drop exactly those
+# debs. REFRESH_APT=1 forces a refetch, mirroring REFRESH_ML.
 # --------------------------------------------------------------------------
 
-# True when at least one .deb is already in the store.
-apt_debs_present() {
-  for f in "$STORE_DIR"/apt/*.deb; do
-    if [ -e "$f" ]; then
-      return 0
-    fi
-  done
-  return 1
-}
+. "$SCRIPT_DIR/apt-closure.sh"
 
-fetch_apt_debs() {
-  mkdir -p "$STORE_DIR/apt/partial"
-  apt-get update
-  apt-get install --reinstall --download-only -y --no-install-recommends \
-    -o Dir::Cache::archives="$STORE_DIR/apt" \
-    git curl jq ripgrep ca-certificates python3 pipx python3-venv coreutils procps
-}
-
-echo "==> apt debs (root only)"
+echo "==> apt debs (full transitive closure of pre-install/packages-apt.txt, root only)"
 if [ "$(id -u)" -eq 0 ]; then
-  if apt_debs_present; then
-    mark_skipped "apt debs (already in store)"
+  if [ "${REFRESH_APT:-0}" = "1" ] || ! apt_store_covers_manifest; then
+    if apt_resolve_closure && fetch_apt_debs; then
+      mark_added "apt closure: $(apt_manifest_pkgs | grep -c .) manifest package(s) -> $(printf '%s' "$APT_ALL" | grep -c .) debs"
+    else
+      echo "WARN: apt closure fetch FAILED - store apt tier unchanged; the build falls back to the network tier" >&2
+    fi
   else
-    fetch_apt_debs
-    mark_added "apt debs"
+    mark_skipped "apt closure (manifest coverage complete)"
   fi
 else
-  echo "  apt section skipped - re-run with: docker compose exec -u root opencode sh populate-preinstall.sh"
+  echo "  apt section skipped (needs root) - re-run with: docker compose -f docker-compose.example.yaml --profile tools run --rm opencode-preinstall"
 fi
 
 # --------------------------------------------------------------------------
@@ -1000,6 +998,18 @@ verify_all_digests
 # digests-enforced comes from the PIN COUNT (real non-comment entries), not
 # file size - a comment-only manifest is NOT enforcement.
 digest_pins=$(digest_pin_count)
+# apt coverage (offline apt tier): the release/arch the closure was resolved
+# for, the manifest size, the store's deb count, and how many of those debs
+# carry digest pins (0 until the maintainer --update-digests run;
+# digests-pins below counts every tier).
+apt_lock_manifest=$(apt_manifest_pkgs 2>/dev/null | grep -c . || true)
+apt_lock_release=$( { . /etc/os-release 2>/dev/null || true; printf '%s' "${VERSION_CODENAME:-unknown}"; } )
+apt_lock_arch=$(dpkg --print-architecture 2>/dev/null || echo unknown)
+apt_lock_debs=0
+for _f in "$STORE_DIR"/apt/*.deb; do
+  if [ -f "$_f" ]; then apt_lock_debs=$((apt_lock_debs + 1)); fi
+done
+apt_lock_pins=$(awk '$2 ~ /^apt\// && $1 !~ /^#/ { n++ } END { print n+0 }' "$DIGESTS_FILE" 2>/dev/null || echo 0)
 {
   printf '%s\n' "# resolved by populate-preinstall.sh (latest-at-populate-time; env overrides recorded as pins)"
   printf '%s\n' "opencode=$OPENCODE_VERSION"
@@ -1013,6 +1023,11 @@ digest_pins=$(digest_pin_count)
   printf '%s\n' "zod=$ZOD_VERSION"
   printf '%s\n' "firecrawl-cli=$FIRECRAWL_CLI_VERSION"
   printf '%s\n' "docker-cli=$DOCKER_CLI_VERSION"
+  printf '%s\n' "apt-release=$apt_lock_release"
+  printf '%s\n' "apt-arch=$apt_lock_arch"
+  printf '%s\n' "apt-packages=$apt_lock_manifest"
+  printf '%s\n' "apt-debs=$apt_lock_debs"
+  printf '%s\n' "apt-pinned=$apt_lock_pins"
   printf "%s\n" "digests-file=pre-install/digests.sha256"
   printf "%s\n" "digests-pins=$digest_pins"
   printf "%s\n" "digests-enforced=$( [ "$digest_pins" -gt 0 ] && echo true || echo false )"

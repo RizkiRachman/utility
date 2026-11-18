@@ -31,6 +31,9 @@ jobs:
                     workspace/agents/opencode/engine/setup.sh \
                     workspace/agents/opencode/entrypoint.sh \
                     workspace/agents/opencode/populate-preinstall.sh \
+                    workspace/agents/opencode/apt-closure.sh \
+                    workspace/agents/opencode/apt-install.sh \
+                    workspace/agents/opencode/test-apt-offline.sh \
                     workspace/certs/*.sh; do
             bash -n "$f"
           done
@@ -83,6 +86,9 @@ jobs:
       # check runs where certs actually land - at the end of
       # certs/sync-certs.sh (called by populate-preinstall.sh on every
       # populate run), which fails the sync on any non-allowlisted cert.
+      - name: Apt offline tests
+        run: sh workspace/agents/opencode/test-apt-offline.sh
+
       - name: Certificates allowlist (tracked-inventory sanity)
         working-directory: workspace
         run: sh certs/check-certs.sh

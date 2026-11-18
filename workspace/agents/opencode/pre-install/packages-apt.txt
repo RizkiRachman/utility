@@ -1,0 +1,26 @@
+# Base packages installed by the opencode Dockerfile apt tier.
+#
+# SINGLE SOURCE OF TRUTH for the image's apt package set (one name per line;
+# blank lines and #-comments ignored):
+#   - populate-preinstall.sh (via apt-closure.sh) resolves the FULL
+#     transitive .deb closure of this list into the offline store (apt/)
+#     and records a deps-first install-order.txt beside the debs.
+#   - the Dockerfile's network fallback (apt-install.sh) installs exactly
+#     these names when the store is absent, partial, or wrong-arch.
+#
+# A package added here without a populate re-run makes the build fall back
+# to the network tier loudly (coverage gate in apt-install.sh); a package
+# removed here leaves stale debs behind until the next populate run (the
+# apt tier regenerates per fetch, unlike the add-only pip wheels).
+git
+curl
+sudo
+iproute2
+jq
+ripgrep
+ca-certificates
+python3
+pipx
+python3-venv
+coreutils
+procps
