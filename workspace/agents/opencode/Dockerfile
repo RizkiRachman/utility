@@ -33,25 +33,25 @@ COPY certs/ /usr/local/share/ca-certificates/
 # Base packages. The optional `preinstall` additional build context (/pi, see
 # docker-compose files) pre-seeds cached .deb files so repeat builds skip most
 # downloads; the apt cache mounts keep downloaded state out of the image layer.
+# The /var/lib/apt cache mount is SHARED across builds. A build interrupted
+# mid-apt-get-update leaves a truncated Packages index there, and later builds
+# silently Hit the cached InRelease, skip re-downloading Packages, and fail
+# with 'Unable to locate package' for every name. Self-heal: on install
+# failure purge the lists out of the cache mount, re-update from scratch,
+# retry once - zero cost in the healthy path.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     --mount=from=preinstall,src=/,dst=/pi,ro \
     set -eux; \
     cp /pi/apt/*.deb /var/cache/apt/archives/ 2>/dev/null || true; \
     apt-get update; \
-    apt-get install -y --no-install-recommends \
-      git \
-      curl \
-      sudo \
-      iproute2 \
-      jq \
-      ripgrep \
-      ca-certificates \
-      python3 \
-      pipx \
-      python3-venv \
-      coreutils \
-      procps; \
+    apt_pkgs="git curl sudo iproute2 jq ripgrep ca-certificates python3 pipx python3-venv coreutils procps"; \
+    apt-get install -y --no-install-recommends $apt_pkgs || { \
+      echo "apt install failed on the shared lists cache - purging stale indexes and retrying once" >&2; \
+      rm -rf /var/lib/apt/lists/*; \
+      apt-get update; \
+      apt-get install -y --no-install-recommends $apt_pkgs; \
+    }; \
     update-ca-certificates; \
     git config --system --add safe.directory '*'
 
