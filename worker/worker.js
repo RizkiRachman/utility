@@ -8,14 +8,16 @@ export default {
   async fetch(request) {
     const url = new URL(request.url);
     const path = url.pathname === "/" ? "/llms.txt" : url.pathname;
-    const res = await fetch(ORIGIN + path + url.search,
-                            { redirect: "follow" });
+    const target = ORIGIN + path + url.search;
+    const res = await fetch(target, { redirect: "follow" });
     if (res.ok) {
-      return res;
+      const headers = new Headers(res.headers);
+      headers.set("x-digest-origin", ORIGIN);
+      return new Response(res.body, { status: res.status, headers });
     }
     return new Response(
-      "digest unavailable (" + res.status + "); try /llms.txt or" +
-      " /digest-full.txt\n",
-      { status: 502, headers: { "content-type": "text/plain" } });
+      "digest unavailable (" + res.status + " from " + target + "); try /llms.txt or /digest-full.txt\n",
+      { status: 502, headers: { "content-type": "text/plain" } }
+    );
   },
 };
