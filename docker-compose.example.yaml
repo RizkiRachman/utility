@@ -1,18 +1,161 @@
 services:
+  # ============================================================================
+  # CONTROL PLANE: CORE INFRASTRUCTURE (SCM, Secrets, Registry, CI/CD + TF)
+  # ============================================================================
+  gitea:
+    container_name: gitea
+    image: gitea/gitea:1.26.1-rootless
+    labels:
+      bpg.group: infra
+      bpg.type: scm
+    restart: unless-stopped
+    mem_limit: 512m
+    ports:
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:2222:2222"
+    environment:
+      GITEA__database__DB_TYPE: sqlite3
+      GITEA__server__ROOT_URL: http://localhost:3000/
+      GITEA__server__SSH_PORT: 2222
+      GITEA__service__DISABLE_REGISTRATION: "false"
+    volumes:
+      - gitea-data:/var/lib/gitea
+      - gitea-config:/etc/gitea
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/api/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  vault:
+    container_name: vault
+    image: hashicorp/vault:2.2
+    labels:
+      bpg.group: infra
+      bpg.type: secrets
+    restart: unless-stopped
+    mem_limit: 256m
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "127.0.0.1:8200:8200"
+    environment:
+      VAULT_ADDR: http://127.0.0.1:8200
+      VAULT_LOCAL_CONFIG: |
+        {
+          "storage": { "file": { "path": "/vault/file" } },
+          "listener": [{ "tcp": { "address": "0.0.0.0:8200", "tls_disable": 1 } }],
+          "ui": true,
+          "disable_mlock": true
+        }
+    command: server
+    volumes:
+      - vault-data:/vault/file
+      - vault-logs:/vault/logs
+    healthcheck:
+      test: ["CMD-SHELL", "code=$$(wget -S -O /dev/null http://127.0.0.1:8200/v1/sys/health 2>&1 | awk '/HTTP\\// {print $$2}' | tail -n1); [ \"$$code\" = \"200\" ] || [ \"$$code\" = \"501\" ] || [ \"$$code\" = \"503\" ]"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  registry:
+    container_name: registry
+    image: registry:2
+    labels:
+      bpg.group: infra
+      bpg.type: registry
+    restart: unless-stopped
+    mem_limit: 256m
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /var/lib/registry
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+      REGISTRY_HTTP_HEADERS_Access-Control-Allow-Origin: '["http://localhost:8080"]'
+      REGISTRY_HTTP_HEADERS_Access-Control-Allow-Methods: '["HEAD", "GET", "OPTIONS", "DELETE"]'
+      REGISTRY_HTTP_HEADERS_Access-Control-Allow-Headers: '["Authorization", "Accept", "Cache-Control"]'
+      REGISTRY_HTTP_HEADERS_Access-Control-Expose-Headers: '["Docker-Content-Digest"]'
+    volumes:
+      - registry-data:/var/lib/registry
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/v2/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  registry-ui:
+    container_name: registry-ui
+    image: joxit/docker-registry-ui:main
+    labels:
+      bpg.group: infra
+      bpg.type: registry
+    restart: unless-stopped
+    mem_limit: 128m
+    depends_on:
+      - registry
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      SINGLE_REGISTRY: "true"
+      REGISTRY_TITLE: BPG Local Registry
+      DELETE_IMAGES: "true"
+      SHOW_CONTENT_DIGEST: "true"
+      NGINX_PROXY_PASS_URL: http://registry:5000
+      PULL_URL: localhost:5000
+  semaphore:
+    container_name: semaphore
+    image: semaphoreui-tf:local
+    labels:
+      bpg.group: infra
+      bpg.type: cicd
+    build:
+      context: ./workspace/infra/semaphore
+      additional_contexts:
+        preinstall: ./workspace/pre-installer
+    init: true
+    mem_limit: 512m
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      SEMAPHORE_DB_DIALECT: bolt
+      SEMAPHORE_DB: /var/lib/semaphore/database.boltdb
+      SEMAPHORE_PLAYBOOK_PATH: /tmp/semaphore
+      SEMAPHORE_ADMIN: ${SEMAPHORE_ADMIN:-admin}
+      SEMAPHORE_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD:-changeme123}
+      SEMAPHORE_ADMIN_NAME: Admin
+      SEMAPHORE_ADMIN_EMAIL: admin@localhost
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION:?Set 32-char base64 key in .env}
+      VAULT_ADDR: http://vault:8200
+    volumes:
+      - semaphore-data:/var/lib/semaphore
+      - ./workspace:/home/semaphore/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID:-101}"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  terraform:
+    image: hashicorp/terraform:latest
+    profiles: ["tools"]
+    working_dir: /workspace
+    volumes:
+      - ./workspace:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      VAULT_ADDR: http://vault:8200
+
+  # ============================================================================
+  # CONTROL PLANE: AI AGENTS & UI
+  # ============================================================================
   opencode:
     container_name: opencode
-    image: opencode:local  # tag applied to the build below; scheduler service reuses it
+    image: opencode:local
     labels:
       bpg.group: infra
       bpg.type: agents
     build:
       context: workspace/agents/opencode
-      # Version pins intentionally absent: the Dockerfile ARG defaults are
-      # empty (latest), and the offline store globs are the real lockfile.
-      # Add e.g. OPENCODE_VERSION: "2.3.0" under build.args only to pin
-      # deliberately. (The no-op `args: {}` was removed - compose passes no
-      # build args unless declared.)
-      # Arch follows TARGETARCH (amd64 -> x64); the offline store holds x64 tarballs.
       additional_contexts:
         preinstall: ./workspace/pre-installer
     init: true
@@ -20,9 +163,6 @@ services:
     cpus: 2
     restart: unless-stopped
     ports:
-      # Host loopback publish. With OPENCODE_BIND_LOCALHOST=1 the in-container
-      # listener also drops to the container loopback (entrypoint BIND_HOST);
-      # without it the server listens on all interfaces inside the container.
       - "127.0.0.1:4096:4096"
     environment:
       LANG: C.UTF-8
@@ -43,7 +183,6 @@ services:
       CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
-      # Optional rag embeddings upgrade; empty keeps offline hashed-vector mode
       RAG_EMBEDDINGS_URL: ${RAG_EMBEDDINGS_URL:-}
       RAG_EMBEDDINGS_MODEL: ${RAG_EMBEDDINGS_MODEL:-}
       RAG_EMBEDDINGS_KEY: ${RAG_EMBEDDINGS_KEY:-}
@@ -54,13 +193,7 @@ services:
       - opencode-data:/home/node/.local/share/opencode
       - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
-      # Code-based probe: OpenCode's HTTP surface answers 200 (unauthenticated)
-      # or 401 (basic auth challenge) - both are HEALTHY; only 5xx (or no
-      # connection at all) is a failure. Plain `curl -fsS` false-reds on the
-      # 401 auth challenge. Probe the container loopback (the server binds
-      # 0.0.0.0 in-container; the shipped compose maps host loopback 4096).
-      # start_period 90s: the MCP preflight can exceed 30s on cold boot.
-      test: ["CMD-SHELL", "code=$$(curl -s -o /dev/null -w '%{http_code}' http://[IP_ADDRESS]:4096/) && [ \"$$code\" -lt 500 ] || exit 1"]
+      test: ["CMD-SHELL", "code=$$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4096/) && [ \"$$code\" -lt 500 ] || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -69,11 +202,10 @@ services:
       - "${DOCKER_GID:-101}"
   opencode-preinstall:
     image: node:22-bookworm-slim
-    profiles: [ "tools" ]
+    profiles: ["tools"]
     user: root
     volumes:
       - ./workspace:/repo
-      # store lives at workspace root: ./workspace/pre-installer (single source)
     working_dir: /repo/agents/opencode
     command: >-
       sh -c "apt-get update -qq && apt-get install -y -qq --no-install-recommends
@@ -86,29 +218,29 @@ services:
     depends_on: [opencode]
     restart: unless-stopped
     init: true
-    working_dir: /home/node/workspace/agents/opencode/engine   # run_task invokes scripts/... relative to CWD
+    working_dir: /home/node/workspace/agents/opencode/engine
     volumes:
       - ./workspace:/home/node/workspace
-    environment:
     command: >-
       sh -c "scripts/scheduled-runner.sh --task drift-detect --schedule daily
       --pid-file /tmp/scheduled-runner.pid && exec tail -F scheduled-runner.log"
 
   opencode-maintenance:
     image: opencode:local
-    profiles: [ "scheduler" ]
-    depends_on: [ opencode ]
+    profiles: ["scheduler"]
+    depends_on: [opencode]
     restart: unless-stopped
     init: true
-    working_dir: /home/node/workspace/engine   # run_task invokes scripts/... relative to CWD
+    working_dir: /home/node/workspace/engine
     volumes:
       - ./workspace/agents/opencode:/home/node/workspace
     command: >-
       sh -c "scripts/scheduled-runner.sh --task archive --schedule daily --pid-file /tmp/scheduled-archive.pid;
       scripts/scheduled-runner.sh --task heal --schedule daily --pid-file /tmp/scheduled-heal.pid"
+
   openui:
     container_name: openui
-    image: openui-genui:local   # tag applied to the build below
+    image: openui-genui:local
     labels:
       bpg.group: infra
       bpg.type: agents
@@ -126,11 +258,17 @@ services:
       SUMOPOD_BASE_MODEL_NAME: ${SUMOPOD_BASE_MODEL_NAME:-glm-5.3-flash}
       SUMOPOD_BASE_URL: ${SUMOPOD_BASE_URL:-https://ai.sumopod.com/v1}
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "-T", "3", "http://127.0.0.1:3000/" ]
+      test: ["CMD", "wget", "-qO-", "-T", "3", "http://127.0.0.1:3000/"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
 
 volumes:
+  gitea-data:
+  gitea-config:
+  vault-data:
+  vault-logs:
+  registry-data:
+  semaphore-data:
   opencode-data:
