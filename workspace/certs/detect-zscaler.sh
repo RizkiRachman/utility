@@ -1,70 +1,49 @@
 #!/bin/sh
-grep -q "$(printf '\r')" "$0" 2>/dev/null && { tr -d '\r' < "$0" > "${0%/*}/.$(basename "$0").$$.lf" && exec sh "${0%/*}/.$(basename "$0").$$.lf" "$@"; } # CRLF self-heal: re-exec an LF copy of this script from its own dir when Windows line endings are detected
+if grep -q "$(printf '\r')" "$0" 2>/dev/null; then
+  _lf="${TMPDIR:-/tmp}/.${0##*/}.$$.lf"
+  tr -d '\r' < "$0" > "$_lf" && exec sh "$_lf" "$@"
+fi # CRLF self-heal: re-exec an LF copy from TMPDIR when Windows line endings are detected
+
 # Detect corporate TLS interception (Zscaler and friends) and seed certs/.
 #
 # Behind a TLS-inspecting proxy every HTTPS chain presents the proxy's OWN
 # certificate instead of the real site CA - so the intercepting cert can be
-# read straight off the wire, no manual copying required. Zscaler names itself
-# in the subject/issuer of every cert it presents; the chain usually carries
-# only its INTERMEDIATE (the root is rarely sent), and one trusted intermediate
-# is a sufficient trust anchor for openssl/curl. Zscaler CA certs are saved
-# (per-site LEAF certs are skipped - see the pass-2 filter).
+# read straight off the wire. Zscaler names itself in the subject/issuer of
+# every cert it presents:
+#   - Root CA (self-signed, 27-year validity) -> preferred trust anchor
+#   - Long-lived Intermediate CA (CA:TRUE, 27-year validity) -> fallback anchor
+#     only when no self-signed Root CA is present
+#   - Ephemeral "(t)" Intermediate CA (14-day validity) & per-site leaf certs
+#     -> always skipped
 #
-# MULTI-HOST PROBE: zscaler presents DIFFERENT issuer chains per site, so a
-# single probe host under-covers what clients actually contact. Probing only
-# github.com is why the torch CPU wheel index (download.pytorch.org) failed
-# pip with SSL errors while pypi.org kept working - pypi.org is bypassed by
-# zscaler policy (clean chain), but download.pytorch.org and
-# download.eclipse.org ARE intercepted, each with its own intermediates. Every
-# host in DEFAULT_PROBE_HOSTS is probed on every run; the zscaler certs found
-# across ALL intercepted hosts are merged into one fingerprint-deduped set.
+# MULTI-HOST PROBE: zscaler presents DIFFERENT issuer chains per site, so
+# DEFAULT_PROBE_HOSTS are probed in parallel on every run and merged into one
+# fingerprint-deduped set.
 #
-# ROTATION-READY: the probe runs on EVERY invocation and the autodetected set
-# is replaced, not appended to. Corporate MITM roots rotate (new intermediates,
-# new pinning), so a once-captured cert goes stale silently; re-deriving it
-# from the live wire each run keeps the store trusted. This is why
-# populate-preinstall.sh calls the detector unconditionally: it is safe to run
-# on a schedule.
+# ROTATION-READY: every invocation re-probes the live wire and replaces the
+# autodetected set rather than appending, preventing silent stale-cert failures.
 #
-# Cert ownership split (the whole refresh rule):
-#   zscaler-autodetected-*.crt  the detector's OUTPUT set - deleted and
-#                               rewritten on every interception-found run.
-#   any other *.crt             MANUAL certs - never touched, never counted
-#                               as "already handled", never pruned.
-#
-# populate-preinstall.sh calls this on the workspace-root certs/ - the single
-# cert source - and certs/sync-certs.sh then mirrors the set into the
-# submodule cert dirs. certs/ content stays gitignored - it self-seeds and
-# self-refreshes; only the two scripts are tracked.
+# Cert ownership split:
+#   zscaler-autodetected-*.crt  detector OUTPUT set - deleted and rewritten on
+#                               every interception-found run.
+#   any other *.crt             MANUAL certs (e.g. zscaler-root-ca.crt) - never
+#                               touched, never pruned.
 #
 # Usage: sh detect-zscaler.sh [output-dir] [probe-host]
-#   output-dir  default: certs/ - the script's own dir   (created if missing)
-#   probe-host  optional single-host override (probes ONLY that host);
-#               default: every host in DEFAULT_PROBE_HOSTS
+#   output-dir  default: script's own dir (created if missing)
+#   probe-host  optional single-host override (probes ONLY that host)
 #
-# Exit 0 = interception found on at least one host, autodetected set refreshed
+# Exit 0 = interception found on at least one host, cert set refreshed
 # Exit 1 = probes ran and none of the reachable hosts shows interception
-#          (direct, clean chains; stale autodetected certs removed). Some
-#          hosts failing to connect is tolerated - each one warns; exit 2 is
-#          reserved for when NO host could be probed at all.
+#          (direct, clean chains; stale autodetected certs removed)
 # Exit 2 = environment/probe failure - openssl missing, no host reachable on
-#          443, or interception seen but nothing extractable (a no-data run
-#          leaves the cert store untouched)
+#          443, or interception seen but nothing extractable (existing certs kept)
 #
-# Extraction is exposed as extract_zscaler_certs() for direct unit testing:
-#   ZSHARED=1 . ./detect-zscaler.sh      # source without running main
+# Direct unit-test entry point:
+#   ZSHARED=1 . ./detect-zscaler.sh
 set -u
 
-# Prefix of the files this script owns. Anything else in out_dir is manual.
 AUTODETECTED_PREFIX="zscaler-autodetected-"
-
-# Hosts probed each run. Zscaler hands out different issuer chains per site,
-# so one probe host is not enough to cover what pip will actually contact:
-#   github.com            the original canary (git/npm/GitHub API traffic)
-#   pypi.org              usually BYPASSED by zscaler policy - a clean chain
-#                         here is expected and proves nothing about the rest
-#   download.pytorch.org  the torch CPU wheel index (pip --extra-index-url)
-#   download.eclipse.org  observed interception + mid-transfer resets
 DEFAULT_PROBE_HOSTS="github.com pypi.org download.pytorch.org download.eclipse.org"
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
@@ -72,19 +51,14 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 warn() { echo "WARN: $*" >&2; }
 err()  { echo "ERROR: $*" >&2; }
 
-# Extract certs mentioning Zscaler from a raw `s_client -showcerts` dump.
+# Extract valid Zscaler CA certs from a raw `s_client -showcerts` dump.
 #
 #   extract_zscaler_certs CHAIN_FILE OUT_DIR [SKIP_FP_FILE]
 #
-# Prints each written file; returns 0 when at least one cert was written, 1
-# when nothing matched.
-#
-# Fingerprint dedupe compares only against files NOT owned by this script
-# (manual certs), plus fingerprints listed in SKIP_FP_FILE (what the caller
-# pre-collected: surviving manual fingerprints, and - in the multi-host main
-# flow - certs an earlier intercepted host already contributed this run). The
-# autodetected set is the caller's replace-target: a fresh run must rewrite
-# it, so the OLD copies must never suppress a re-extraction.
+# Writes self-signed Zscaler Root CAs first, followed by long-lived (non-"(t)")
+# CA:TRUE intermediates. Appends newly written SHA-256 fingerprints to
+# SKIP_FP_FILE when provided so multi-host runs dedupe without re-hashing.
+# Returns 0 if at least one matching cert was found/written, 1 otherwise.
 extract_zscaler_certs() {
   _chain_file=$1
   _out_dir=$2
@@ -92,8 +66,6 @@ extract_zscaler_certs() {
   _zfound=0
 
   _work=$(mktemp -d) || return 1
-  # Always clean the scratch dir, including on early return.
-  # (No traps: the function owns its scratch lifetime, main owns its own.)
   _pem="$_work/chain.pem"
   sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' \
     "$_chain_file" > "$_pem" 2>/dev/null || true
@@ -102,81 +74,98 @@ extract_zscaler_certs() {
     return 1
   fi
 
-  # Split individual PEM blocks: csplit writes cert00, cert01, ... (suffix %02d).
-  # -s silent, -z elide empty leading file, -k keep on error.
-  ( cd "$_work" && csplit -szk -f cert "$_pem" \
-      '/-----BEGIN CERTIFICATE-----/' '{*}' >/dev/null 2>&1 ) || true
+  # Split PEM blocks portably (no csplit dependency)
+  awk -v dir="$_work" '
+    /-----BEGIN CERTIFICATE-----/ { n++ }
+    n > 0 { print > (dir "/raw-" sprintf("%03d", n) ".pem") }
+  ' "$_pem"
 
-  # Pass 1: self-signed-looking Zscaler certs (issuer == subject) - the closest
-  # thing to a root the proxy sends. Pass 2: certs naming Zscaler whose CN
-# names zscaler AND that carry BasicConstraints CA:TRUE (the real
-# intermediates; per-site leaves fail one or the other).
-  for _pass in root other; do
-    for _cand in "$_work"/cert*; do
-      [ -f "$_cand" ] || continue
-      _info=$(openssl x509 -noout -subject -issuer -in "$_cand" 2>/dev/null) || continue
-      _subj=$(printf '%s\n' "$_info" | sed -n 's/^subject=//p' | tr 'A-Z' 'a-z')
-      _iss=$(printf '%s\n' "$_info" | sed -n 's/^issuer=//p' | tr 'A-Z' 'a-z')
-      case "$_subj$_iss" in
+  mkdir -p "$_work/0_root" "$_work/1_interm"
+  _idx=0
+
+  # Single-pass metadata extraction per cert (1 openssl call per cert total)
+  for _cand in "$_work"/raw-*.pem; do
+    [ -f "$_cand" ] || continue
+    _meta=$(openssl x509 -noout -subject -issuer -fingerprint -sha256 \
+      -ext basicConstraints -in "$_cand" 2>/dev/null) || continue
+
+    _subj=$(printf '%s\n' "$_meta" | sed -n 's/^subject=//p' | tr 'A-Z' 'a-z')
+    _iss=$(printf '%s\n' "$_meta" | sed -n 's/^issuer=//p' | tr 'A-Z' 'a-z')
+    case "$_subj$_iss" in
+      *zscaler*) ;;
+      *) continue ;;
+    esac
+
+    _fp=$(printf '%s\n' "$_meta" | sed -n 's/^sha256 Fingerprint=//p')
+    [ -n "$_fp" ] || continue
+
+    _idx=$((_idx + 1))
+    _tag=$(printf '%03d' "$_idx")
+
+    if [ "$_subj" = "$_iss" ]; then
+      # Self-signed Zscaler Root CA
+      printf '%s\n' "$_fp" > "$_work/0_root/$_tag.fp"
+      cp "$_cand" "$_work/0_root/$_tag.pem"
+    else
+      # Extract Subject CN (handles both comma- and slash-delimited OpenSSL output)
+      _cn=$(printf '%s\n' "$_subj" | sed 's/.*cn *= *//' | sed 's/[,/][a-z][a-z0-9.]* *=.*//' | tr -d '"')
+      case "$_cn" in
         *zscaler*) ;;
         *) continue ;;
       esac
-      if [ "$_pass" = root ]; then
-        [ "$_subj" = "$_iss" ] || continue
-      else
-        [ "$_subj" = "$_iss" ] && continue
-        # Zscaler-CN check: the per-site leaves zscaler mints carry the
-        # WEBSITE's CN (github.com, pytorch.org, *.eclipse.org) - only the
-        # CA certs carry a zscaler CN. Greedy CN grab takes the CN value and
-        # everything after it, which still contains the CN text.
-        _cn=$(printf '%s\n' "$_info" | sed -n 's/^subject=//p' | sed 's/.*CN *= *//' | sed 's/,[A-Za-z][A-Za-z0-9.]* *=.*//' | tr -d '"' | tr 'A-Z' 'a-z')
-        case "$_cn" in
-          *zscaler*) ;;
-          *) continue ;;
-        esac
-        # CA:TRUE check: a leaf for a zscaler-owned domain (*.zscloud.net)
-        # would pass the CN test but is still CA:FALSE, worthless as an
-        # anchor, and replaced every ~2 weeks. Only CA certs get stored.
-        _txt=$(openssl x509 -noout -text -in "$_cand" 2>/dev/null) || continue
-        printf '%s\n' "$_txt" | grep -q 'CA:TRUE' || continue
+      # Skip ephemeral 14-day cloud signing CAs marked with "(t)"
+      case "$_cn" in
+        *"(t)"*) continue ;;
+      esac
+      # Must be a CA certificate (CA:TRUE), never a per-site or *.zscloud.net leaf
+      printf '%s\n' "$_meta" | grep -q 'CA:TRUE' || continue
+
+      printf '%s\n' "$_fp" > "$_work/1_interm/$_tag.fp"
+      cp "$_cand" "$_work/1_interm/$_tag.pem"
+    fi
+  done
+
+  # Pre-collect manual cert fingerprints once
+  _manual_fps=""
+  for _existing in "$_out_dir"/*.crt; do
+    [ -f "$_existing" ] || continue
+    case "${_existing##*/}" in
+      "$AUTODETECTED_PREFIX"*) continue ;;
+    esac
+    _efp=$(openssl x509 -noout -fingerprint -sha256 -in "$_existing" 2>/dev/null) || continue
+    [ -n "$_efp" ] && _manual_fps="${_manual_fps}${_efp}
+"
+  done
+
+  # Write staged certs in strict priority order: 0_root first, then 1_interm
+  for _stage in "$_work/0_root" "$_work/1_interm"; do
+    for _cand in "$_stage"/*.pem; do
+      [ -f "$_cand" ] || continue
+      _fp_file="${_cand%.pem}.fp"
+      _fp=$(cat "$_fp_file")
+      _full_fp="sha256 Fingerprint=$_fp"
+
+      _dup=0
+      if [ -n "$_manual_fps" ] && printf '%s' "$_manual_fps" | grep -qxF "$_full_fp"; then
+        _dup=1
+      elif [ -n "$_skip_fp_file" ] && [ -s "$_skip_fp_file" ] && grep -qxF "$_full_fp" "$_skip_fp_file"; then
+        _dup=1
       fi
 
-      # Fingerprint dedupe: only the SURVIVING certs count - manual certs in
-      # OUT_DIR (anything not named zscaler-autodetected-*) plus the caller's
-      # pre-collected fingerprint list. The autodetected set is being
-      # replaced, so it must not suppress the fresh extraction.
-      _fp=$(openssl x509 -noout -fingerprint -sha256 -in "$_cand" 2>/dev/null) || continue
-      [ -n "$_fp" ] || continue
-      _dup=0
-      for _existing in "$_out_dir"/*.crt; do
-        [ -f "$_existing" ] || continue
-        case "${_existing##*/}" in
-          "$AUTODETECTED_PREFIX"*) continue ;;
-        esac
-        _efp=$(openssl x509 -noout -fingerprint -sha256 -in "$_existing" 2>/dev/null) || continue
-        if [ "$_efp" = "$_fp" ]; then
-          _dup=1
-          break
-        fi
-      done
-      if [ "$_dup" -eq 0 ] && [ -n "$_skip_fp_file" ] && [ -s "$_skip_fp_file" ]; then
-        if grep -qxF "$_fp" "$_skip_fp_file"; then
-          _dup=1
-        fi
-      fi
       if [ "$_dup" -eq 1 ]; then
         _zfound=1
         continue
       fi
 
       _n=1
-      while [ -e "$_out_dir/zscaler-autodetected-$_n.crt" ]; do
+      while [ -e "$_out_dir/${AUTODETECTED_PREFIX}${_n}.crt" ]; do
         _n=$((_n + 1))
       done
-      _dest="$_out_dir/zscaler-autodetected-$_n.crt"
+      _dest="$_out_dir/${AUTODETECTED_PREFIX}${_n}.crt"
       if cp "$_cand" "$_dest" 2>/dev/null; then
         echo "saved: $_dest"
         _zfound=1
+        [ -n "$_skip_fp_file" ] && printf '%s\n' "$_full_fp" >> "$_skip_fp_file"
       else
         warn "could not write $_dest"
       fi
@@ -187,12 +176,7 @@ extract_zscaler_certs() {
   [ "$_zfound" -eq 1 ]
 }
 
-# Run one probe host; writes the raw chain to $1, returns 0 on a non-empty chain.
-# The timeout bounds the WHOLE handshake+dump so one dead/resetting host cannot
-# stall the multi-host sweep. zscaler sometimes accepts the connection then
-# resets mid-transfer (seen on download.eclipse.org) - the cert chain is
-# already on the wire by then, and a partial dump still yields a non-empty
-# chain file.
+# Probe a single host with a bounded 15s timeout; returns 0 if non-empty chain captured.
 probe_host() {
   _host=$1
   _dest=$2
@@ -202,9 +186,7 @@ probe_host() {
   [ -s "$_dest" ]
 }
 
-# Delete this script's autodetected set; prints how many files were removed.
-# Manual certs (any *.crt not carrying AUTODETECTED_PREFIX) are never touched.
-# $1 = out_dir, $2 = "verbose" to print each removal.
+# Delete this script's autodetected set; prints count removed.
 clear_autodetected_certs() {
   _dir=$1
   _verbose=${2:-}
@@ -221,15 +203,26 @@ clear_autodetected_certs() {
   printf '%s' "$_removed"
 }
 
+# Find the first self-signed CA cert in $1; prints full path or nothing.
+find_root_cert() {
+  _dir=$1
+  for _crt in "$_dir"/*.crt; do
+    [ -f "$_crt" ] || continue
+    _info=$(openssl x509 -noout -subject -issuer -in "$_crt" 2>/dev/null) || continue
+    _subj=$(printf '%s\n' "$_info" | sed -n 's/^subject=//p' | tr 'A-Z' 'a-z')
+    _iss=$(printf '%s\n' "$_info" | sed -n 's/^issuer=//p' | tr 'A-Z' 'a-z')
+    if [ -n "$_subj" ] && [ "$_subj" = "$_iss" ]; then
+      printf '%s' "$_crt"
+      return 0
+    fi
+  done
+  return 1
+}
+
 main() {
   out_dir=${1:-$SCRIPT_DIR}
   single_host=${2:-}
 
-  # NO early exit on an existing cert set: autodetected certs go stale when the
-  # corporate root rotates, so every run probes and refreshes its own set.
-
-  # openssl is the whole tool; install it in a root preinstall container so the
-  # call stays zero-config, and fail cleanly everywhere else.
   if ! command -v openssl >/dev/null 2>&1; then
     if command -v apt-get >/dev/null 2>&1 && [ "$(id -u)" -eq 0 ]; then
       apt-get install -y -qq openssl >/dev/null 2>&1 || true
@@ -242,7 +235,6 @@ main() {
 
   mkdir -p "$out_dir" || { err "cannot create $out_dir"; return 2; }
 
-  # Probe list: the multi-host default, or the caller's single-host override.
   if [ -n "$single_host" ]; then
     probe_hosts=$single_host
   else
@@ -253,15 +245,17 @@ main() {
   _chain_dir="$_tmpdir/chains"
   mkdir -p "$_chain_dir"
 
-  # Probe EVERY host. Each host's raw chain is kept only when it shows
-  # interception (the per-host file feeds extraction below); a per-host connect
-  # failure warns but does not abort the sweep - the exit code sorts that out
-  # (2 only when NOTHING could be probed).
+  # Probe all hosts in parallel to bound total latency to a single timeout window
+  for _host in $probe_hosts; do
+    probe_host "$_host" "$_chain_dir/$_host.txt" &
+  done
+  wait
+
   _probed=0
   _intercepted=0
   for _host in $probe_hosts; do
     _chain="$_chain_dir/$_host.txt"
-    if probe_host "$_host" "$_chain"; then
+    if [ -s "$_chain" ]; then
       _probed=$((_probed + 1))
       if tr 'A-Z' 'a-z' < "$_chain" | grep -q zscaler; then
         echo "==> TLS interception detected via $_host (zscaler in chain)"
@@ -271,6 +265,7 @@ main() {
         rm -f "$_chain"
       fi
     else
+      rm -f "$_chain"
       warn "probe to $_host failed (no TLS handshake) - skipping this host"
     fi
   done
@@ -291,74 +286,51 @@ main() {
     return 1
   fi
 
-  # Dedupe list: fingerprints that must suppress a write. The manual certs are
-  # collected BEFORE the autodetected set is cleared, so a manual cert's
-  # fingerprint still suppresses a duplicate write. During extraction below,
-  # every cert an earlier host's chain contributed is appended: zscaler serves
-  # overlapping intermediates across sites, and without this the same
-  # intermediate would be written once per intercepted host. (The extractor
-  # also rescans surviving manual certs; this list is belt-and-braces for
-  # hosts where the rescan cannot re-read a file.)
+  # Replace, never append: clear old autodetected set first; extract_zscaler_certs
+  # automatically dedupes against surviving manual *.crt files and grows $_dedupe_fp.
   _dedupe_fp="$_tmpdir/dedupe-fingerprints.txt"
   : > "$_dedupe_fp"
-  for _crt in "$out_dir"/*.crt; do
-    [ -f "$_crt" ] || continue
-    case "${_crt##*/}" in
-      "$AUTODETECTED_PREFIX"*) continue ;;
-    esac
-    _f=$(openssl x509 -noout -fingerprint -sha256 -in "$_crt" 2>/dev/null) || continue
-    [ -n "$_f" ] && printf '%s\n' "$_f" >> "$_dedupe_fp"
-  done
-
-  # Replace, never append: drop the old autodetected set first so a rotated
-  # root does not leave the superseded cert trusted forever.
   _old=$(clear_autodetected_certs "$out_dir")
 
   for _chain in "$_chain_dir"/*.txt; do
     [ -f "$_chain" ] || continue
-    extract_zscaler_certs "$_chain" "$out_dir" "$_dedupe_fp"
-    # Grow the dedupe list with what this chain just contributed so the next
-    # intercepted host cannot re-write the same intermediate under a new name.
-    for _fresh in "$out_dir/$AUTODETECTED_PREFIX"*.crt; do
-      [ -f "$_fresh" ] || continue
-      _f=$(openssl x509 -noout -fingerprint -sha256 -in "$_fresh" 2>/dev/null) || continue
-      [ -n "$_f" ] && printf '%s\n' "$_f" >> "$_dedupe_fp"
-    done
+    extract_zscaler_certs "$_chain" "$out_dir" "$_dedupe_fp" || true
   done
   rm -rf "$_tmpdir"
 
+  # If a self-signed Root CA is present (wire-captured or manual zscaler-root-ca.crt),
+  # prune any autodetected intermediate already signed by that Root CA so only the
+  # clean Root CA trust anchor remains.
+  _root_path=$(find_root_cert "$out_dir" || true)
+  _pruned=0
+  if [ -n "$_root_path" ]; then
+    for _crt in "$out_dir/$AUTODETECTED_PREFIX"*.crt; do
+      [ -f "$_crt" ] || continue
+      [ "$_crt" = "$_root_path" ] && continue
+      if openssl verify -CAfile "$_root_path" "$_crt" >/dev/null 2>&1; then
+        rm -f "$_crt"
+        _pruned=$((_pruned + 1))
+      fi
+    done
+  fi
+
   _fresh=$(ls "$out_dir/$AUTODETECTED_PREFIX"*.crt 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$_fresh" -eq 0 ]; then
-    warn "interception detected but no zscaler cert could be extracted from any chain"
-    warn "the previous autodetected set was already removed - re-run when the probe works"
+  if [ "$_fresh" -eq 0 ] && [ -z "$_root_path" ]; then
+    warn "interception detected but no long-lived zscaler CA cert could be extracted from any chain"
+    warn "the previous autodetected set was already removed - re-run or seed $out_dir/zscaler-root-ca.crt"
     return 2
   fi
 
-  echo "refreshed: $_fresh cert(s) in $out_dir (merged from $_intercepted intercepted host(s), replaced $_old autodetected)"
-  echo "saved: $out_dir/$AUTODETECTED_PREFIX*.crt - populate-preinstall.sh will trust these"
+  echo "refreshed: $_fresh autodetected cert(s) in $out_dir (merged from $_intercepted intercepted host(s), replaced $_old, pruned $_pruned redundant intermediate(s))"
+  [ "$_fresh" -gt 0 ] && echo "saved: $out_dir/$AUTODETECTED_PREFIX*.crt - populate-preinstall.sh will trust these"
 
-  # Root-presence check: intermediates alone anchor ONLY the probed hosts -
-  # openssl needs a self-signed root (rarely sent on the wire) to trust
-  # anything else. Report which root anchors the set, or warn loudly with the
-  # manual fix (zscaler-root-*.crt is allowlisted; this script never touches
-  # non-prefixed files, so a manual root survives every run).
-  _root_cert=""
-  for _crt in "$out_dir"/*.crt; do
-    [ -f "$_crt" ] || continue
-    _info=$(openssl x509 -noout -subject -issuer -in "$_crt" 2>/dev/null) || continue
-    _subj=$(printf '%s\n' "$_info" | sed -n 's/^subject=//p' | tr 'A-Z' 'a-z')
-    _iss=$(printf '%s\n' "$_info" | sed -n 's/^issuer=//p' | tr 'A-Z' 'a-z')
-    if [ -n "$_subj" ] && [ "$_subj" = "$_iss" ]; then
-      _root_cert=${_crt##*/}
-      break
-    fi
-  done
-  if [ -n "$_root_cert" ]; then
-    case "$_root_cert" in
+  if [ -n "$_root_path" ]; then
+    _root_name=${_root_path##*/}
+    case "$_root_name" in
       "$AUTODETECTED_PREFIX"*)
-        echo "root captured on the wire: self-signed $_root_cert (full-chain trust)" ;;
+        echo "root captured on the wire: self-signed $_root_name (full-chain trust)" ;;
       *)
-        echo "root present: manual self-signed $_root_cert (full-chain trust; fingerprint dedupe keeps wire duplicates out)" ;;
+        echo "root present: manual self-signed $_root_name (full-chain trust; redundant intermediates pruned)" ;;
     esac
   else
     warn "no self-signed ROOT in the set - these intermediates anchor ONLY the probed hosts"
@@ -368,14 +340,9 @@ main() {
   return 0
 }
 
-# Sourced for unit tests -> expose functions only; run main only when this file
-# is the entry script. Detecting "sourced" portably: $0 differs from the file.
-# Unit tests set ZSHARED=1 explicitly; a plain `. ./detect-zscaler.sh` with
-# ZSHARED unset also stays inert (source-safe default).
 case "${ZSHARED:-}" in
-  1) : ;;                      # explicitly sourced for tests
-  *) 
-    # $0 is the calling shell when sourced - if it is not this file, stay inert.
+  1) : ;;
+  *)
     case "$0" in
       *detect-zscaler.sh) main "$@" ;;
       *) : ;;
