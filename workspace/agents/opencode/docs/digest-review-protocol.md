@@ -21,7 +21,9 @@ A review enters triage only if it opens with three items:
 
 ## 2. Coverage accounting
 
-- **FULL**: the entire corpus scanned in one pass.
+- **FULL**: the entire corpus scanned in one pass. A fetch-capped
+  reviewer reaches FULL by walking chunks/NN.txt in order; the llms.txt
+  chunk index lists exact byte sizes for the coverage proof.
 - **PARTIAL**: the scan stopped before the end. The review must state the exact
   file and section where it stopped, and its findings count only inside that
   region.
