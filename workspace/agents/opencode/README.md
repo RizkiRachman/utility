@@ -25,6 +25,10 @@ This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as 
 8. [Components](#components)
 9. [Project Structure](#project-structure)
 10. [Architecture](#architecture)
+    - [Container Architecture](#container-architecture)
+    - [Compose Stack](#compose-stack)
+    - [Workflow State Engine](#workflow-state-engine)
+    - [Retrieval Topology](#retrieval-topology)
 11. [Enforcement and Quality Gates](#enforcement-and-quality-gates)
 12. [Troubleshooting](#troubleshooting)
 13. [Known Unknowns](#known-unknowns)
@@ -271,7 +275,48 @@ CI lives at the repository root: [.github/workflows/validate.yml](../../../.gith
 
 ## Architecture
 
-Diagrams follow one standard: Mermaid blocks inside markdown, one diagram per concept, no binary images. This section is the canonical home of the stack architecture; the engine state machine lives in [engine/README.md](engine/README.md#state-machine).
+Diagrams follow one standard: Mermaid blocks inside markdown, one diagram per concept, no binary images. This section documents the internal container build and runtime architecture, compose stack relationships, Workflow State Engine, and retrieval topology.
+
+### Container Architecture
+
+The container builds offline-first from the pre-install store and boots into a governed runtime:
+
+```mermaid
+flowchart TB
+    subgraph BUILD["Container Build and Offline Store"]
+        PRE["populate-preinstall.sh<br/>Resolves and locks dependencies"] --> STORE["pre-installer/<br/>npm, pip, bin, apt, digests.sha256"]
+        STORE --> DOCKER["Dockerfile (node:22-bookworm-slim)<br/>Store-first, network-fallback"]
+        CERTS["certs/ (detect-zscaler.sh)<br/>Corporate CA Trust Store"] --> DOCKER
+    end
+
+    subgraph RUNTIME["Runtime Container (opencode:4096)"]
+        ENTRY["entrypoint.sh<br/>Auth setup, session seed, MCP health check"] --> SERVE["opencode serve :4096"]
+        
+        subgraph ENGINE["Workflow State Engine (/opt/engine)"]
+            CANON["agent.md<br/>Canonical operating rules"]
+            ROLES["17 Specialized Agents<br/>(orchestrator, developer, architect, etc.)"]
+            SKILLS["46 Curated Skills<br/>(TDD, lean-ctx, debugging, UI, etc.)"]
+            GATE["Contract and Scoring Engine<br/>Tier 1 Rules + Tier 2 LLM Judge (Score >= 70)"]
+            CANON --- ROLES
+            ROLES --- SKILLS
+            ROLES --- GATE
+        end
+
+        subgraph MCPS["6 Registered MCP Servers"]
+            MCP1["lean-ctx (Code intelligence and callgraphs)"]
+            MCP2["context7 (Official library doc lookups)"]
+            MCP3["fetch (Web retrieval and readability)"]
+            MCP4["rag (Local SQLite FTS5 + hashed vectors)"]
+            MCP5["cocoindex-code (AST-aware semantic search)"]
+            MCP6["openui (Generative UI bridge to sidecar)"]
+        end
+
+        SERVE <--> ENGINE
+        ENGINE <--> MCPS
+    end
+```
+
+### Compose Stack
 
 ```mermaid
 flowchart LR
@@ -296,17 +341,13 @@ flowchart LR
     CI -->|"deploy-digest.yml"| PAGES
 ```
 
-Every container has one job:
-
-- **opencode**: the product. OpenCode serve plus the workflow-state-engine (17 agents, gated state machine), lean-ctx, and six MCP servers (lean-ctx, context7, fetch, rag, cocoindex-code, openui).
-- **openui**: generative UI sidecar. Agents call it through the MCP bridge; humans preview on :8102.
-- **opencode-scheduler**: runs `drift-detect` daily, comparing persisted engine knowledge against workspace files.
-- **opencode-maintenance**: runs `archive` (session snapshot cleanup) and `heal` (retry a failing contract validation) daily.
-- **opencode-preinstall**: one-shot filler for the offline package store used as a Docker build context.
-
-Scores gate every transition: 70 or above passes, 50-69 retries with feedback, below 50 (or exhausted retries) blocks.
-
-On every push, GitHub Actions validates the tree (JSON, shell syntax, cross-references, doc style, contract score) and repacks `workspace/agents/opencode/**` for agent consumption on Cloudflare Pages.
+| Container | Role |
+|---|---|
+| `opencode` | The product: OpenCode serve, Workflow State Engine (17 agents, 46 skills), lean-ctx, and six MCP servers |
+| `openui` | Generative UI sidecar: agents connect through the MCP bridge, preview on `:8102` |
+| `opencode-scheduler` | Daily maintenance: runs drift detection between persisted engine state and workspace files |
+| `opencode-maintenance` | Daily maintenance: runs session snapshot cleanup and self-healing validation |
+| `opencode-preinstall` | Build helper: populates the offline package store used as Docker build context |
 
 ```text
 Host browser -> 127.0.0.1:4096 (loopback, published) -> opencode serve :4096
@@ -322,6 +363,44 @@ opencode serve attaches to:
   - Firecrawl plugin: keyless developer search, alexandria ask-gated
   - workflow-state-engine: 17 agents, 46 skills, session/, sandbox/
 ```
+
+### Workflow State Engine
+
+The engine at `engine/` manages agent coordination through contract gates and formal roles:
+
+- **State machine lifecycle**: Tasks move through sequential states: `INIT` -> `PLAN` -> `PLAN_SCORED` -> `EXECUTE` -> `EXECUTE_SCORED` -> `REVIEW` -> `REVIEW_SCORED` -> `COMPLETE`. If blockers occur, the state switches to `BLOCKED`.
+- **Scoring pipeline**: Transitions require a composite score of 70 or higher:
+  $$\text{Score} = \frac{\text{Tier 1 Rules Subtotal} + \text{Tier 2 Judge Score}}{2}$$
+  - *Tier 1 (Rules)*: Starts at 100 points with deterministic deductions (-40 for permission violations, -40 for unacknowledged high blast radius, -15 for schema errors, -15 for writing order violations, -15 for missing required fields).
+  - *Tier 2 (Judge)*: Evaluates requirements fulfillment (40%), governance compliance (30%), completeness (20%), and edge cases (10%).
+  - *Verdicts*: Score >= 70 passes; 50 to 69 triggers retry with feedback (up to 3 attempts); below 50 blocks.
+- **17 Agent Personas** ([`engine/agents/`](engine/agents)):
+  - *Entry and Coordination*: `build` (restricted bootstrap triage), `orchestrator` (primary coordinator and task planner), `design-orchestrator` (UI and UX design lead).
+  - *Analysis and Planning*: `product-manager` (requirements and acceptance criteria), `system-analyst` (specifications and impact analysis), `software-architect` (architecture design and trade-offs).
+  - *Implementation*: `developer` (plan execution and coding), `fixer` (bounded quick patches), `devops-engineer` (CI/CD, containers, infrastructure).
+  - *Quality, Security and Consensus*: `quality-analyst` (code quality and test verification), `security-engineer` (threat modeling and security reviews), `scrum-master` (process and state machine guard), `council` (multi-model consensus for high-stakes decisions).
+  - *Research and Memory*: `explorer` (codebase discovery), `librarian` (external documentation), `observer` (visuals and diagrams), `learner` (post-task pattern capture).
+- **46 Curated Skills** ([`engine/skills/`](engine/skills)):
+  - *Engineering discipline*: `test-driven-development`, `systematic-debugging`, `spec-driven-development`, `simplify`, `doubt-driven-development`, `java-developer`, `software-developer`.
+  - *Context and efficiency*: `lean-ctx`, `token-optimize`, `tool-economy`, `context-standards`.
+  - *Design and user interface*: `diagram-design`, `drawio-animation`, `banner-design`, `ui-styling`, `ui-ux-pro-max`, `impeccable`, `slides`.
+  - *Quality and process*: `code-review-and-quality`, `security-expert`, `verification-before-completion`, `audit-observability`, `observability-and-instrumentation`, `shipping-and-launch`, `release-plan`, `humanizer`.
+
+### Retrieval Topology
+
+Different questions route to specific search layers ([`docs/semantic-index-routing.md`](docs/semantic-index-routing.md)):
+
+| Layer | Tool | Scope | Purpose |
+|---|---|---|---|
+| `lean-ctx` | `ctx_search`, `ctx_callgraph` | AST code graph | Exact symbol definitions, caller hierarchies, and blast radius |
+| `cocoindex-code` | `ccc search` | Git repository | AST-aware semantic code search across indexed repositories |
+| `rag` | `rag_search` | Workspace tree | Hybrid FTS5 BM25 and 256-bucket hashed vector search across docs and sessions |
+| `context7` | `context7-mcp` | External libraries | Real-time upstream library documentation lookups |
+| `fetch` | `mcp-server-fetch` | Web pages | Keyless single-page HTTP retrieval with Readability.js cleanup |
+| `openui` | `generate_ui` | Sidecar service | Generative UI and interactive preview components |
+
+On every push, GitHub Actions validates the tree (JSON, shell syntax, cross-references, doc style, contract score) and repacks `workspace/agents/opencode/**` for agent consumption on Cloudflare Pages.
+
 
 ## Enforcement and Quality Gates
 
