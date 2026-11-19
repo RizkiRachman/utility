@@ -1,0 +1,19 @@
+name: lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Sentinel workflow: validate.yml itself cannot lint a version of
+      # itself that fails YAML parsing (a parse failure means zero jobs
+      # run, so no step inside it executes). This minimal workflow stays
+      # tiny on purpose and lints every workflow file on every push/PR.
+      - name: Download actionlint (pinned, checksum-verified by script)
+        run: bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.7.7
+      - name: Lint all workflows
+        run: ./actionlint
