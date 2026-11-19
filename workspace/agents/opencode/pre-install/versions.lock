@@ -1,11 +1,20 @@
 # resolved by populate-preinstall.sh (latest-at-populate-time; env overrides recorded as pins)
-opencode=2.3.0
-opencode-arch=x64
-opencode-platform=2.3.0
-context7=4.7.0
-lean-ctx=3.12.4
+opencode=2.3.2
+opencode-arch=arm64
+opencode-platform=2.3.2
+context7=4.7.3
+lean-ctx=3.12.6
 mcp=2.3.0
 mcp-server-fetch=2026.11.11
 cocoindex-code=0.2.43
 zod=4.6.7
-firecrawl-cli=1.29.0
+firecrawl-cli=1.30.0
+docker-cli=27.3.1
+apt-release=bookworm
+apt-arch=arm64
+apt-packages=12
+apt-debs=116
+apt-pinned=0
+digests-file=pre-install/digests.sha256
+digests-pins=0
+digests-enforced=false

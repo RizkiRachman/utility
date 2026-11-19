@@ -548,14 +548,20 @@ check_forbidden_patterns() {
     hits=$(grep -rlE 'remember[[:space:]]+(key[[:space:]]+)?orchestration-contract"?([^:]|$)|recall[[:space:]]+(key[[:space:]]*=?[[:space:]]*"?)?orchestration-contract"?([^:]|$)|--key[[:space:]]*=?[[:space:]]*"?orchestration-contract"?([^:]|$)|--query[[:space:]]*=?[[:space:]]*"?orchestration-contract"?([^:]|$)|query[[:space:]]*=[[:space:]]*"?orchestration-contract"?([^:]|$)|query[[:space:]]+"orchestration-contract"?([^:]|$)|key[[:space:]]+orchestration-contract"?([[:space:]]*\\|[[:space:]]*$)|`orchestration-contract`' $md_files 2>/dev/null || true)
     if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "bare envelope key(s) in: $(echo "$hits" | tr "\n" " ")"; fi
     # 9f. One-character line flood: markdown corruption marker. A few legit
-    # one-char lines exist (json block braces, blockquote marks); a flood
-    # means the file was mangled, e.g. a per-character newline join.
+    # one-char lines exist (json block braces, blockquote marks, list dashes);
+    # a flood means the file was mangled, e.g. a per-character newline join.
     for file_c in $md_files; do
-        n_1=$(grep -cE "^.$" "$file_c" 2>/dev/null || true)
-        if [["$n_1" -gt 4 ]]; then
+        n_alpha=$(grep -cE '^[[:space:]]*[a-zA-Z][[:space:]]*$' "$file_c" 2>/dev/null || true)
+        if [[ "$n_alpha" -gt 4 ]]; then
             broken=$((broken + 1))
             BROKEN_TOTAL=$((BROKEN_TOTAL + 1))
-            log_fail "one-char line flood in $file_c ($n_1 lines) - mangled markdown"
+            log_fail "one-char letter flood in $file_c ($n_alpha lines) - mangled markdown"
+        fi
+        n_total=$(grep -cE "^.$" "$file_c" 2>/dev/null || true)
+        if [[ "$n_total" -gt 40 ]]; then
+            broken=$((broken + 1))
+            BROKEN_TOTAL=$((BROKEN_TOTAL + 1))
+            log_fail "one-char line flood in $file_c ($n_total lines) - mangled markdown"
         fi
     done
 

@@ -60,7 +60,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy public --project-name=utility-digest --commit-dirty=true
+          command: pages deploy public --project-name=utility-digest --branch=main --commit-dirty=true
 
       - name: Publish agent proxy worker (utility.rizkifaizalr.workers.dev)
         env:
@@ -72,5 +72,29 @@ jobs:
             -F 'metadata={"main_module":"worker.js","compatibility_date":"2025-01-01"};type=application/json' \
             -F 'worker.js=@worker/worker.js;type=application/javascript+module' \
             | grep -o '"success":[a-z]*'
-          sleep 5
-          curl -sS -o /dev/null -w "worker /llms.txt -> %{http_code}\n" https://utility.rizkifaizalr.workers.dev/llms.txt
+
+      - name: Verify Live Endpoints
+        run: |
+          echo "Verifying Cloudflare Pages and Worker deployment..."
+          ok=0
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS -o /tmp/pages-llms.txt "https://utility-digest.pages.dev/llms.txt" 2>/dev/null && \
+               test -s /tmp/pages-llms.txt && \
+               curl -fsS -o /dev/null "https://utility-digest.pages.dev/chunks/01.txt" 2>/dev/null && \
+               curl -fsS -o /tmp/worker-llms.txt "https://utility.rizkifaizalr.workers.dev/llms.txt" 2>/dev/null && \
+               test -s /tmp/worker-llms.txt; then
+              ok=1
+              break
+            fi
+            echo "Waiting for edge propagation (attempt $i/6)..."
+            sleep 5
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "ERROR: Live endpoints failed verification" >&2
+            echo "--- Pages /llms.txt probe ---"
+            curl -sv "https://utility-digest.pages.dev/llms.txt" || true
+            echo "--- Worker /llms.txt probe ---"
+            curl -sv "https://utility.rizkifaizalr.workers.dev/llms.txt" || true
+            exit 1
+          fi
+          echo "Verified live digest endpoints successfully."

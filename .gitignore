@@ -19,6 +19,10 @@ session/*
 !session/state.template.md
 .session/
 
+# ---- Canonical clone for semantic code indexing (ccc) ------
+workspace/repos/
+repos/
+
 # ---- Docker runtime artifacts ------------------------------
 docker-compose.override.yml
 docker-compose.override.yaml
