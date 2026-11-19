@@ -341,9 +341,59 @@ latest_npm() {   # $1 = package name
   npm view "$1" version 2>/dev/null
 }
 
+pip_python() {
+  if [ -x /opt/pipx/venvs/mcp-server-fetch/bin/python ]; then
+    printf '%s' /opt/pipx/venvs/mcp-server-fetch/bin/python
+  else
+    printf '%s' python3
+  fi
+}
+
 latest_pypi() {  # $1 = package name
+  _py=$(pip_python)
   curl -fsSL "https://pypi.org/pypi/$1/json" 2>/dev/null | \
-    python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])" 2>/dev/null
+    "$_py" -c '
+import json, platform, sys
+
+data = json.load(sys.stdin)
+try:
+    try:
+        from packaging.version import Version, InvalidVersion
+        from packaging.specifiers import SpecifierSet, InvalidSpecifier
+    except ImportError:
+        from pip._vendor.packaging.version import Version, InvalidVersion
+        from pip._vendor.packaging.specifiers import SpecifierSet, InvalidSpecifier
+except ImportError:
+    print(data["info"]["version"])
+    sys.exit(0)
+
+py_ver = platform.python_version()
+compatible = []
+
+for ver_str, files in data.get("releases", {}).items():
+    if not files:
+        continue
+    try:
+        v = Version(ver_str)
+    except InvalidVersion:
+        continue
+    if v.is_prerelease or v.is_devrelease:
+        continue
+    for f in files:
+        if f.get("yanked"):
+            continue
+        req = f.get("requires_python")
+        if req:
+            try:
+                if not SpecifierSet(req).contains(py_ver, prereleases=True):
+                    continue
+            except InvalidSpecifier:
+                continue
+        compatible.append(v)
+        break
+
+print(max(compatible) if compatible else data["info"]["version"])
+' 2>/dev/null
 }
 
 latest_github() {  # $1 = owner/repo
