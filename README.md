@@ -18,8 +18,9 @@ Containerized AI coding agents that plan, build, and ship under a scored, gated 
 4. [Configuration at a glance](#configuration-at-a-glance)
 5. [Project Structure](#project-structure)
 6. [Documentation](#documentation)
-7. [Troubleshooting](#troubleshooting)
-8. [Contributing and License](#contributing-and-license)
+7. [Offline store and certificates](#offline-store-and-certificates-pointers)
+8. [Troubleshooting](#troubleshooting)
+9. [Contributing and License](#contributing-and-license)
 
 ## What this is
 
@@ -104,13 +105,13 @@ utility/
 
 ## Offline store and certificates (pointers)
 
-The offline package store, version resolution, and the corporate CA pipeline are documented in the opencode README and the certs scripts: certs/detect-zscaler.sh probes the wire and refreshes auto-detected roots; certs/sync-certs.sh mirrors the workspace-root set into the image build contexts.
+The offline package store, version resolution, and the corporate CA pipeline are documented in the opencode README and the certs scripts: workspace/certs/detect-zscaler.sh probes the wire and refreshes auto-detected roots; workspace/certs/sync-certs.sh mirrors the workspace-root set into the image build contexts.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| Build fetches fail behind a corporate proxy | Drop your CA .crt into workspace/certs/, run sh certs/sync-certs.sh, re-run the preinstall service, rebuild |
+| Build fetches fail behind a corporate proxy | Drop your CA .crt into workspace/certs/, run sh workspace/certs/sync-certs.sh, re-run the preinstall service, rebuild |
 | Store stays on an old package version | The store is the lockfile: re-run the preinstall service (the ML closure refreshes only with REFRESH_ML=1) |
 | An agent cannot run a command | Add it to config/lean-ctx-config.toml (with rationale) and rebuild, or run lean-ctx allow inside the container |
 | Model provider errors at session start | Check OPENROUTER_API_KEY is set; sumopod is a declared fallback with no key and stays inactive |
