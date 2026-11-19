@@ -50,8 +50,22 @@ jobs:
           print('skills catalog:', len(index), 'skills')
           PYEOF
       - name: Build slim digest
+        run: sh scripts/pages-build.sh
+      # SELF-HEAL: the git-integrated Pages project's dashboard build command
+      # predates this workflow and still passes the removed --exclude flag,
+      # which fails every PR preview build. PATCH the dashboard command to the
+      # canonical script; a no-op when the project is not git-connected.
+      - name: Sync Pages dashboard build command (self-heal)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          npx -y repomix@latest --include "workspace/agents/opencode/**" --ignore "**/node_modules/**,**/skills/**/data/**,**/skills/**/scripts/tests/**,**/*.csv,**/*.html,**/library/**,**/references/**,**/fixtures/**,**/fonts/**,**/pre-install/**,**/rag/test/corpus/**,**/.cocoindex_code/**,**/target/**,**/__pycache__/**,**/*.whl,**/*.deb,**/*.tgz,**/*.bin,**/*.tar*" --style plain --output public/repomix-output.txt
+          curl -sS -X PATCH "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/utility-digest" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"build_config":{"build_command":"sh scripts/pages-build.sh","destination_dir":"public"}}' \
+            | grep -q '"success":true' && echo "pages build config synced to sh scripts/pages-build.sh" \
+            || echo "WARN: build-config sync skipped (project absent, not git-connected, or token lacks Pages:Edit) - the dashboard command may still use the removed --exclude flag"
       - name: Build agent digest (shards + llms.txt + manifest + per-file)
         run: |
           python3 scripts/build-digest-index.py --input public/repomix-output.txt --out public --cap 92160 --budget 1048576
