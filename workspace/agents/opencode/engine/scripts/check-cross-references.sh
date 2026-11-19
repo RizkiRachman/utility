@@ -132,7 +132,7 @@ CHECKS
 
   10. Live count claims
       Computes agents and skills live (agents/*.md, skills/*/SKILL.md)
-      and scans agent-facing md files for numeric claims: "N agents",
+      and scans engine md plus ../docs for numeric claims: "N agents",
       "N agent ...", "N skills", "N skill directories", badge forms
       agents-N / agents: N / skills-N / skills: N, and a parenthesized
       "(N directories)" following a skills/ mention. Any claim whose
@@ -565,8 +565,13 @@ check_count_claims() {
         log_verbose "Check 10: skipped, live counts unavailable"
         return 0
     fi
-    local md_files
+    local md_files docs_files
     md_files=$(find "$PROJECT_ROOT" -name "*.md" -not -name "README.md" 2>/dev/null)
+    docs_files=$(find "$PROJECT_ROOT/../docs" -maxdepth 1 -name "*.md" 2>/dev/null || true)
+    if [[ -n "$docs_files" ]]; then
+        md_files="$md_files
+$docs_files"
+    fi
     if [[ -z "$md_files" ]]; then return 0; fi
     for file in $md_files; do
         bad_a=$(grep -hoE "(^|[^0-9.])[0-9]+[[:space:]]+[Aa]gents?\b|agents[-: ][0-9]+" "$file" 2>/dev/null | grep -oE "[0-9]+" | grep -vx "$agents" | tr "\n" " " || true)
