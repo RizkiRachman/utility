@@ -114,6 +114,7 @@ The offline package store, version resolution, and the corporate CA pipeline are
 | Store stays on an old package version | The store is the lockfile: re-run the preinstall service (the ML closure refreshes only with REFRESH_ML=1) |
 | An agent cannot run a command | Add it to config/lean-ctx-config.toml (with rationale) and rebuild, or run lean-ctx allow inside the container |
 | Model provider errors at session start | Check OPENROUTER_API_KEY is set; sumopod is a declared fallback with no key and stays inactive |
+| Cloudflare Pages PR build fails: Unknown option: --exclude | The dashboard build command predates the workflow and uses the removed repomix flag; deploy-digest.yml PATCHes it back to sh scripts/pages-build.sh on every main push, or fix it once in the Pages dashboard |
 
 ## Contributing and License
 
