@@ -547,6 +547,17 @@ check_forbidden_patterns() {
     #     legacy fallback in drift-detect.sh (.sh) stay legal.
     hits=$(grep -rlE 'remember[[:space:]]+(key[[:space:]]+)?orchestration-contract"?([^:]|$)|recall[[:space:]]+(key[[:space:]]*=?[[:space:]]*"?)?orchestration-contract"?([^:]|$)|--key[[:space:]]*=?[[:space:]]*"?orchestration-contract"?([^:]|$)|--query[[:space:]]*=?[[:space:]]*"?orchestration-contract"?([^:]|$)|query[[:space:]]*=[[:space:]]*"?orchestration-contract"?([^:]|$)|query[[:space:]]+"orchestration-contract"?([^:]|$)|key[[:space:]]+orchestration-contract"?([[:space:]]*\\|[[:space:]]*$)|`orchestration-contract`' $md_files 2>/dev/null || true)
     if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "bare envelope key(s) in: $(echo "$hits" | tr "\n" " ")"; fi
+    # 9f. One-character line flood: markdown corruption marker. A few legit
+    # one-char lines exist (json block braces, blockquote marks); a flood
+    # means the file was mangled, e.g. a per-character newline join.
+    for file_c in $md_files; do
+        n_1=$(grep -cE "^.$" "$file_c" 2>/dev/null || true)
+        if [["$n_1" -gt 4 ]]; then
+            broken=$((broken + 1))
+            BROKEN_TOTAL=$((BROKEN_TOTAL + 1))
+            log_fail "one-char line flood in $file_c ($n_1 lines) - mangled markdown"
+        fi
+    done
 
     if [[ "$broken" -eq 0 ]]; then
         log_pass "Check 9: no forbidden patterns found"

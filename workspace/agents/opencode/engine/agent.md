@@ -294,6 +294,25 @@ One owner per capability; agents must use the designated tool, not a parallel pa
 
 ## 5. Development Workflow
 
+### Tier Routing (read first)
+
+Classify every task before any ceremony starts. The classification is a
+single decision the orchestrator makes and records in the session notes;
+it is never re-derived per phase.
+
+| Tier | Shape | Ceremony |
+| ---- | ----- | -------- |
+| T1 Direct | 1-2 files, git-revertible, unambiguous scope | Inline execution: edit, run gates, commit. No state machine, no envelope, no delegation. Budget: about 10 turns. |
+| T2 Light | 3-10 files, parallelizable, clear scope | One full-context delegation plus verification. session/state.md notes suffice; contract.json optional. Budget: about 20 turns. |
+| T3 Full | ambiguous scope, multi-service, security-sensitive, or an audit on request | The full flow: envelope, analysts, developer, cross-model review, scoring pipeline. |
+
+Rules:
+
+- The state machine and the scoring pipeline exist for T3. Running T1 or T2 work through T3 ceremony is not discipline; it is waste.
+- Gates are never skipped at any tier: the repo check scripts or loop-validate runs before every ship.
+- When the tier is unclear, classify one level lower, T3 becomes T2 and T2 becomes T1, and raise it only when the work proves bigger.
+- Security-sensitive changes are always T3.
+
 ### Session Model
 
 Work is tracked in a single `session/` directory - no git branches required.
@@ -329,6 +348,8 @@ Run this ladder in order before writing ANY code:
 **Not sacrificed:** Input validation at trust boundaries, data-loss error handling, security, accessibility, anything explicitly requested. Non-trivial logic leaves ONE runnable check (assert-based, no framework).
 
 ### Orchestration Flow (Scrum Team - Spec-Driven Development)
+
+This is the T3 ceremony. T2 tasks run the verify loop and the humanizer gate; T1 runs the verify gates only, and the humanizer gate only when user-facing text ships.
 
 1. **Refine phase** - Delegate to @product-manager: capture intent, write Given-When-Then acceptance criteria, declare scope + non-goals. Attach user-journey or story-map diagrams via diagram-design when intent spans multiple actors.
 2. **Discuss phase** - 5-lens check: Business, System, Dev, QA, DevOps. Clarify requirements.
