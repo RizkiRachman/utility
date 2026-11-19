@@ -76,7 +76,8 @@ OPTIONS
     --check NAME Run a single check by name; an unknown name prints this
                  usage and exits 2. Valid names:
                  markdown-links, engine-refs, skill-ids, script-refs,
-                 agent-refs, relpath-refs, context-standards, access-policy, forbidden-patterns
+                 agent-refs, relpath-refs, context-standards, access-policy,
+                 forbidden-patterns, count-claims
 
 CHECKS
   1. Markdown relative links
@@ -122,11 +123,22 @@ CHECKS
 
   9. Forbidden patterns
      Drift-class sweep over agent-facing docs (README.md excluded: it
-     documents Dockerfile build behavior). Flags stale count claims
-     (16 agent, 15-member, 50 directories, 66/67 skills, 8 MCP, 45 skills), bare
-     bash /opt/engine gate phrasing, prose Permissions headings in
-     agents/*.md, graphify zombie mentions, and envelope keys missing
-     the :task_id namespace.
+     documents Dockerfile build behavior). Flags 15-member claims, 50
+     directories claims, 8 MCP claims, bare bash /opt/engine gate
+     phrasing, prose Permissions headings in agents/*.md, graphify
+     zombie mentions, and envelope keys missing the :task_id
+     namespace. Numeric count claims moved to check 10, which compares
+     them against live filesystem counts.
+
+  10. Live count claims
+      Computes agents and skills live (agents/*.md, skills/*/SKILL.md)
+      and scans agent-facing md files for numeric claims: "N agents",
+      "N agent ...", "N skills", "N skill directories", badge forms
+      agents-N / agents: N / skills-N / skills: N, and a parenthesized
+      "(N directories)" following a skills/ mention. Any claim whose
+      number differs from the live count fails. This replaces
+      string-enumerated count drift, so a future recount cannot go
+      stale again.
 
 EXIT CODES
   0   All references resolve
@@ -507,7 +519,7 @@ check_forbidden_patterns() {
     if [[ -z "$md_files" ]]; then return 0; fi
 
     # 9a. Stale count claims
-    hits=$(grep -rlE '(^|[^0-9])(16 agent|16 Agent|15-member|50 director(y|ies)|66 skills|67 skills|8 MCP|45 skill|45 Skill|skills-45|skills: 45)' $md_files 2>/dev/null || true)
+    hits=$(grep -rlE '(^|[^0-9])(15-member|50 director(y|ies)|8 MCP)' $md_files 2>/dev/null || true)
     if [[ -n "$hits" ]]; then broken=$((broken + 1)); BROKEN_TOTAL=$((BROKEN_TOTAL + 1)); log_fail "stale count claim(s) in: $(echo "$hits" | tr "\n" " ")"; fi
 
     # 9b. Bare bash gate phrasing
@@ -540,6 +552,35 @@ check_forbidden_patterns() {
         log_pass "Check 9: no forbidden patterns found"
     else
         log_verbose "Check 9: $broken forbidden-pattern class(es)"
+    fi
+}
+
+# -- Check 10: Live count claims --------------------------------------------
+check_count_claims() {
+    log_verbose "Check 10: numeric count claims vs live filesystem counts"
+    local agents skills broken=0 bad_a bad_s file
+    agents=$(find "$PROJECT_ROOT/agents" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d " ")
+    skills=$(find "$PROJECT_ROOT/skills" -mindepth 2 -maxdepth 2 -name "SKILL.md" 2>/dev/null | wc -l | tr -d " ")
+    if [[ -z "$agents" || -z "$skills" ]]; then
+        log_verbose "Check 10: skipped, live counts unavailable"
+        return 0
+    fi
+    local md_files
+    md_files=$(find "$PROJECT_ROOT" -name "*.md" -not -name "README.md" 2>/dev/null)
+    if [[ -z "$md_files" ]]; then return 0; fi
+    for file in $md_files; do
+        bad_a=$(grep -hoE "(^|[^0-9.])[0-9]+[[:space:]]+[Aa]gents?\b|agents[-: ][0-9]+" "$file" 2>/dev/null | grep -oE "[0-9]+" | grep -vx "$agents" | tr "\n" " " || true)
+        bad_s=$(grep -hoE "(^|[^0-9.])[0-9]+[[:space:]]+[Ss]kills?([[:space:]]+[Dd]irector(y|ies))?\b|skills[-: ][0-9]+|\([0-9]+[[:space:]]+directories\)" "$file" 2>/dev/null | grep -oE "[0-9]+" | grep -vx "$skills" | tr "\n" " " || true)
+        if [[ -n "$bad_a" || -n "$bad_s" ]]; then
+            broken=$((broken + 1))
+            BROKEN_TOTAL=$((BROKEN_TOTAL + 1))
+            log_fail "stale count claim(s) in $file: agents[$bad_a] skills[$bad_s] (live: $agents agents, $skills skills)"
+        fi
+    done
+    if [[ "$broken" -eq 0 ]]; then
+        log_pass "Check 10: all numeric count claims match live counts"
+    else
+        log_verbose "Check 10: $broken file(s) with stale count claims"
     fi
 }
 
@@ -580,7 +621,7 @@ main() {
             --check)
                 if [[ -z "${2:-}" ]]; then
                     echo "Error: --check requires a check name."
-                    echo "Valid names: markdown-links, engine-refs, skill-ids, script-refs, agent-refs, relpath-refs, context-standards, access-policy, forbidden-patterns"
+                    echo "Valid names: markdown-links, engine-refs, skill-ids, script-refs, agent-refs, relpath-refs, context-standards, access-policy, forbidden-patterns, count-claims"
                     exit 2
                 fi
                 ONLY_CHECK="$2"
@@ -610,6 +651,7 @@ main() {
             context-standards) check_context_standards_wiring ;;
             access-policy)     check_access_policy ;;
             forbidden-patterns) check_forbidden_patterns ;;
+            count-claims)        check_count_claims ;;
             *)
                 echo "Unknown check: $ONLY_CHECK" >&2
                 usage 2
@@ -625,6 +667,7 @@ main() {
         check_context_standards_wiring
         check_access_policy
         check_forbidden_patterns
+        check_count_claims
     fi
 
     echo ""
