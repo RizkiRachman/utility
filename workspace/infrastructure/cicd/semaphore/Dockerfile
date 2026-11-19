@@ -8,10 +8,23 @@ USER root
 # Install docker-cli (for invoking deployer containers via docker.sock), curl, unzip, jq, and git
 COPY certs/ /usr/local/share/ca-certificates/
 
-# Trust the corporate CA BEFORE the first apk fetch (apk index fetch runs over TLS
-# behind the corporate proxy). Regenerate the bundle when the tool exists;
-# otherwise append the PEMs straight into the alpine bundle.
-RUN update-ca-certificates 2>/dev/null || cat /usr/local/share/ca-certificates/*.crt >> /etc/ssl/certs/ca-certificates.crt
+# Corporate proxy (Zscaler) intercepts TLS: its FULL CA chain must be trusted
+# BEFORE the first apk fetch (the apk index fetch runs over HTTPS). One cert is
+# not enough - the chain is leaf -> short-lived intermediate -> long-lived
+# intermediate -> root, and apk fails with "server certificate not trusted"
+# unless every CA in the chain is dropped into certs/ as PEM.
+RUN set -eux; \
+    n=$(find /usr/local/share/ca-certificates -name '*.crt' | wc -l); \
+    echo "===> corporate CA certs found in certs/: $n"; \
+    if [ "$n" -eq 0 ]; then \
+      echo "FATAL: certs/ is empty - copy the Zscaler CA chain (PEM .crt) into" >&2; \
+      echo "       workspace/infrastructure/cicd/semaphore/certs/ and rebuild" >&2; \
+      exit 1; \
+    fi; \
+    update-ca-certificates 2>/dev/null || cat /usr/local/share/ca-certificates/*.crt >> /etc/ssl/certs/ca-certificates.crt
+
+# Point every OpenSSL consumer (apk, curl, terraform) at the refreshed bundle.
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 RUN apk add --no-cache ca-certificates curl unzip docker-cli jq git
 RUN update-ca-certificates
