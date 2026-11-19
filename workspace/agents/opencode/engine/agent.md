@@ -488,13 +488,15 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 - `bash` and `snip` trigger permission prompts and block automation
 
 ### Sandbox (Playground)
-- **All scratch work goes to `sandbox/<session-slug>/` at the project root**: probes, clones, screenshots, throwaway builds, rendered tests. Not to repo paths, not to `/tmp`, not into another session's folder.
-- **One folder per live session**, slugified from the OpenCode session title (`opencode optimizer` → `opencode-optimizer`); on collision append a 4-character session-ID prefix.
-- **Write only inside your own folder.** Other sessions' folders are read-only; deleting one needs explicit user approval.
-- **Never write at `sandbox/` root.** Only `README.md`, `.gitignore`, and `.gitkeep` live there, and only those are tracked.
+- **Pre-flight before any scratch write: determine whether the current workspace is already inside a sandbox.** Walk up from the cwd looking for a sandbox root: a directory named `sandbox` carrying its marker README or gitignore. Found one: work inside it and put the session folder directly beneath it. Detection ambiguous or no repo root above the cwd: assume you are already inside a sandbox and create nothing. Run `sandbox-guard.sh check` (engine `scripts/`) before the first scratch write of a session; it decides this mechanically.
+- **Session folder comes first.** Create `<sandbox-root>/<session-slug>/` before any other scratch write; slug from the OpenCode session title (`opencode optimizer` → `opencode-optimizer`); on collision append a 4-character session-ID prefix. Every scratch path derives from that folder.
+- **Session isolation is absolute.** Agents run in parallel: another agent's session folder does not exist for you. No reads, no listings, no writes, no cleanup outside your own folder. Deleting another session's folder needs explicit user approval.
+- **Never create a nested sandbox inside a sandbox.** The recurring failure: an agent lands inside a sandbox tree, misreads the project root, and stacks a second sandbox level under the first. A stacked double-sandbox path is corruption; flatten it only with user approval.
+- All scratch work goes to `sandbox/<session-slug>/` at the project root: probes, clones, screenshots, throwaway builds, rendered tests. Not to repo paths, not to `/tmp`, not into another session's folder.
+- **Write only inside your own folder. Never write at `sandbox/` root.** Only `README.md`, `.gitignore`, and `.gitkeep` live there, and only those are tracked.
 - **Sandbox contents are never committed** (gitignored via the dedicated sandbox pattern). Promote anything durable to its project folder before COMPLETE.
 - **No secrets, tokens, credentials, certificates, or customer data.** Bind servers to `127.0.0.1`, use ports 4100-4999, stop them before finishing.
-- **Budget:** 200 MB and 7 days per session folder. Rules, naming, and prune commands: `sandbox/README.md`; machine-readable: `rules.json → enforcement.sandbox`.
+- **Budget:** 200 MB and 7 days per session folder. Rules, naming, and prune commands: `sandbox/README.md`; machine-readable: `rules.json → enforcement.sandbox`; runtime guard: `sandbox-guard.sh` in engine `scripts/`.
 
 ### Communication
 - Explain tradeoffs, not just decisions

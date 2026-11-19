@@ -565,6 +565,16 @@ check_forbidden_patterns() {
         fi
     done
 
+    # 9g. Stacked double-sandbox path literal: agents must never create a
+    # second sandbox level under a sandbox. README.md stays excluded from
+    # md_files so the sandbox README can document the failure mode plainly.
+    hits=$(grep -rnF 'sandbox/sandbox' $md_files 2>/dev/null || true)
+    if [[ -n "$hits" ]]; then
+        broken=$((broken + 1))
+        BROKEN_TOTAL=$((BROKEN_TOTAL + 1))
+        log_fail "stacked double-sandbox path literal in: $(echo "$hits" | head -5 | tr '\n' " ")"
+    fi
+
     if [[ "$broken" -eq 0 ]]; then
         log_pass "Check 9: no forbidden patterns found"
     else

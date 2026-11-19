@@ -416,7 +416,7 @@
       "enforcement": "block_on_violation"
     },
     "sandbox": {
-      "version": "1.0.0",
+      "version": "1.1.0",
       "desc": "Session-scoped scratch space at the project root; one folder per live session, contents gitignored.",
       "root": "sandbox",
       "naming": "<session-slug>",
@@ -424,6 +424,14 @@
       "collision_suffix": "-<4 char session-id prefix>",
       "write_scope": "own session folder only; other sessions read-only",
       "delete_scope": "own session folder only; another session's folder requires user approval",
+      "preflight": {
+        "desc": "before any scratch write, detect whether the cwd is already inside a sandbox: walk up for a directory named sandbox carrying its marker README or gitignore",
+        "on_ambiguous": "treat as already inside a sandbox; create nothing",
+        "nested_creation": "forbidden: a second sandbox level under a sandbox is corruption",
+        "runtime_guard": "scripts/sandbox-guard.sh"
+      },
+      "session_folder_first": "create <sandbox-root>/<session-slug> before any other scratch write",
+      "cross_session_isolation": "agents run in parallel; the folders of other sessions are invisible: no read, no listing, no write, no cleanup outside the own folder",
       "tracked": [
         "README.md",
         ".gitignore",

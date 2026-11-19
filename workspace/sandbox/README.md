@@ -44,16 +44,19 @@ Write everything for this session under `sandbox/$slug/`. Delete the folder when
 
 | # | Rule | Level |
 |---|------|-------|
-| 1 | One folder per live session: `sandbox/<session-slug>/` | MUST |
-| 2 | Write only inside your own session folder. Other sessions' folders are read-only | MUST |
-| 3 | Never delete another session's folder without explicit user approval | MUST |
-| 4 | Never write at `sandbox/` root; it holds the tracked skeleton only | MUST |
-| 5 | Nothing in the sandbox is committed. It is gitignored by design | MUST |
-| 6 | No secrets, tokens, credentials, certificates, or customer data. Use environment variables | NEVER |
-| 7 | Promote durable output to its real home before the session ends. The sandbox is disposable | MUST |
-| 8 | Bind dev servers to `127.0.0.1`, use a port in 4100-4999, stop them before finishing | MUST |
-| 9 | Stay under 200 MB per session folder and 7 days since last write | SHOULD |
-| 10 | Log long-running processes to `sandbox/<slug>/logs/` and leave no daemon behind | MUST |
+| 1 | Pre-flight before any scratch write: detect whether the cwd is already inside a sandbox (walk up for a `sandbox` directory carrying its marker README or gitignore). Ambiguous means: assume already inside, create nothing | MUST |
+| 2 | Session folder first: create `sandbox/<session-slug>/` before any other scratch write | MUST |
+| 3 | Session isolation: agents run in parallel; the folders of other sessions are invisible - no reads, no listings, no writes, no cleanup outside your own folder | MUST |
+| 4 | One folder per live session: `sandbox/<session-slug>/` | MUST |
+| 5 | Write only inside your own session folder | MUST |
+| 6 | Never delete the folder of another session without explicit user approval | MUST |
+| 7 | Never write at `sandbox/` root; it holds the tracked skeleton only | MUST |
+| 8 | Nothing in the sandbox is committed. It is gitignored by design | MUST |
+| 9 | No secrets, tokens, credentials, certificates, or customer data. Use environment variables | NEVER |
+| 10 | Promote durable output to its real home before the session ends. The sandbox is disposable | MUST |
+| 11 | Bind dev servers to `127.0.0.1`, use a port in 4100-4999, stop them before finishing | MUST |
+| 12 | Stay under 200 MB per session folder and 7 days since last write | SHOULD |
+| 13 | Log long-running processes to `sandbox/<slug>/logs/` and leave no daemon behind | MUST |
 
 The full enforcement text ships with the engine: `agent.md` section 6 (Sandbox) and `rules.json` at `enforcement.sandbox`.
 
@@ -145,8 +148,10 @@ Same pattern as [`certs/`](../certs/): ignore everything, negate the skeleton. N
 | Machine-readable rules | `agents/opencode/engine/rules/rules.json` `enforcement.sandbox` | Path, naming, scope, quota, ports |
 | Agent permissions | `agents/opencode/engine/agents/*.md` | Writer agents carry the local clause |
 | Review gate | `quality-analyst` (REVIEW state) | Treats a write outside the session folder as a process finding |
+| Runtime guard | `agents/opencode/engine/scripts/sandbox-guard.sh` | Pre-flight detection, session-folder resolution, nested-sandbox refusal, isolation checks |
+| Doc checks | `agents/opencode/engine/scripts/check-cross-references.sh` check 9 | Fails the stacked double-sandbox path literal in any agent-facing markdown |
 
-Scope is enforced by instructions and review, not by an automated checker: a write to another session's folder is a process violation an agent must report, and a reviewer must flag.
+Scope is enforced by the runtime guard plus instructions and review: `sandbox-guard.sh check` resolves the sandbox root and refuses a nested sandbox before the first scratch write, `sandbox-guard.sh isolation <slug> <path>` rejects paths outside the own session folder, and the stacked double-sandbox path literal fails check 9 in any agent-facing markdown.
 
 ## License
 
