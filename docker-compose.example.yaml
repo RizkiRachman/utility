@@ -106,7 +106,7 @@ services:
       bpg.group: infra
       bpg.type: cicd
     build:
-      context: ./workspace/infra/semaphore
+      context: ./workspace/infrastructure/cicd/semaphore
       additional_contexts:
         preinstall: ./workspace/pre-installer
     init: true
@@ -115,11 +115,11 @@ services:
     ports:
       - "127.0.0.1:3001:3000"
     environment:
-      SEMAPHORE_DB_DIALECT: bolt
-      SEMAPHORE_DB: /var/lib/semaphore/database.boltdb
+      SEMAPHORE_DB_DIALECT: sqlite
+      SEMAPHORE_DB_PATH: /var/lib/semaphore
       SEMAPHORE_PLAYBOOK_PATH: /tmp/semaphore
       SEMAPHORE_ADMIN: ${SEMAPHORE_ADMIN:-admin}
-      SEMAPHORE_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD:-changeme123}
+      SEMAPHORE_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD:?Set SEMAPHORE_ADMIN_PASSWORD in .env}
       SEMAPHORE_ADMIN_NAME: Admin
       SEMAPHORE_ADMIN_EMAIL: admin@localhost
       SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION:?Set 32-char base64 key in .env}
