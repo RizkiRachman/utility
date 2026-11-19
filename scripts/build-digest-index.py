@@ -5,6 +5,9 @@ Information architecture (daily self-learning on enforcement workflow):
   FOCUS buckets are minified and sharded; digest-full.txt holds the
   whole focus corpus in one file, budget-capped (default 1 MB) so a
   web agent can fetch everything in a single request.
+  Fetch-capped agents (e.g. a 32 KB per-fetch limit) instead walk
+  chunks/NN.txt in order; each chunk is <= --chunk bytes and the
+  llms.txt chunk index lists byte sizes for a coverage proof.
   Everything else (agents optionally, skills, configs, vendored tools)
   is HIDDEN from shards but still fetchable: raw per-file copy under
   files/ + manifest map.
@@ -189,6 +192,8 @@ def main():
     ap.add_argument("--input", required=True, help="repomix plain output")
     ap.add_argument("--out", required=True, help="output dir (e.g. public)")
     ap.add_argument("--cap", type=int, default=90 * 1024)
+    ap.add_argument("--chunk", type=int, default=24 * 1024,
+                    help="max chunk bytes for chunks/NN.txt (capped fetchers)")
     ap.add_argument("--budget", type=int, default=1024 * 1024,
                     help="max digest-full.txt bytes (default 1 MB)")
     ap.add_argument("--max-file", type=int, default=256 * 1024)
@@ -208,7 +213,7 @@ def main():
     core = [(r, b) for r, b in files if len(b) <= args.max_file]
 
     out = args.out
-    for sub in ("shards", "files"):
+    for sub in ("shards", "files", "chunks"):
         shutil.rmtree(os.path.join(out, sub), ignore_errors=True)
         os.makedirs(os.path.join(out, sub), exist_ok=True)
 
@@ -252,6 +257,13 @@ def main():
               file=sys.stderr)
         return 3
 
+    chunks_meta = []
+    for i, part_c in enumerate(chunk_text(full_data, args.chunk), 1):
+        relp = "chunks/%02d.txt" % i
+        w(out, relp, part_c)
+        chunks_meta.append({"file": relp, "bytes": len(part_c),
+                            "files": FHDR.findall(part_c)})
+
     fmeta = {}
     for rel, body in sorted(files):
         w(out, "files/" + rel, body)
@@ -266,6 +278,8 @@ def main():
         "total_source_bytes": sum(fmeta.values()),
         "focus_bytes": sum(s["bytes"] for s in shards),
         "digest_full_bytes": len(full_data),
+        "chunk_bytes": args.chunk,
+        "chunks": chunks_meta,
         "shards": shards, "files": fmeta,
         "bulky": [{"path": r, "bytes": n, "url": "files/" + r}
                   for r, n in sorted(bulky.items())],
@@ -281,7 +295,8 @@ def main():
          "focus: enforcement workflow + rules", "",
          "> %d source files (%d KB). Focus corpus (minified) = %d KB: "
          "fetch digest-full.txt (%d KB, budget %d KB) for everything at "
-         "once, or single shards below (<= ~%d KB each). Agents optional; "
+         "once, single shards below (<= ~%d KB each), or chunks/NN.txt in "
+         "order for capped fetchers. Agents optional; "
          "skills hidden; all raw files at /files/<path>."
          % (len(fmeta), sum(fmeta.values()) // 1024, focus_kb,
             len(full_data) // 1024, args.budget // 1024, args.cap // 1024),
@@ -295,6 +310,12 @@ def main():
             d += " .. " + s["paths"][-1]
         L.append("- [%s](%s) (%d KB): %s" % (s["name"], s["file"],
                                              s["bytes"] // 1024, d))
+    L += ["", "## Fetch-capped path (chunks <= %d KB; walk in order)"
+          % (args.chunk // 1024)]
+    for c_1 in chunks_meta:
+        first = c_1["files"][0] if c_1["files"] else "(continuation)"
+        L.append("- [%s](%s) (%d bytes): starts at %s"
+                 % (c_1["file"], c_1["file"], c_1["bytes"], first))
     L += ["", "## Suggested daily path",
           "1. workflow-core (state machine, scoring, contract schema)",
           "2. enforcement-scripts (guard/gate/validate scripts)",
