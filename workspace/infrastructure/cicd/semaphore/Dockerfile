@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 FROM semaphoreui/semaphore:v2.20.24
 
 ARG TARGETARCH=amd64
@@ -7,7 +6,10 @@ ARG TERRAFORM_VERSION=1.11.4
 USER root
 
 # Install docker-cli (for invoking deployer containers via docker.sock), curl, unzip, jq, and git
-RUN apk add --no-cache curl unzip docker-cli jq git
+COPY certs/ /usr/local/share/ca-certificates/
+
+# Trust the corporate CA inside the build (same pattern as agents/opencode).
+RUN apk add --no-cache ca-certificates curl unzip docker-cli jq git && update-ca-certificates
 
 # Install Terraform from offline preinstall context if present, otherwise download from HashiCorp releases
 RUN --mount=type=bind,from=preinstall,target=/preinstall \
