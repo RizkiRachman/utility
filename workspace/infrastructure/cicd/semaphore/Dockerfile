@@ -8,8 +8,13 @@ USER root
 # Install docker-cli (for invoking deployer containers via docker.sock), curl, unzip, jq, and git
 COPY certs/ /usr/local/share/ca-certificates/
 
-# Trust the corporate CA inside the build (same pattern as agents/opencode).
-RUN apk add --no-cache ca-certificates curl unzip docker-cli jq git && update-ca-certificates
+# Trust the corporate CA BEFORE the first apk fetch (apk index fetch runs over TLS
+# behind the corporate proxy). Regenerate the bundle when the tool exists;
+# otherwise append the PEMs straight into the alpine bundle.
+RUN update-ca-certificates 2>/dev/null || cat /usr/local/share/ca-certificates/*.crt >> /etc/ssl/certs/ca-certificates.crt
+
+RUN apk add --no-cache ca-certificates curl unzip docker-cli jq git
+RUN update-ca-certificates
 
 # Install Terraform from offline preinstall context if present, otherwise download from HashiCorp releases
 RUN --mount=type=bind,from=preinstall,target=/preinstall \
