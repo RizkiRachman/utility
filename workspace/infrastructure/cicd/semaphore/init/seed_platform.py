@@ -52,10 +52,13 @@ def req(method, path, payload=None):
         except ValueError:
             return e.code, {"raw": body[:200]}
 
+    except (urllib.error.URLError, OSError) as e:
+        return None, {"error": str(e)}
+
 def say(tag, msg):
     print("[" + tag + "] " + msg)
 
-def wait_for_api(timeout=180):
+def wait_for_api(timeout=int(os.environ.get("SEED_WAIT_TIMEOUT") or "180")):
     deadline = time.time() + timeout
     while time.time() < deadline:
         code, _ = req("GET", "/api/ping")

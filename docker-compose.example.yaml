@@ -108,7 +108,7 @@ services:
     depends_on:
       semaphore:
         condition: service_healthy
-    restart: "no"
+    restart: on-failure
     mem_limit: 256m
     environment:
       SEED_API_BASE: http://semaphore:3000
