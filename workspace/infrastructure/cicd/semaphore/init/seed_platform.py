@@ -52,10 +52,13 @@ def req(method, path, payload=None):
         except ValueError:
             return e.code, {"raw": body[:200]}
 
+    except (urllib.error.URLError, OSError) as e:
+        return None, {"error": str(e)}
+
 def say(tag, msg):
     print("[" + tag + "] " + msg)
 
-def wait_for_api(timeout=180):
+def wait_for_api(timeout=int(os.environ.get("SEED_WAIT_TIMEOUT") or "180")):
     deadline = time.time() + timeout
     while time.time() < deadline:
         code, _ = req("GET", "/api/ping")
@@ -122,17 +125,45 @@ def ensure_key(pid):
     errors.append("key creation failed: " + last)
     return None
 
+def ensure_api_token():
+    code, body = req("POST", "/api/user/tokens")
+    tok = body.get("id") if isinstance(body, dict) else None
+    if code in (200, 201) and tok:
+        say("create", "semaphore API token (…" + str(tok)[:8] + "…)")
+        return tok
+    errors.append("cannot mint API token: HTTP " + str(code))
+    return ""
+
+def build_inventory_yml(token):
+    yml = "---\\nall:\\n  hosts:\\n    localhost:\\n      ansible_connection: local\\n  vars:\\n"
+    yml += "    VAULT_TOKEN: " + Q + VAULT_TOKEN + Q + "\\n"
+    yml += "    GITEA_BOOTSTRAP_USERNAME: " + Q + GITEA_USER + Q + "\\n"
+    yml += "    GITEA_BOOTSTRAP_PASSWORD: " + Q + GITEA_PASS + Q + "\\n"
+    yml += "    SEMAPHORE_API_TOKEN: " + Q + token + Q + "\\n"
+    return yml
+
 def ensure_inventory(pid):
+    token = ensure_api_token()
     code, invs = req("GET", "/api/project/" + str(pid) + "/inventory")
     if code == 200 and isinstance(invs, list):
         for i in invs:
             if i.get("name") == "deployer-platform":
-                say("skip", "inventory deployer-platform (id " + str(i["id"]) + ")")
+                code, cur = req("GET", "/api/project/" + str(pid) + "/inventory/" + str(i["id"]))
+                content = (cur or {}).get("inventory") or ""
+                if "SEMAPHORE_API_TOKEN" in content:
+                    say("skip", "inventory deployer-platform (id " + str(i["id"]) + ")")
+                elif token:
+                    body = dict(cur)
+                    body["inventory"] = build_inventory_yml(token)
+                    code2, resp2 = req("PUT", "/api/project/" + str(pid) + "/inventory/" + str(i["id"]), body)
+                    if code2 in (200, 201, 204):
+                        say("update", "inventory deployer-platform - injected SEMAPHORE_API_TOKEN")
+                    else:
+                        errors.append("inventory token injection failed: HTTP " + str(code2))
+                else:
+                    say("skip", "inventory deployer-platform - no token available")
                 return i["id"]
-    yml = "---\nall:\n  hosts:\n    localhost:\n      ansible_connection: local\n  vars:\n"
-    yml += "    VAULT_TOKEN: " + Q + VAULT_TOKEN + Q + "\n"
-    yml += "    GITEA_BOOTSTRAP_USERNAME: " + Q + GITEA_USER + Q + "\n"
-    yml += "    GITEA_BOOTSTRAP_PASSWORD: " + Q + GITEA_PASS + Q + "\n"
+    yml = build_inventory_yml(token)
     body = {"project_id": pid, "name": "deployer-platform", "type": "static", "inventory": yml}
     code, resp = req("POST", "/api/project/" + str(pid) + "/inventory", body)
     if code not in (200, 201, 204):
