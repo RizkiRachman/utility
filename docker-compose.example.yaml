@@ -99,6 +99,29 @@ services:
       SHOW_CONTENT_DIGEST: "true"
       NGINX_PROXY_PASS_URL: http://registry:5000
       PULL_URL: localhost:5000
+  semaphore-init:
+    container_name: semaphore-init
+    image: semaphoreui-tf:local
+    labels:
+      bpg.group: infra
+      bpg.type: cicd
+    depends_on:
+      semaphore:
+        condition: service_healthy
+    restart: "no"
+    mem_limit: 256m
+    environment:
+      SEED_API_BASE: http://semaphore:3000
+      SEED_ADMIN: ${SEMAPHORE_ADMIN:-admin}
+      SEED_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD:-changeme123}
+      VAULT_TOKEN: ${VAULT_TOKEN:-}
+      GITEA_BOOTSTRAP_USERNAME: ${GITEA_BOOTSTRAP_USERNAME:-}
+      GITEA_BOOTSTRAP_PASSWORD: ${GITEA_BOOTSTRAP_PASSWORD:-}
+      DEPLOYER_GIT_URL: ${DEPLOYER_GIT_URL:-http://host.docker.internal:3300/development-tools/springboot-application-web-deployer}
+    volumes:
+      - ./workspace/infrastructure/cicd/semaphore/init:/init:ro
+    entrypoint: ["python3", "/init/seed_platform.py"]
+
   semaphore:
     container_name: semaphore
     image: semaphoreui-tf:local
