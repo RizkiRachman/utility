@@ -60,6 +60,7 @@ services:
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx2500m"
       SECRET_VAULT_TOKEN: ${SECRET_VAULT_TOKEN_B64:-}
+      SECRET_WEBHOOK_KEY: ${SECRET_WEBHOOK_KEY_B64:-}
       VAULT_ADDR: http://vault:8200
       KESTRA_CONFIGURATION: |
         micronaut:

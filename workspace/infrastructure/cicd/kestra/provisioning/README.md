@@ -20,10 +20,15 @@ No manual imports after a fresh install.
 
 ## Flows
 
-| Flow | What it does | Inputs |
+| Flow | Where it lives | What it does |
 |---|---|---|
-| `platform-deployer` | Plans, applies or destroys a web-deployer platform. State reconciliation lands in the namespace KV store. | `repository_url` (STRING, required, no default) - `repository_name` (STRING, required, no default) - `action` (SELECT: plan / apply / destroy, default plan) |
-| `platform-secrets` | Reads the Gitea token from Vault, verifies it against the Gitea API, records the identity in the namespace KV store. | none |
+| `platform-sync` | this folder (baked into the image) | Bootstrap: pulls the platform namespace from the deployer repo via git SyncFlows. Webhook on push, 5-minute fallback schedule. |
+| `platform-deployer` | deployer repo `pipelines/kestra/flows/` | Plans, applies or destroys a web-deployer platform. `repository_url` / `repository_name` mandatory, no defaults; `action` SELECT plan/apply/destroy. |
+| `platform-secrets` | deployer repo `pipelines/kestra/flows/` | Fetches the Gitea token from Vault, verifies it, records the identity. |
+
+The two platform flows are sourced from git (Gitea PR flow), not from this
+image - edit them in the deployer repository, merge, and the change is live
+within 5 minutes or instantly via the webhook.
 
 ## Quick start
 
@@ -67,8 +72,31 @@ micronaut:
 ```
 
 At every startup the watcher loads the directory into the database. A fresh
-instance therefore boots with both flows already deployed. Verified on an
-empty database: both flows present at revision 1, zero manual steps.
+instance boots with the sync flow deployed, and the sync flow pulls the rest
+from git - verified on an empty database: platform-sync present at boot, one
+execution later both platform flows imported from the deployer repo, zero
+manual steps.
+
+## Git sync architecture
+
+```
+push to deployer repo (pipelines/kestra/flows)
+  -> Gitea webhook -> platform-sync execution
+  -> Vault read (gitea token) -> SyncFlows -> platform namespace updated
+```
+
+- Source of truth: `pipelines/kestra/flows/` in the deployer repository
+  (`development-tools/springboot-application-web-deployer`).
+- Sync happens on every push (webhook) and every 5 minutes (fallback).
+- The plugin matters: `plugin-git` 1.x for kestra 1.3 core (pinned in the
+  Dockerfile). 4.x targets kestra 2.0 and fails with `NoSuchMethodError
+  SDK$Auth.url()` - do not use LATEST.
+- `SyncFlows` imports every file in `gitDirectory` unfiltered: keep only
+  flow YAML in `flows/`, docs go in the folder root (a README.md inside
+  `flows/` breaks the sync with a YAML parse error).
+- The webhook key comes from `SECRET_WEBHOOK_KEY` (base64 in `.env`).
+  Configure the Gitea repo webhook to POST
+  `http://kestra:8080/api/v1/main/executions/webhook/platform/platform-sync/<key>`.
 
 ## Secrets wiring
 

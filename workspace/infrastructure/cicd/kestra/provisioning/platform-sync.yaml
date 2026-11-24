@@ -1,0 +1,34 @@
+id: platform-sync
+namespace: platform
+description: |
+  Bootstrap flow: keeps the platform namespace in sync with the deployer
+  repository (pipelines/kestra/flows folder). Runs on push via the Gitea
+  webhook and on a 5-minute fallback schedule. Credentials come from Vault;
+  nothing sensitive is stored in kestra. The flows themselves are NOT kept
+  in this image - this repository is the only baked flow, everything else
+  is fetched from git so a push takes effect without manual imports.
+labels:
+  bpg.group: cicd
+  bpg.type: provisioning
+tasks:
+  - id: read_vault
+    type: io.kestra.plugin.core.http.Request
+    uri: http://vault:8200/v1/general/data/cicd/kestra
+    method: GET
+    headers:
+      X-Vault-Token: "{{ secret('VAULT_TOKEN') }}"
+  - id: sync_flows
+    type: io.kestra.plugin.git.SyncFlows
+    url: "{{ json(outputs.read_vault.body).data.data.gitea_url }}/development-tools/springboot-application-web-deployer.git"
+    username: admin
+    password: "{{ json(outputs.read_vault.body).data.data.gitea_token }}"
+    branch: main
+    gitDirectory: pipelines/kestra/flows
+    targetNamespace: platform
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "*/5 * * * *"
+  - id: gitea-push
+    type: io.kestra.plugin.core.trigger.Webhook
+    key: "{{ secret('WEBHOOK_KEY') }}"
