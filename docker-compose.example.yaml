@@ -318,12 +318,13 @@ services:
       bpg.type: cicd
     build:
       context: ./workspace/infrastructure/cicd/kestra
+      args:
+        KESTRA_BASE: ${KESTRA_BASE:-kestra/kestra:v1.3.26-no-plugins}
+        KESTRA_PLUGINS: ${KESTRA_PLUGINS:-}
     restart: unless-stopped
     init: true
     mem_limit: 4g
     stop_grace_period: 1m
-    environment:
-      JAVA_TOOL_OPTIONS: "-Xmx2500m -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=JKS"
     depends_on:
       kestra-postgres:
         condition: service_healthy
@@ -333,6 +334,7 @@ services:
     # drop the socket mounts and this line if tasks only use the Process runner
     user: "root"
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx2500m"
       KESTRA_CONFIGURATION: |
         datasources:
           postgres:
