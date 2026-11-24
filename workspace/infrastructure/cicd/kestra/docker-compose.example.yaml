@@ -48,6 +48,9 @@ services:
     depends_on:
       kestra-postgres:
         condition: service_healthy
+    networks:
+      - default
+      - platform
     ports:
       - "127.0.0.1:4800:8080"
     # root is required to use the docker socket for the Docker task runner
@@ -56,6 +59,8 @@ services:
     user: "root"
     environment:
       JAVA_TOOL_OPTIONS: "-Xmx2500m"
+      SECRET_VAULT_TOKEN: ${SECRET_VAULT_TOKEN_B64:-}
+      VAULT_ADDR: http://vault:8200
       KESTRA_CONFIGURATION: |
         datasources:
           postgres:
@@ -85,3 +90,7 @@ services:
       - kestra-wd:/tmp/kestra-wd
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/kestra-wd:/tmp/kestra-wd
+networks:
+  platform:
+    external: true
+    name: ${KESTRA_PLATFORM_NETWORK:-bpgv5-network}
