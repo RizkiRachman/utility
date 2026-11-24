@@ -289,6 +289,75 @@ services:
       retries: 3
       start_period: 20s
 
+  kestra-postgres:
+    container_name: kestra-postgres
+    image: postgres:16-alpine
+    labels:
+      bpg.group: infra
+      bpg.type: cicd
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      POSTGRES_DB: kestra
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: ${KESTRA_DB_PASSWORD:-kestra}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d kestra -U kestra"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  kestra:
+    container_name: kestra
+    image: kestra-ca:local
+    labels:
+      bpg.group: infra
+      bpg.type: cicd
+    build:
+      context: ./workspace/infrastructure/cicd/kestra
+    restart: unless-stopped
+    init: true
+    mem_limit: 1g
+    stop_grace_period: 1m
+    depends_on:
+      kestra-postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:4800:8080"
+    # root is required for the docker socket (Docker task runner);
+    # drop the socket mounts and this line if tasks only use the Process runner
+    user: "root"
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://kestra-postgres:5432/kestra
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: ${KESTRA_DB_PASSWORD:-kestra}
+        kestra:
+          repository:
+            type: postgres
+          storage:
+            type: local
+            local:
+              base-path: "/app/storage"
+          queue:
+            type: postgres
+          tasks:
+            tmp-dir:
+              path: "/tmp/kestra-wd/tmp"
+          server:
+            basic-auth:
+              username: ${KESTRA_ADMIN_USER:-admin@kestra.io}
+              password: ${KESTRA_ADMIN_PASSWORD:-KestraAdmin123}
+          url: http://localhost:4800/
+    volumes:
+      - kestra-data:/app/storage
+      - kestra-wd:/tmp/kestra-wd
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/kestra-wd:/tmp/kestra-wd
+
 volumes:
   gitea-data:
   gitea-config:
@@ -296,4 +365,6 @@ volumes:
   vault-logs:
   registry-data:
   semaphore-data:
+  kestra-data:
+  kestra-postgres-data:
   opencode-data:
