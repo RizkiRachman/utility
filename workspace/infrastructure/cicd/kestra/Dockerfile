@@ -24,7 +24,7 @@ RUN set -eux; \
       apt-get install -y --no-install-recommends ca-certificates curl git bash; \
       rm -rf /var/lib/apt/lists/*; \
     else \
-      echo FATAL: no supported package manager (apk/apt-get) in base image; exit 1; \
+      echo "FATAL: no supported package manager in base image"; exit 1; \
     fi; \
     cat /usr/local/share/ca-certificates/*.crt >> /etc/ssl/certs/ca-certificates.crt; \
     update-ca-certificates
