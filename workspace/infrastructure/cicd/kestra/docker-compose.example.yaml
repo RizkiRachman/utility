@@ -61,6 +61,8 @@ services:
       JAVA_TOOL_OPTIONS: "-Xmx2500m"
       SECRET_VAULT_TOKEN: ${SECRET_VAULT_TOKEN_B64:-}
       SECRET_WEBHOOK_KEY: ${SECRET_WEBHOOK_KEY_B64:-}
+      DEPLOYER_WORK_DIR: /app/deployer
+      DEPLOYER_WORK_HOST_DIR: ${DEPLOYER_WORK_DIR:?set DEPLOYER_WORK_DIR in .env - absolute host path for the deployer workspace}
       VAULT_ADDR: http://vault:8200
       KESTRA_CONFIGURATION: |
         micronaut:
@@ -94,6 +96,7 @@ services:
           url: http://localhost:4800/
     volumes:
       - kestra-data:/app/storage
+      - ${DEPLOYER_WORK_DIR:?set DEPLOYER_WORK_DIR in .env - absolute host path for the deployer workspace}:/app/deployer
       - kestra-wd:/tmp/kestra-wd
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/kestra-wd:/tmp/kestra-wd

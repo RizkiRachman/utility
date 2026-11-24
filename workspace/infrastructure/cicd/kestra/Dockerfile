@@ -10,7 +10,7 @@
 # 1.3 with NoSuchMethodError SDK$Auth.url() (probed). Do not use LATEST.
 ARG KESTRA_BASE=kestra/kestra:v1.3.26-no-plugins
 FROM ${KESTRA_BASE}
-ARG KESTRA_PLUGINS=io.kestra.plugin:plugin-git:1.3.0
+ARG KESTRA_PLUGINS=io.kestra.plugin:plugin-git:1.3.0 io.kestra.plugin:plugin-script:1.18.9
 
 USER root
 
@@ -42,6 +42,15 @@ RUN set -eux; \
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 RUN if [ -n "$KESTRA_PLUGINS" ]; then /app/kestra plugins install $KESTRA_PLUGINS; fi
+
+# docker CLI: the platform-deployer flow runs launch.sh, which drives the
+# deployer as a sibling container over the mounted docker.sock. CLI only -
+# the daemon runs on the host, no dockerd inside kestra.
+ARG DOCKER_CLI_VERSION=29.9.2
+RUN curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz" \
+      | tar -xz -C /tmp \
+    && mv /tmp/docker/docker /usr/local/bin/docker \
+    && rm -rf /tmp/docker
 
 # Auto-provisioning: flows baked into the image are loaded into the database
 # at startup by the local flow sync (micronaut.io.watch, enabled in compose).
