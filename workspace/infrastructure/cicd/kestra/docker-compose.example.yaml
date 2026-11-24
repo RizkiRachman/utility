@@ -62,6 +62,12 @@ services:
       SECRET_VAULT_TOKEN: ${SECRET_VAULT_TOKEN_B64:-}
       VAULT_ADDR: http://vault:8200
       KESTRA_CONFIGURATION: |
+        micronaut:
+          io:
+            watch:
+              enabled: true
+              paths:
+                - /app/provisioning
         datasources:
           postgres:
             url: jdbc:postgresql://kestra-postgres:5432/kestra
