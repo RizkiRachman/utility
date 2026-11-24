@@ -309,6 +309,9 @@ services:
 
   kestra:
     container_name: kestra
+    # all-in-one server (image default CMD is --help; without this the
+    # container prints usage and exits 0 in a restart loop)
+    command: server standalone
     image: kestra-ca:local
     labels:
       bpg.group: infra
