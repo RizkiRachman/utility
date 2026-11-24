@@ -42,4 +42,11 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 RUN if [ -n "$KESTRA_PLUGINS" ]; then /app/kestra plugins install $KESTRA_PLUGINS; fi
 
+# Auto-provisioning: flows baked into the image are loaded into the database
+# at startup by the local flow sync (micronaut.io.watch, enabled in compose).
+# Files must carry the tenant-namespace prefix (main_platform_<flow>.yml);
+# kestra derives tenant and namespace from the filename and rejects others.
+COPY --chown=kestra:kestra provisioning/ /app/provisioning/
+RUN cd /app/provisioning && for f in *.yaml; do mv "$f" "main_platform_${f%.yaml}.yml"; done
+
 USER kestra
