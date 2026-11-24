@@ -4,12 +4,13 @@
 # KESTRA_BASE  : base image. Default is the LIGHT variant (no plugin catalog,
 #                ~229MB vs ~3GB); the 107 core plugins (log, kv, inputs,
 #                scripts, flow control) are built in either way.
-# KESTRA_PLUGINS: optional space-separated extra plugins to install at build,
-#                e.g. io.kestra.plugin:plugin-git:LATEST (needed for Git
-#                namespace sync). Empty by default.
+# KESTRA_PLUGINS: optional space-separated extra plugins to install at build.
+# Defaults to plugin-git (needed for the platform-sync flow, SyncFlows).
+# Pin to the 1.x line: plugin-git 4.x targets kestra 2.0 core and fails on
+# 1.3 with NoSuchMethodError SDK$Auth.url() (probed). Do not use LATEST.
 ARG KESTRA_BASE=kestra/kestra:v1.3.26-no-plugins
 FROM ${KESTRA_BASE}
-ARG KESTRA_PLUGINS=""
+ARG KESTRA_PLUGINS=io.kestra.plugin:plugin-git:1.3.0
 
 USER root
 
