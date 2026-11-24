@@ -17,7 +17,15 @@ RUN set -eux; \
       echo "       workspace/infrastructure/cicd/kestra/certs/ and rebuild" >&2; \
       exit 1; \
     fi; \
-    apk add --no-cache ca-certificates curl git bash docker-cli; \
+    if command -v apk >/dev/null 2>&1; then \
+      apk add --no-cache ca-certificates curl git bash; \
+    elif command -v apt-get >/dev/null 2>&1; then \
+      apt-get update; \
+      apt-get install -y --no-install-recommends ca-certificates curl git bash; \
+      rm -rf /var/lib/apt/lists/*; \
+    else \
+      echo FATAL: no supported package manager (apk/apt-get) in base image; exit 1; \
+    fi; \
     cat /usr/local/share/ca-certificates/*.crt >> /etc/ssl/certs/ca-certificates.crt; \
     update-ca-certificates
 
