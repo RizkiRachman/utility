@@ -63,3 +63,6 @@ COPY --chown=kestra:kestra provisioning/ /app/provisioning/
 RUN cd /app/provisioning && for f in *.yaml; do mv "$f" "main_platform_${f%.yaml}.yml"; done
 
 USER kestra
+
+# Default to the all-in-one server; the compose file passes the same explicitly.
+CMD ["server", "standalone"]
