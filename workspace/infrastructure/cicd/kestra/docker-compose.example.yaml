@@ -33,6 +33,9 @@ services:
   kestra:
     container_name: kestra
     image: kestra-ca:local
+    # standalone = all-in-one server with the external postgres datasource below
+    # (server local would spin its own H2 and clash with that config)
+    command: server standalone
     labels:
       bpg.group: infra
       bpg.type: cicd

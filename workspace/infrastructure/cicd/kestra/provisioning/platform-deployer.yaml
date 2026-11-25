@@ -1,0 +1,49 @@
+id: platform-deployer
+namespace: provisioning
+description: |
+  Platform Deployer - manual, input-driven import of Kestra pipelines from a
+  Gitea repository. Execute on demand; no triggers, so nothing runs until you
+  run it. Reads the repository's `git_directory` folder and imports every flow
+  it finds into the target namespace (pipeline). Credentials come from Vault;
+  nothing sensitive is stored in kestra.
+
+  Repo input format: owner/repo (e.g. development-tools/springboot-application-web-deployer).
+labels:
+  bpg.group: cicd
+  bpg.type: provisioning
+inputs:
+  - id: repo
+    type: STRING
+    required: true
+    defaults: development-tools/springboot-application-web-deployer
+    description: Gitea repository as owner/repo
+  - id: pipeline
+    type: STRING
+    required: true
+    defaults: platform
+    description: Target Kestra namespace to import the flows into
+  - id: branch
+    type: STRING
+    required: true
+    defaults: main
+    description: Branch to import from
+  - id: git_directory
+    type: STRING
+    required: true
+    defaults: pipelines/kestra/flows
+    description: Folder inside the repo holding the flow YAML files
+tasks:
+  - id: read_vault
+    type: io.kestra.plugin.core.http.Request
+    uri: http://vault:8200/v1/general/data/cicd/kestra
+    method: GET
+    headers:
+      X-Vault-Token: "{{ secret('VAULT_TOKEN') }}"
+  - id: sync_flows
+    type: io.kestra.plugin.git.SyncFlows
+    url: "{{ json(outputs.read_vault.body).data.data.gitea_url }}/{{ inputs.repo }}.git"
+    username: admin
+    password: "{{ json(outputs.read_vault.body).data.data.gitea_token }}"
+    branch: "{{ inputs.branch }}"
+    gitDirectory: "{{ inputs.git_directory }}"
+    targetNamespace: "{{ inputs.pipeline }}"
