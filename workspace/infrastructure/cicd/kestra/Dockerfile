@@ -13,7 +13,7 @@
 # 1.3 with NoSuchMethodError SDK$Auth.url() (probed). Do not use LATEST.
 ARG KESTRA_BASE=kestra/kestra:v1.3.26-no-plugins
 FROM ${KESTRA_BASE}
-ARG KESTRA_PLUGINS=io.kestra.plugin:plugin-git:1.3.0 io.kestra.plugin:plugin-script-shell:1.3.0
+ARG KESTRA_PLUGINS="io.kestra.plugin:plugin-git:1.3.0 io.kestra.plugin:plugin-script-shell:1.3.0"
 
 USER root
 
@@ -44,7 +44,20 @@ RUN set -eux; \
 # cacerts above - no javax.net.ssl.trustStore override needed.
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
-RUN if [ -n "$KESTRA_PLUGINS" ]; then /app/kestra plugins install $KESTRA_PLUGINS; fi
+RUN set -eux; \
+    if [ -n "$KESTRA_PLUGINS" ]; then \
+      /app/kestra plugins install $KESTRA_PLUGINS; \
+      for p in $KESTRA_PLUGINS; do \
+        f=$(echo "$p" | sed 's/\./_/g; s/:/__/g'); \
+        test -s "/app/plugins/${f}.jar" || { \
+          echo "FATAL: ${f}.jar missing after install - the plugin download" >&2; \
+          echo "       failed silently. Check build-time access to maven" >&2; \
+          echo "       central / repo.kestra.io and rebuild." >&2; \
+          exit 1; \
+        }; \
+        echo "===> verified $(basename /app/plugins/${f}.jar)"; \
+      done; \
+    fi
 
 # docker CLI: the platform-deployer flow runs launch.sh, which drives the
 # deployer as a sibling container over the mounted docker.sock. CLI only -
@@ -60,7 +73,12 @@ RUN curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${
 # Files must carry the tenant-namespace prefix (main_platform_<flow>.yml);
 # kestra derives tenant and namespace from the filename and rejects others.
 COPY --chown=kestra:kestra provisioning/ /app/provisioning/
-RUN cd /app/provisioning && for f in *.yaml; do mv "$f" "main_platform_${f%.yaml}.yml"; done
+RUN cd /app/provisioning && \
+    for f in *.yaml; do \
+      ns=$(awk '/^namespace:/{print $2; exit}' "$f"); \
+      if [ -z "$ns" ]; then echo "FATAL: no namespace: in $f" >&2; exit 1; fi; \
+      mv "$f" "main_${ns}_${f%.yaml}.yml"; \
+    done && ls -1 /app/provisioning
 
 USER kestra
 
