@@ -320,7 +320,7 @@ services:
       context: ./workspace/infrastructure/cicd/kestra
       args:
         KESTRA_BASE: ${KESTRA_BASE:-kestra/kestra:v1.3.26-no-plugins}
-        KESTRA_PLUGINS: ${KESTRA_PLUGINS:-}
+        KESTRA_PLUGINS: ${KESTRA_PLUGINS:-io.kestra.plugin:plugin-git:1.3.0 io.kestra.plugin:plugin-script-shell:1.3.0}
     restart: unless-stopped
     init: true
     mem_limit: 4g
