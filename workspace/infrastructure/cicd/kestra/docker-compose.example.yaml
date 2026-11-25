@@ -40,7 +40,7 @@ services:
       context: ./workspace/infrastructure/cicd/kestra
       args:
         KESTRA_BASE: ${KESTRA_BASE:-kestra/kestra:v1.3.26-no-plugins}
-        KESTRA_PLUGINS: ${KESTRA_PLUGINS:-}
+        KESTRA_PLUGINS: ${KESTRA_PLUGINS:-io.kestra.plugin:plugin-git:1.3.0 io.kestra.plugin:plugin-script-shell:1.3.0}
     restart: unless-stopped
     init: true
     mem_limit: 4g
@@ -63,6 +63,7 @@ services:
       SECRET_WEBHOOK_KEY: ${SECRET_WEBHOOK_KEY_B64:-}
       DEPLOYER_WORK_DIR: /app/deployer
       DEPLOYER_WORK_HOST_DIR: ${DEPLOYER_WORK_DIR:?set DEPLOYER_WORK_DIR in .env - absolute host path for the deployer workspace}
+      BPG_CONF_HOST_DIR: ${BPG_CONF_HOST_DIR:?set BPG_CONF_HOST_DIR in .env - absolute host path of the bpgv5 conf directory}
       VAULT_ADDR: http://vault:8200
       KESTRA_CONFIGURATION: |
         micronaut:
