@@ -5,12 +5,15 @@
 #                ~229MB vs ~3GB); the 107 core plugins (log, kv, inputs,
 #                scripts, flow control) are built in either way.
 # KESTRA_PLUGINS: optional space-separated extra plugins to install at build.
-# Defaults to plugin-git (needed for the platform-sync flow, SyncFlows).
+# Defaults: plugin-git (platform-sync, SyncFlows) + plugin-script-shell (the
+# script tasks in platform-deployer v2 run launch.sh; the parent plugin-script
+# artifact is a 42KB stub - only plugin-script-shell carries the Commands/Script
+# tasks. Pin the 1.3.x line: script plugin 1.18.9+ targets kestra 2.0 core.)
 # Pin to the 1.x line: plugin-git 4.x targets kestra 2.0 core and fails on
 # 1.3 with NoSuchMethodError SDK$Auth.url() (probed). Do not use LATEST.
 ARG KESTRA_BASE=kestra/kestra:v1.3.26-no-plugins
 FROM ${KESTRA_BASE}
-ARG KESTRA_PLUGINS=io.kestra.plugin:plugin-git:1.3.0
+ARG KESTRA_PLUGINS=io.kestra.plugin:plugin-git:1.3.0 io.kestra.plugin:plugin-script-shell:1.3.0
 
 USER root
 
@@ -42,6 +45,15 @@ RUN set -eux; \
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 RUN if [ -n "$KESTRA_PLUGINS" ]; then /app/kestra plugins install $KESTRA_PLUGINS; fi
+
+# docker CLI: the platform-deployer flow runs launch.sh, which drives the
+# deployer as a sibling container over the mounted docker.sock. CLI only -
+# the daemon runs on the host, no dockerd inside kestra.
+ARG DOCKER_CLI_VERSION=29.9.2
+RUN curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz" \
+      | tar -xz -C /tmp \
+    && mv /tmp/docker/docker /usr/local/bin/docker \
+    && rm -rf /tmp/docker
 
 # Auto-provisioning: flows baked into the image are loaded into the database
 # at startup by the local flow sync (micronaut.io.watch, enabled in compose).

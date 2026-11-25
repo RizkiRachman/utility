@@ -23,7 +23,7 @@ No manual imports after a fresh install.
 | Flow | Where it lives | What it does |
 |---|---|---|
 | `platform-sync` | this folder (baked into the image) | Bootstrap: pulls the platform namespace from the deployer repo via git SyncFlows. Webhook on push, 5-minute fallback schedule. |
-| `platform-deployer` | deployer repo `pipelines/kestra/flows/` | Plans, applies or destroys a web-deployer platform. `repository_url` / `repository_name` mandatory, no defaults; `action` SELECT plan/apply/destroy. |
+| `platform-deployer` | deployer repo `pipelines/kestra/flows/` | Fetches the deployer repo (Vault-backed Gitea token) into the shared work dir, then runs `pipelines/launch.sh` against it. Inputs: `action` SELECT plan/apply/destroy, `app_id` + `repo` + `ref` mandatory, no defaults. |
 | `platform-secrets` | deployer repo `pipelines/kestra/flows/` | Fetches the Gitea token from Vault, verifies it, records the identity. |
 
 The two platform flows are sourced from git (Gitea PR flow), not from this
@@ -38,8 +38,9 @@ flow and hit Execute. The API works the same way:
 ```bash
 # run platform-deployer (v1.3 takes inputs as multipart/form-data)
 curl -u "$USER:$PASS" -X POST \
-  -F "repository_url=http://localhost:3300/development-tools/springboot-application-web-deployer" \
-  -F "repository_name=Spring Boot Application Web Deployer" \
+  -F "app_id=cms" \
+  -F "repo=http://gitea:3300/BPG-V5/cms.git" \
+  -F "ref=main" \
   -F "action=plan" \
   http://127.0.0.1:4800/api/v1/main/executions/platform/platform-deployer
 
@@ -88,10 +89,10 @@ push to deployer repo (pipelines/kestra/flows)
 - Source of truth: `pipelines/kestra/flows/` in the deployer repository
   (`development-tools/springboot-application-web-deployer`).
 - Sync happens on every push (webhook) and every 5 minutes (fallback).
-- The plugin matters: `plugin-git` 1.x for kestra 1.3 core (pinned in the
-  Dockerfile). 4.x targets kestra 2.0 and fails with `NoSuchMethodError
-  SDK$Auth.url()` - do not use LATEST.
-- `SyncFlows` imports every file in `gitDirectory` unfiltered: keep only
+- The plugins matter: `plugin-git` 1.x and `plugin-script-shell` 1.3.x for
+  kestra 1.3 core (pinned in the Dockerfile). 4.x / 1.18.9+ target kestra 2.0
+  and fail (`NoSuchMethodError SDK$Auth.url()`); the parent `plugin-script`
+  artifact is a 42KB stub without the shell tasks - do not use LATEST.
   flow YAML in `flows/`, docs go in the folder root (a README.md inside
   `flows/` breaks the sync with a YAML parse error).
 - The webhook key comes from `SECRET_WEBHOOK_KEY` (base64 in `.env`).
@@ -118,6 +119,7 @@ Local `.env` additions (gitignored):
 
 ```text
 SECRET_VAULT_TOKEN_B64=<base64 of the vault token>
+BPG_CONF_HOST_DIR=/mnt/c/dev/workspace/bpgv5/conf
 ```
 
 Generate with `base64 -w0 vault-token > vault-token.b64`.
@@ -132,6 +134,8 @@ Path `general/cicd/kestra` (KV v2):
 | `gitea_token` | Gitea API token issued for kestra |
 | `issued_for` | `kestra-platform` |
 | `gitea_token_id` | Token id in Gitea, for revocation tracking |
+| `gitea_bootstrap_username` | Gitea account used as git HTTP credentials by the deployer (`launch.sh` passes it into the deployer container) |
+| `gitea_bootstrap_password` | Password for the bootstrap account |
 
 Note: the token in this deployment can write `general`, `application` and
 `component` mounts but not `bpg`, despite carrying the `admin` policy. New
