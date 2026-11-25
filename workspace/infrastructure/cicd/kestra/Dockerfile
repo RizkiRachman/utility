@@ -23,41 +23,24 @@ USER root
 COPY certs/ /usr/local/share/ca-certificates/
 
 RUN set -eux; \
-    n=$(find /usr/local/share/ca-certificates -name "*.crt" | wc -l); \
-    echo "===> corporate CA certs found in certs/: $n"; \
-    if [ "$n" -eq 0 ]; then \
-      echo "FATAL: certs/ is empty - copy the Zscaler CA chain (PEM .crt) into" >&2; \
-      echo "       workspace/infrastructure/cicd/kestra/certs/ and rebuild" >&2; \
+    if [ -z "$KESTRA_PLUGINS" ]; then \
+      echo "FATAL: KESTRA_PLUGINS is empty - refusing to build a plugin-less" >&2; \
+      echo "       image. The platform flows need plugin-git (SyncFlows) and" >&2; \
+      echo "       plugin-script-shell (launch.sh tasks). If your .env or compose" >&2; \
+      echo "       sets KESTRA_PLUGINS to an empty value, remove that override." >&2; \
       exit 1; \
     fi; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends ca-certificates curl git bash; \
-    rm -rf /var/lib/apt/lists/*; \
-    cat /usr/local/share/ca-certificates/*.crt >> /etc/ssl/certs/ca-certificates.crt; \
-    update-ca-certificates; \
-    for c in /usr/local/share/ca-certificates/*.crt; do \
-      keytool -importcert -noprompt -alias "corp-$(basename "$c" .crt)" \
-        -keystore /opt/java/openjdk/lib/security/cacerts -storepass changeit -file "$c"; \
+    /app/kestra plugins install $KESTRA_PLUGINS; \
+    for p in $KESTRA_PLUGINS; do \
+      f=$(echo "$p" | sed 's/\./_/g; s/:/__/g'); \
+      test -s "/app/plugins/${f}.jar" || { \
+        echo "FATAL: ${f}.jar missing after install - the plugin download" >&2; \
+        echo "       failed silently. Check build-time access to maven" >&2; \
+        echo "       central / repo.kestra.io and rebuild." >&2; \
+        exit 1; \
+      }; \
+      echo "===> verified $(basename /app/plugins/${f}.jar)"; \
     done
-
-# Point system consumers at the refreshed bundle. The JVM uses the imported
-# cacerts above - no javax.net.ssl.trustStore override needed.
-ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-
-RUN set -eux; \
-    if [ -n "$KESTRA_PLUGINS" ]; then \
-      /app/kestra plugins install $KESTRA_PLUGINS; \
-      for p in $KESTRA_PLUGINS; do \
-        f=$(echo "$p" | sed 's/\./_/g; s/:/__/g'); \
-        test -s "/app/plugins/${f}.jar" || { \
-          echo "FATAL: ${f}.jar missing after install - the plugin download" >&2; \
-          echo "       failed silently. Check build-time access to maven" >&2; \
-          echo "       central / repo.kestra.io and rebuild." >&2; \
-          exit 1; \
-        }; \
-        echo "===> verified $(basename /app/plugins/${f}.jar)"; \
-      done; \
-    fi
 
 # docker CLI: the platform-deployer flow runs launch.sh, which drives the
 # deployer as a sibling container over the mounted docker.sock. CLI only -
