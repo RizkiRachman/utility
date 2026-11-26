@@ -148,3 +148,7 @@ jobs:
       - name: Shell policy (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T12-shell-policy.sh
+
+      - name: Prompt budget (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T13-prompt-budget.sh

@@ -17,7 +17,7 @@ permission:
     "*": allow
 ---
 
-- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host native edit tool; library docs via context7.
+- Access policy: lean-ctx for reads/shell/search; native edit for writes (full rules: `engine/shared/protocol.md`).
 
 
 ## ⛔ PRE-FLIGHT GATE - DO NOT SKIP

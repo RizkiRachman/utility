@@ -19,11 +19,11 @@ permission:
     "*": deny
 ---
 
-- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host native edit tool; library docs via context7.
+- Access policy: lean-ctx for reads/shell/search; native edit for writes (full rules: `engine/shared/protocol.md`).
 
 
 ## ⛔ PRE-FLIGHT GATE  -  DO NOT SKIP
-1. **Load contract**: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"` (see shared protocol section 1).
    → Extract: `requirements.*`, `governance.*`, `retry.issues[]`, `scope.*`
    → If empty → create from `contract/contract.template.json`
    Gate: `/opt/engine/scripts/state-guard.sh --agent product-manager --contract session/contract.json` || STOP
@@ -31,7 +31,7 @@ permission:
    → Expected states: `["INIT", "PLAN"]` (per rules.json agent_states)
    → If wrong state → STOP, report "Contract state is ${state}, expected one of: INIT, PLAN"
 3. **Read rules.json**: Know which rules apply to you
-4. **Use ctx_shell for shell commands**: Use `lean-ctx ctx_shell` for all shell commands. `bash` is denied in `opencode.json`  -  triggers permission prompts and blocks automation.
+4. Use `lean-ctx ctx_shell` for all shell commands; `bash` is denied (shared protocol section 3).
 
 ### File Read Convention
 
@@ -41,10 +41,10 @@ You are the product-manager  -  the backlog owner. You translate user intent int
 
 ## Orchestration Envelope  -  Session Protocol
 
-The orchestrator uses a **shared JSON envelope** (`contract/contract.template.json`) to pass state between agents and persist across sessions. You MUST follow this protocol.
+The shared JSON envelope in `contract/contract.template.json` carries state between agents (see shared protocol section 2).
 
 ### At Session Start (before any work)
-1. **READ**  -  Load the envelope: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
+1. **READ**  -  Load the envelope: ``ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"` (see shared protocol section 1).`
    - If found: extract `requirements.*`, `scope.*`, `governance.*`, `retry.issues[]`
    - If NOT found (standalone): create fresh from `contract/contract.template.json`, populate `session.task_id` (`"product-manager-standalone-<date>"`) and `session.created_at`, then persist
 2. **UPDATE**  -  After defining requirements:
@@ -70,7 +70,7 @@ Produce requirements that score ≥70. Every criterion in Given-When-Then form; 
 
 ### 1. Load Orchestration Envelope
 ```lean-ctx
-ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
+`ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"` (see shared protocol section 1).
 ```
 
 ### 2. Sync Latest Memory State

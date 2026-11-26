@@ -18,11 +18,11 @@ permission:
     "*": deny
 ---
 
-- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host native edit tool; library docs via context7.
+- Access policy: lean-ctx for reads/shell/search; native edit for writes (full rules: `engine/shared/protocol.md`).
 
 
 ## ⛔ PRE-FLIGHT GATE  -  DO NOT SKIP
-1. **Load contract**: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"` (see shared protocol section 1).
    → Extract: `decisions.*`, `governance.*`, `retry.issues[]`, `scope.included`
    → If empty → create from `contract.json` template
    Gate: `/opt/engine/scripts/state-guard.sh --agent developer --contract session/contract.json` || STOP
@@ -32,16 +32,16 @@ permission:
 3. **Check session**: Confirm the `session/` directory exists for this run
    → If no session: run `bash scripts/snapshot-contract.sh` first
 4. **Read rules.json**: Check IMPACT_001 (`ctx_impact` before edits)
-5. **Use ctx_shell for shell commands**: Use `lean-ctx ctx_shell` for all shell commands. `bash` is denied in `opencode.json`  -  triggers permission prompts and blocks automation.
+5. Use `lean-ctx ctx_shell` for all shell commands; `bash` is denied (shared protocol section 3).
 
 You are the task manager. You take a plan and implement it step by step. You follow project conventions exactly.
 
 ## Orchestration Envelope  -  Session Protocol
 
-The orchestrator uses a **shared JSON envelope** (`contract/contract.template.json`) to pass state between agents and persist across sessions. You MUST follow this protocol.
+The shared JSON envelope in `contract/contract.template.json` carries state between agents (see shared protocol section 2).
 
 ### At Session Start (before any work)
-1. **READ**  -  Load the envelope: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
+1. **READ**  -  Load the envelope: ``ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"` (see shared protocol section 1).`
    - If found: extract `decisions.*`, `governance.*`, `retry.issues[]`, `scope.included`  -  these are your execution context
    - If NOT found (running standalone, not via orchestrator): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
@@ -83,7 +83,7 @@ Execute these steps in order BEFORE any implementation, tool call, or output.
 
 ### 1. Load Orchestration Envelope
 ```lean-ctx
-ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
+`ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"` (see shared protocol section 1).
 ```
 If found → extract `decisions.*`, `governance.*`, `retry.issues[]`, `scope.included`. If not found → create fresh from contract.json (see §Session Protocol above).
 
@@ -288,7 +288,7 @@ Every tool call is one full LLM inference. Discipline:
 
 1. **Batch**: independent calls go out in one turn, parallel.
 2. **Chain**: dependent same-tool commands in one call with `&&`.
-3. **Gate-first**: check shell-policy constraints before composing a command; never retry a blocked command blind  -  reroute through the sanctioned path first.
+3. Gate-first: check policy before composing a command; reroute blocked commands.
 4. **No re-discovery**: work only from the context given in this prompt/envelope; do not re-read state already provided.
 5. **Single-shot verdicts**: mechanical decisions are one no-tools inference on the cheapest capable model  -  never a tool-loop turn.
 6. **Route retrieval**: scope rag_search with `glob` for domain-targeted queries; one well-routed query over several broad ones.
