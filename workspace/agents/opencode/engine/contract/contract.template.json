@@ -37,6 +37,7 @@
     "rules_references": [],
     "applicable_skills": [],
     "current_guidance": "",
+    "memory_bootstrap": { "at": "", "contract_recalled": false, "lessons_found": 0 },
     "permissions": {
       "allowed_execution": {
         "tools": [],

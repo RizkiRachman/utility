@@ -266,6 +266,14 @@ if [[ -n "$TARGET_TO" ]]; then
   fi
   echo -e "${GREEN}PASS: transition $CURRENT_STATE -> $TARGET_TO is legal${NC}"
 fi
+# ─── Memory Bootstrap Receipt (soft gate) ─────────────────────────────────
+if [[ -n "$CONTRACT" && -f "$CONTRACT" ]]; then
+  ST=$(jq -r '.state // "INIT"' "$CONTRACT" 2>/dev/null || echo "INIT")
+  if [[ "$ST" != "INIT" ]] && [[ "$(jq -r '.governance.memory_bootstrap.at // empty' "$CONTRACT" 2>/dev/null)" == "" ]]; then
+    echo -e "${YELLOW}WARN: memory bootstrap receipt missing (governance.memory_bootstrap) in state $ST${NC}"
+    echo -e "${YELLOW}  Run ctx_knowledge recall for the envelope + lessons, then record the receipt${NC}"
+  fi
+fi
 # ─── Blast Radius Check ─────────────────────────────────────────────────────
 # --- Blast Radius Check (N3: HIGH/CRITICAL unacknowledged = BLOCKED) ---
 if [[ -n "$BLAST_RADIUS" ]]; then
