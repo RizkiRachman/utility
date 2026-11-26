@@ -120,3 +120,7 @@ jobs:
       - name: Controller integration (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T5-controller-integration.sh
+
+      - name: Judge coverage (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T6-judge-coverage.sh
