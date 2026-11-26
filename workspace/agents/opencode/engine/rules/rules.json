@@ -1,4 +1,5 @@
 {
+  "$comment": "Model IDs are canonically defined in engine/models.json; this file mirrors them. Enforced by scripts/check-model-config-drift.sh.",
   "version": "0.8.0",
   "description": "State machine transitions, scoring thresholds, and validation gates for the Workflow State Engine.",
   "state_machine": {

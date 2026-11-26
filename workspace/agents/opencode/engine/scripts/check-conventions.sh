@@ -470,6 +470,19 @@ print_summary() {
 }
 
 # ── Main ────────────────────────────────────────────────────────────────────
+
+check_model_config_drift() {
+    echo "Check: model config canonical drift (models.json)"
+    if "$ENGINE_ROOT/scripts/check-model-config-drift.sh" >"$ENGINE_ROOT/scripts/.drift.out" 2>&1; then
+        rm -f "$ENGINE_ROOT/scripts/.drift.out"
+        log_pass "Model config matches canonical node (models.json)"
+    else
+        cat "$ENGINE_ROOT/scripts/.drift.out"
+        rm -f "$ENGINE_ROOT/scripts/.drift.out"
+        log_fail "Model config drift detected — see [DRIFT] lines above"
+    fi
+}
+
 main() {
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -501,6 +514,7 @@ main() {
 
     check_agent_paths
     check_json_schema
+    check_model_config_drift
     check_forbidden_patterns
     check_archunit
     check_state_md
