@@ -125,6 +125,12 @@ log_info() {
     fi
 }
 
+log_skip() {
+    local msg="$1"
+    CHECK_COUNT=$((CHECK_COUNT + 1))
+    echo -e "${YELLOW}[SKIP]${NC} $msg"
+}
+
 log_verbose() {
     local msg="$1"
     if [[ "$VERBOSE" == true ]]; then
@@ -193,7 +199,11 @@ check_json_schema() {
     fi
 
     if [[ ! -f "$contract_file" ]]; then
-        log_fail "session/contract.json does not exist — cannot validate"
+        if [[ ! -f "$SESSION_DIR/contract.json" && ! -f "$SESSION_DIR/state.md" ]]; then
+            log_skip "session/contract.json absent (no live session in this checkout)"
+        else
+            log_fail "session/contract.json does not exist — cannot validate"
+        fi
         return
     fi
 
@@ -377,7 +387,11 @@ check_state_md() {
     local state_file="$SESSION_DIR/state.md"
 
     if [[ ! -f "$state_file" ]]; then
-        log_fail "session/state.md does not exist"
+        if [[ ! -f "$SESSION_DIR/contract.json" && ! -f "$SESSION_DIR/state.md" ]]; then
+            log_skip "session/state.md absent (no live session in this checkout)"
+        else
+            log_fail "session/state.md does not exist"
+        fi
         return
     fi
 
@@ -434,8 +448,8 @@ check_session_archive() {
     local session_dir="$SESSION_DIR"
     local violations=0
 
-    if [[ ! -d "$session_dir" ]]; then
-        log_fail "session/ directory does not exist"
+    if [[ ! -f "$session_dir/contract.json" && ! -f "$session_dir/state.md" ]]; then
+        log_skip "session/ has no live contract.json/state.md (source checkout)"
         return
     fi
 
