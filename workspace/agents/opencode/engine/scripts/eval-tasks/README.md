@@ -19,6 +19,7 @@ from the `auto-score.sh` JSONL ledger).
 | T6-judge-coverage.sh | Malformed ledger rows never count as judge evidence | `judge-coverage.sh` |
 | T7-telemetry.sh | Per-phase timing/token aggregation excludes orphaned runs | `phase-telemetry.sh` |
 | T8-context-provenance.sh | Context records carry source, commit, timestamp, evidence status | `context-provenance.sh` |
+| T9-judge-agreement.sh | Labeled verdict corpus: agreement, false-pass/block, jitter flips | `fixtures/judge-labels.jsonl` |
 
 ## Usage
 

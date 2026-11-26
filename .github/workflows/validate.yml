@@ -132,3 +132,7 @@ jobs:
       - name: Context provenance (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T8-context-provenance.sh
+
+      - name: Judge agreement (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T9-judge-agreement.sh

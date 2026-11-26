@@ -1,0 +1,8 @@
+{"id":"J1","tier1":95,"judge":95,"judge_available":true,"expected":"PASS","note":"both dimensions strong"}
+{"id":"J2","tier1":95,"judge":75,"judge_available":true,"expected":"PASS","note":"combined 85"}
+{"id":"J3","tier1":90,"judge":40,"judge_available":true,"expected":"RETRY","note":"judge catches issue"}
+{"id":"J4","tier1":95,"judge":null,"judge_available":false,"expected":"RETRY","note":"judge unavailable cap"}
+{"id":"J5","tier1":80,"judge":60,"judge_available":true,"expected":"PASS","note":"combined 70 boundary"}
+{"id":"J6","tier1":70,"judge":40,"judge_available":true,"expected":"RETRY","note":"combined 55"}
+{"id":"J7","tier1":45,"judge":90,"judge_available":true,"expected":"BLOCKED","note":"tier1 below 70 skips tier2"}
+{"id":"J8","tier1":60,"judge":95,"judge_available":true,"expected":"RETRY","note":"tier1 below 70 skips tier2"}
