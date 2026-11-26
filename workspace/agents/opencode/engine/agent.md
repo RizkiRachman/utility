@@ -500,6 +500,18 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 - **Checkpoint (C4)**: the orchestrator runs `scripts/checkpoint.sh --contract session/contract.json` before every delegation; warn (exit 1) runs the Save Session Protocol immediately; critical (exit 2) persists and hands off to a fresh session that resumes from session/contract.json alone.
 - **Memory policy (C5)**: every ctx_knowledge write passes `scripts/knowledge-gate.sh write --category C --key K --source-task T --tag verified|observed-once|dead_end --rationale R` first; exit 0 proceeds with remember; exit 2 updates the existing entry instead of inserting; exit 3 compacts the category first (archive oldest). Contamination rule: tag=dead_end entries are excluded from governance.current_guidance assembly.
 
+### Central WorkflowPolicy Controller (C6)
+
+State mutation is centralized: **only** `scripts/transition.sh --to STATE --agent NAME --evidence ID` may change `contract.state`. It validates the edge through `scripts/workflow-controller.sh` (reusing `state-guard.sh --to`), writes the contract atomically, and emits immutable `pre_transition`/`post_transition` events to `session/workflow-audit.jsonl`.
+
+Controller operations (each appends an audit event):
+- `pre_tool_action` / `post_tool_action` - the workflow-guard plugin calls these before/after `edit`, `write`, `patch`, `task`, `subagent`.
+- `pre_delegation` / `post_delegation` - verifies the agent is permitted in the current state.
+- `pre_transition` / `post_transition` - legal edge plus a required evidence ID.
+- `pre_completion` - requires the scores ledger, memory bootstrap receipt, and judge coverage before COMPLETE.
+
+Never write `contract.state` directly with jq or an editor. A direct write is an untracked transition and is invalid.
+
 ### Code Safety
 - **Never edit without `ctx_impact`** - run impact analysis first
 - **Never commit without `ctx_delta`** - verify scope

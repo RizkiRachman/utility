@@ -1,6 +1,5 @@
-import { guardTool } from "./guard.js";
+import { guardTool, toolCompleted } from "./guard.js";
 
-// OpenCode 2: imperative hook registration from setup().
 const v2 = {
   id: "workflow-guard",
   async setup(ctx) {
@@ -9,13 +8,18 @@ const v2 = {
     await ctx.tool.hook("execute.before", async (event) => {
       await guardTool(directory, event.tool, event.args ?? event.input ?? {});
     });
+    await ctx.tool.hook("execute.after", async (event) => {
+      await toolCompleted(directory, event.tool, event.status || "completed");
+    });
   },
 };
 
-// OpenCode 1: declarative hook map returned from server().
 const server = async ({ directory } = {}) => ({
   "tool.execute.before": async (input, output) => {
     await guardTool(directory || process.cwd(), input.tool, output?.args ?? {});
+  },
+  "tool.execute.after": async (input, output) => {
+    await toolCompleted(directory || process.cwd(), input.tool, output?.status || "completed");
   },
 });
 
