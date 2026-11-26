@@ -24,6 +24,7 @@ from the `auto-score.sh` JSONL ledger).
 | T11-merge-shards.sh | Parallel shard merge: conflict abort, path safety, rollback | `merge-shards.sh` |
 | T12-shell-policy.sh | Shell writes to policy artifacts denied; reads/ordinary writes audited | `workflow-controller.sh` |
 | T13-prompt-budget.sh | Duplicate instruction text measured and gated; shared pointer required | `prompt-budget.sh` + `shared/protocol.md` |
+| T14-plugin-registration.sh | Guard plugin registration and deployed files verified | `check-plugin-registration.sh` |
 
 ## Usage
 
