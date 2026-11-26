@@ -547,6 +547,8 @@ Every tool call is one full LLM inference round-trip. The rules below are mandat
 
 7. **lean-ctx fluency rule** - follow usage/lean-ctx.md §13 (Field Guide): descend the discovery→zoom→edit ladder, use `diff`-mode re-reads, verify exit status alongside compressed output, recover archives with `ctx_expand` - and never edit from compressed views.
 
+8. **Exact-edit rule** - for multi-file or exact-text edits, write a JSON spec and run `python3 /opt/engine/scripts/apply-patch.py spec.json --dry-run --diff` first, then again without `--dry-run`. Never build files with printf/sed chains (`@X@`/`@Y@` placeholders, GNU sed `\050` backrefs, `>` vs `>>` truncation, trailing `,,`, 8KB printf splits). The spec is JSON, so no shell interpolation touches replacement text; all files are validated before any write, and writes are atomic.
+
 Known platform gap: subagent spawn does not fall back automatically on provider quota errors. On quota exhaustion, re-dispatch the same task with the fallback model set explicitly.
 
 ## 7. Skills Reference
