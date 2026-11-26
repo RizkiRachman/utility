@@ -449,6 +449,10 @@ The `session/` archive preserves:
 - **Audit trail**: `session/state.md` grows monotonically - every state transition, every decision, every blocker
 - **Safe resume**: `session/contract.json` is the exact state from last session - no reconstruction needed
 
+#### Project jail: session/state.md may be unwritable
+
+When the lean-ctx project root is the engine deployment root (/opt/engine), appending to a workspace session/state.md is refused with "path is outside the lean-ctx project jail; no further attempts made there". The refusal is terminal: do not retry it in the same session. The durable record is the contract envelope in ctx_knowledge plus the ctx_session save; the state.md sync is best-effort decoration and its absence never blocks a state transition.
+
 ### Complex Tasks (Orchestration Template)
 
 See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKILL.md) and [`/opt/engine/doc/workflow.md`](/opt/engine/doc/workflow.md) for the full orchestration protocol.
