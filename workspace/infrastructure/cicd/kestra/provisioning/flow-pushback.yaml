@@ -1,0 +1,61 @@
+id: flow-pushback
+namespace: provisioning
+description: |
+  Reverse GitOps: kestra UI edits -> automatic PR on the deployer repo.
+  Every 5 minutes, io.kestra.plugin.git.PushFlows commits any changed
+  flows in the deployer namespace to the kestra-ui-edits branch
+  (files written as <gitDirectory>/<flowId>.yml - kestra's convention),
+  then a PR to main is opened, or refreshed if one is already open.
+
+  Merge the PR and flow-sync pulls it straight back into kestra:
+  UI edit -> PR -> merge -> live, git history kept.
+
+  Notes:
+  - only the deployer namespace is pushed (tooling stays in this repo)
+  - git wins: an un-merged UI edit can be overwritten by a push-triggered
+    sync in the race window before PushFlows commits it (<= 5 min)
+  - requires the repo flow file to be named <flowId>.yml
+concurrency:
+  limit: 1
+labels:
+  bpg.group: cicd
+  bpg.type: provisioning
+tasks:
+  - id: read_vault
+    type: io.kestra.plugin.core.http.Request
+    uri: http://vault:8200/v1/general/data/cicd/kestra
+    method: GET
+    headers:
+      X-Vault-Token: "{{ secret('VAULT_TOKEN') }}"
+  - id: commit_ui_edits
+    type: io.kestra.plugin.git.PushFlows
+    url: "{{ json(outputs.read_vault.body).data.data.gitea_url }}/development-tools/springboot-application-web-deployer.git"
+    username: admin
+    password: "{{ json(outputs.read_vault.body).data.data.gitea_token }}"
+    branch: kestra-ui-edits
+    sourceNamespace: deployer
+    gitDirectory: pipelines/kestra/flows
+    commitMessage: "kestra UI edit (execution {{ execution.id }})"
+    delete: true
+  - id: open_pr
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    env:
+      GITEA_TOKEN: "{{ json(outputs.read_vault.body).data.data.gitea_token }}"
+    commands:
+      - |
+        set -e
+        API="http://gitea:3300/api/v1/repos/development-tools/springboot-application-web-deployer/pulls"
+        R=$(curl -sS -o /tmp/pr.json -w "%{http_code}" -X POST -H "Content-Type: application/json" -H "Authorization: token $GITEA_TOKEN" -d '{"title":"kestra UI edits (auto)","head":"kestra-ui-edits","base":"main","body":"Auto-created by provisioning/flow-pushback from kestra UI saves. Merge to publish - the next flow-sync pulls it into kestra."}' "$API")
+        case "$R" in
+          201) echo "PR created" ;;
+          409) echo "PR already open - branch commit refreshed it" ;;
+          422) echo "no diff between kestra-ui-edits and main - nothing to PR" ;;
+          *) echo "PR create returned $R (non-fatal)"; head -c 200 /tmp/pr.json ;;
+        esac
+        rm -f /tmp/pr.json
+triggers:
+  - id: every-5-min
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "*/5 * * * *"
