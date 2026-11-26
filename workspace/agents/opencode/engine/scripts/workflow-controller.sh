@@ -9,6 +9,7 @@ CONTRACT="${CONTRACT_FILE:-session/contract.json}"
 SESSION_DIR="$(dirname "$CONTRACT")"
 AUDIT="${AUDIT_FILE:-$SESSION_DIR/workflow-audit.jsonl}"
 RULES="${RULES_FILE:-$ENGINE_ROOT/rules/rules.json}"
+SCHEMA="${SCHEMA_FILE:-$ENGINE_ROOT/contract/contract.schema.json}"
 
 OP="${1:-}"; [[ $# -gt 0 ]] && shift
 TOOL=""; AGENT=""; TARGET=""; STATUS=""; TO=""; FROM=""; EVIDENCE=""; CMD=""
@@ -22,12 +23,43 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Full schema gate: parseable JSON plus every top-level and nested required
+# key declared in contract.schema.json. A valid state in a partial contract is
+# not enough to pass the controller.
+contract_schema_valid() {
+  local section key
+  jq -e . "$CONTRACT" >/dev/null 2>&1 || return 1
+  while IFS= read -r key; do
+    [[ -n "$key" ]] && jq -e --arg k "$key" 'has($k)' "$CONTRACT" >/dev/null 2>&1 || return 1
+  done < <(jq -r '.required[]?' "$SCHEMA" 2>/dev/null)
+  while IFS=$'	' read -r section key; do
+    [[ -n "$section" && -n "$key" ]] || continue
+    jq -e --arg s "$section" --arg k "$key" '.[$s] | type == "object" and has($k)' "$CONTRACT" >/dev/null 2>&1 || return 1
+  done < <(jq -r '.properties | to_entries[] | select(.value.required) | .key as $s | .value.required[] | [$s, .] | @tsv' "$SCHEMA" 2>/dev/null)
+  return 0
+}
+
+evidence_kind() { local ev="$1"; printf '%s' "${ev%%:*}"; }
+
+phase_evidence_ok() {
+  local kind="$1" req
+  req=$(jq -r --arg f "$FROM" --arg t "$TO" '
+    .enforcement.phase_evidence // {}
+    | (.[($f + "->" + $t)] // .["*->" + $t] // .[$f + "->*"] // .default // "file,phase,ledger")
+  ' "$RULES" 2>/dev/null)
+  [[ ",$req," == *",$kind,"* ]]
+}
+
 CONTRACT_EXISTS=false
 STATE="INIT"
 if [[ -f "$CONTRACT" ]]; then
   CONTRACT_EXISTS=true
-  parsed=$(jq -r '.state // empty' "$CONTRACT" 2>/dev/null) || parsed=""
-  STATE="${parsed:-UNKNOWN}"
+  if contract_schema_valid; then
+    parsed=$(jq -r '.state // empty' "$CONTRACT" 2>/dev/null) || parsed=""
+    STATE="${parsed:-UNKNOWN}"
+  else
+    STATE="UNKNOWN"
+  fi
 fi
 
 ALLOWED_STATES=$(jq -r '[.state_machine.transitions[] | .from, .to] | map(select(. != "*")) | unique | join(" ")' "$RULES" 2>/dev/null || echo "")
@@ -124,8 +156,9 @@ case "$OP" in
     [[ -n "$TO" ]] || deny "missing --to"
     [[ -n "$AGENT" ]] || deny "agent identity required for transition"
     [[ -n "$EVIDENCE" ]] || deny "evidence id required"
-    resolve_evidence "$EVIDENCE" || deny "evidence $EVIDENCE does not resolve to an artifact"
     FROM="$STATE"
+    phase_evidence_ok "$(evidence_kind "$EVIDENCE")" || deny "evidence kind not permitted for $FROM->$TO"
+    resolve_evidence "$EVIDENCE" || deny "evidence $EVIDENCE does not resolve to an artifact"
     args=(--contract "$CONTRACT" --to "$TO" --agent "$AGENT")
     bash "$SCRIPT_DIR/state-guard.sh" "${args[@]}" >/dev/null 2>&1 || deny "illegal transition $STATE -> $TO (agent $AGENT)"
     allow "$STATE->$TO evidence=$EVIDENCE" "ALLOW transition $STATE -> $TO" ;;
@@ -139,10 +172,16 @@ case "$OP" in
       [[ "$(jq -r '.governance.memory_bootstrap.at // empty' "$CONTRACT" 2>/dev/null)" != "" ]] || missing="$missing memory_bootstrap"
       [[ "$(jq -r '.governance.judge_coverage.judge_backed // 0' "$CONTRACT" 2>/dev/null)" -ge 1 ]] 2>/dev/null || missing="$missing judge_backed_coverage"
     fi
-    # At least one judge-backed REVIEW entry, not merely a nonzero score.
+    # A malformed row must not block or falsely satisfy any ledger check.
     if [[ -f "$ledger" ]]; then
-      jq -e -s 'any(.[]; .tier1_only == false and (.phase // "") == "REVIEW")' "$ledger" >/dev/null 2>&1 || missing="$missing judge_backed_REVIEW"
+      jq -e -R -s 'split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+        | any(.[]; type == "object" and .tier1_only == false and (.phase // "") == "REVIEW")' "$ledger" >/dev/null 2>&1 || missing="$missing judge_backed_REVIEW"
     fi
+    # Every scored phase must have run and written a ledger entry.
+    for phase in PLAN EXECUTE REVIEW; do
+      jq -e -R -s --arg p "$phase" 'split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+        | any(.[]; type == "object" and (.phase // "") == $p)' "$ledger" >/dev/null 2>&1 || missing="$missing ledger_${phase}"
+    done
     # A verified, unexpired learning record must exist.
     if [[ -f "$SESSION_DIR/learning-records.jsonl" ]]; then
       active=$(LEARNING_LOG="$SESSION_DIR/learning-records.jsonl" bash "$SCRIPT_DIR/learning-record.sh" active 2>/dev/null) || active="[]"

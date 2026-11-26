@@ -156,3 +156,11 @@ jobs:
       - name: Plugin registration (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T14-plugin-registration.sh
+
+      - name: Deployed config registration (blocking)
+        working-directory: workspace/agents/opencode
+        run: PLUGIN_REGISTERED_PATH=/opt/engine/plugins/opencode-workflow-guard bash engine/scripts/check-plugin-registration.sh config/opencode.json engine/plugins/opencode-workflow-guard
+
+      - name: Enforcement gates (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T15-enforcement-gates.sh

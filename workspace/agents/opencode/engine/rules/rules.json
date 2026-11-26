@@ -252,6 +252,16 @@
     }
   },
   "enforcement": {
+    "phase_evidence": {
+      "PLAN_SCORED->EXECUTE": "ledger",
+      "EXECUTE_SCORED->REVIEW": "ledger",
+      "REVIEW_SCORED->COMPLETE": "ledger",
+      "BLOCKED->INIT": "manual",
+      "BLOCKED->PLAN": "manual",
+      "BLOCKED->EXECUTE": "manual",
+      "BLOCKED->REVIEW": "manual",
+      "default": "file,phase,ledger,manual"
+    },
     "shell_policy": {
       "enabled": true,
       "protected_patterns": ["contract.json", ".env", "opencode.json", ".session/", "workflow-audit.jsonl", "scores.jsonl"],

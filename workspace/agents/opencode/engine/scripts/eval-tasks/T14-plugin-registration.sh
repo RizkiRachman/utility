@@ -25,6 +25,8 @@ check "not registered" "$D/empty.json" ".status" "not_registered"
 [[ "$(cat "$D/last_rc")" == "1" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL not registered rc"; }
 check "config missing" "$D/nope.json" ".status" "config_missing"
 [[ "$(cat "$D/last_rc")" == "2" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL missing rc"; }
+out=$(env PATH=/usr/bin:/bin bash "$S" "$D/ok.json" "$D/plugin" 2>/dev/null); rc=$?
+[[ "$(printf '%s' "$out" | jq -r '.node_available')" == "false" && "$rc" == "1" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL node unavailable rc/flag"; }
 rm "$D/plugin/index.js"
 check "files missing" "$D/ok.json" ".status" "files_missing"
 echo "T14 plugin registration: $pass passed, $fail failed"

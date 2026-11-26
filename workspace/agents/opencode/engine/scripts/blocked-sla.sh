@@ -68,12 +68,12 @@ check_one() {
 }
 
 case "$OP" in
-  check) check_one "$CONTRACT" ;;
+  check) check_one "$CONTRACT" | jq -c '. + {mode:"operator_driven"}' ;;
   sweep)
     [[ -n "${DIR:-}" && -d "$DIR" ]] || { echo "usage: blocked-sla.sh sweep --dir DIR" >&2; exit 2; }
     rc=0
     while IFS= read -r c; do
-      check_one "$c" || rc=1
+      check_one "$c" | jq -c '. + {mode:"operator_driven"}' || rc=1
     done < <(find "$DIR" -name contract.json -type f 2>/dev/null | sort)
     exit "$rc" ;;
   *) echo "usage: blocked-sla.sh {check|sweep} [--contract PATH] [--rules PATH] [--dir DIR]" >&2; exit 2 ;;

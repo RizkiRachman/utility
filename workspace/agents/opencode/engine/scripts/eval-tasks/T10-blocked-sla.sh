@@ -50,11 +50,14 @@ if [[ "$sweep_rc" -eq 1 ]]; then pass=$((pass+1)); else fail=$((fail+1)); echo "
 sweep_status=$(printf '%s\n' "$sweep_out" | jq -r '.status')
 ok "sweep status" "$sweep_status" "sla_breached"
 
-# Leaving BLOCKED (with user override) clears the clock.
+# Leaving BLOCKED requires manual evidence (FROM is resolved before evidence).
 jq '.governance.user_override=true' "$C" > "$C.new" && mv "$C.new" "$C"
 if bash "$T" --to INIT --agent orchestrator --evidence "file:$D/state.md" >/dev/null 2>&1; then
+  fail=$((fail+1)); echo "FAIL file evidence should be denied on BLOCKED exit"
+else pass=$((pass+1)); fi
+if bash "$T" --to INIT --agent orchestrator --evidence "manual:user override after SLA review" >/dev/null 2>&1; then
   ok "clock cleared" "$(jq -r '.retry.blocked_at' "$C")" "null"
-else fail=$((fail+1)); echo "FAIL transition out of BLOCKED"; fi
+else fail=$((fail+1)); echo "FAIL transition out of BLOCKED with manual evidence"; fi
 
 echo "T10 blocked SLA: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]
