@@ -48,15 +48,21 @@ function fallbackGate(base, tool, target) {
   }
 }
 
+const PROTECTED_SHELL = ["contract.json", ".env", "opencode.json", ".session/", "workflow-audit.jsonl", "scores.jsonl"];
+const WRITE_OPERATOR = /(>|>>|\bmv\b|\bcp\b|\btee\b|sed -i|\bjq\b|\brm\b|\bchmod\b|\bchown\b)/;
+function fallbackShellWrite(cmd) {
+  return WRITE_OPERATOR.test(cmd) && PROTECTED_SHELL.some((p) => cmd.includes(p));
+}
+
 export async function guardTool(directory, tool, args = {}) {
   const base = directory || process.cwd();
 
-  // Shell is audit-only except for the one policy-critical case: a command
-  // that writes the live contract, which must go through transition.sh.
+  // Shell writes to policy artifacts are denied by the central controller;
+  // the inline check is a fallback when the deployed controller is absent.
   if (SHELL.has(tool)) {
     const cmd = String(args.command || "");
-    if (/contract\.json/.test(cmd) && /(>|>>|\bmv\b|\bcp\b|\btee\b|sed -i|\bjq\b)/.test(cmd)) {
-      throw new Error("WorkflowPolicy: direct contract.json write via shell is blocked; use transition.sh");
+    if (callController(base, ["pre_shell", "--command", cmd]) === null && fallbackShellWrite(cmd)) {
+      throw new Error("WorkflowPolicy: shell write to a protected artifact is blocked; use transition.sh");
     }
     return;
   }
@@ -81,6 +87,10 @@ export async function toolCompleted(directory, tool, args = {}, status = "comple
   if (DELEGATE.has(tool)) {
     const agent = agentOf(args);
     if (agent) callController(base, ["post_delegation", "--agent", agent]);
+  } else if (SHELL.has(tool)) {
+    if (callController(base, ["post_shell", "--command", String(args.command || "")]) === null) {
+      try { appendFileSync(join(base, AUDIT), JSON.stringify({ ts: new Date().toISOString(), tool, status }) + "\n"); } catch { /* best effort */ }
+    }
   } else if (GUARDED.has(tool)) {
     if (callController(base, ["post_tool_action", "--tool", tool, "--status", status]) === null) {
       try { appendFileSync(join(base, AUDIT), JSON.stringify({ ts: new Date().toISOString(), tool, status }) + "\n"); } catch { /* best effort */ }

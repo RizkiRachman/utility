@@ -22,6 +22,7 @@ from the `auto-score.sh` JSONL ledger).
 | T9-judge-agreement.sh | Labeled verdict corpus: agreement, false-pass/block, jitter flips | `fixtures/judge-labels.jsonl` |
 | T10-blocked-sla.sh | BLOCKED TTL stamped on transition and enforced against rules | `blocked-sla.sh` + `transition.sh` |
 | T11-merge-shards.sh | Parallel shard merge: conflict abort, path safety, rollback | `merge-shards.sh` |
+| T12-shell-policy.sh | Shell writes to policy artifacts denied; reads/ordinary writes audited | `workflow-controller.sh` |
 
 ## Usage
 
