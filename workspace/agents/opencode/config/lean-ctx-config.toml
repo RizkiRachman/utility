@@ -96,6 +96,8 @@ shell_allowlist_extra = [
   "/opt/engine/scripts/validate-toolkit.sh",
   "/opt/engine/scripts/workflow-controller.sh",
   "/opt/engine/scripts/transition.sh",
+  "/opt/engine/scripts/failure-loop.sh",
+  "/opt/engine/scripts/eval-tasks/T4-score-calibration.sh",
   "archive-sessions.sh",
   "auto-persist.sh",
   "check-architecture-drift.sh",
@@ -134,6 +136,8 @@ shell_allowlist_extra = [
   "validate-toolkit.sh",
   "workflow-controller.sh",
   "transition.sh",
+  "failure-loop.sh",
+  "T4-score-calibration.sh",
 ]
 #
 # --- Interpreter security note -------------------------------------------
