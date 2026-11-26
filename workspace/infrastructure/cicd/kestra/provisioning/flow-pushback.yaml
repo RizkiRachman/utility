@@ -2,18 +2,23 @@ id: flow-pushback
 namespace: provisioning
 description: |
   Reverse GitOps: kestra UI edits -> automatic PR on the deployer repo.
-  Every 5 minutes, io.kestra.plugin.git.PushFlows commits any changed
-  flows in the deployer namespace to the kestra-ui-edits branch
-  (files written as <gitDirectory>/<flowId>.yml - kestra's convention),
-  then a PR to main is opened, or refreshed if one is already open.
+  Runs on demand - webhook or manual Execute (no polling).
+  io.kestra.plugin.git.PushFlows commits changed flows in the deployer
+  namespace to the kestra-ui-edits branch (files written as
+  <gitDirectory>/<flowId>.yml - kestra's convention), then a PR to main
+  is opened, or refreshed if one is already open.
+
+  Trigger after saving a flow in the UI:
+    curl -X POST http://kestra:8080/api/v1/main/executions/webhook/provisioning/flow-pushback/bpg-flow-pushback
+  Or click Execute in the Kestra UI.
 
   Merge the PR and flow-sync pulls it straight back into kestra:
-  UI edit -> PR -> merge -> live, git history kept.
+  UI edit -> trigger -> PR -> merge -> live, git history kept.
 
   Notes:
   - only the deployer namespace is pushed (tooling stays in this repo)
   - git wins: an un-merged UI edit can be overwritten by a push-triggered
-    sync in the race window before PushFlows commits it (<= 5 min)
+    flow-sync - trigger this flow right after the UI save
   - requires the repo flow file to be named <flowId>.yml
 concurrency:
   limit: 1
@@ -56,6 +61,6 @@ tasks:
         esac
         rm -f /tmp/pr.json
 triggers:
-  - id: every-5-min
-    type: io.kestra.plugin.core.trigger.Schedule
-    cron: "*/5 * * * *"
+  - id: pushback-webhook
+    type: io.kestra.plugin.core.trigger.Webhook
+    key: bpg-flow-pushback
