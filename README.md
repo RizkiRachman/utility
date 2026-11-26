@@ -55,7 +55,7 @@ flowchart LR
 From the repository root:
 
 ```bash
-cp workspace/agents/opencode/.env.template .env    # fill in OPENCODE_API_KEY, OPENROUTER_API_KEY, CONTEXT7_API_KEY
+cp workspace/agents/opencode/.env.template .env    # fill in OPENCODE_API_KEY, SUMOPOD_API_KEY, CONTEXT7_API_KEY
 docker compose -f docker-compose.example.yaml --profile tools run --rm opencode-preinstall
 docker compose -f docker-compose.example.yaml up -d --build
 open http://[IP_ADDRESS]:4096                         # pairing screen, enter your key once
@@ -69,11 +69,11 @@ Full tables live in the opencode README. The essentials:
 
 | Variable | Required | Purpose |
 |---|---|---|
-| OPENCODE_API_KEY | Yes | OpenCode auth; written to auth.json, then unset from the env |
-| OPENROUTER_API_KEY | Yes | Primary provider (GLM 5.3 Flash; reviewers on DeepSeek V4.1 Flash)  |
+| OPENCODE_API_KEY | Yes | OpenCode auth + opencode model gateway (reviewer tier); written to auth.json, then unset from the env |
+| SUMOPOD_API_KEY | Yes | Primary provider (GLM 5.3 Flash executor; HY4 Flash light tier; reviewers on DeepSeek V4.1 Flash) |
 | CONTEXT7_API_KEY | Yes | Context7 docs MCP |
 | OPENCODE_SERVER_PASSWORD | Recommended in production | Empty default leaves the server unauthenticated |
-| SUMOPOD_* | No | Declared fallback provider, currently INACTIVE (no key) |
+| SUMOPOD_* | Yes | Primary model provider (executor glm-5.3-flash; light tier hy4-flash) |
 | FIRECRAWL_API_KEY | No | Firecrawl key; developer search works keyless |
 
 ## Project Structure
@@ -114,7 +114,7 @@ The offline package store, version resolution, and the corporate CA pipeline are
 | Build fetches fail behind a corporate proxy | Drop your CA .crt into workspace/certs/, run sh workspace/certs/sync-certs.sh, re-run the preinstall service, rebuild |
 | Store stays on an old package version | The store is the lockfile: re-run the preinstall service (the ML closure refreshes only with REFRESH_ML=1) |
 | An agent cannot run a command | Add it to config/lean-ctx-config.toml (with rationale) and rebuild, or run lean-ctx allow inside the container |
-| Model provider errors at session start | Check OPENROUTER_API_KEY is set; sumopod is a declared fallback with no key and stays inactive |
+| Model provider errors at session start | Check SUMOPOD_API_KEY is set (primary) and OPENCODE_API_KEY is set (reviewer gateway) |
 | Cloudflare Pages PR build fails: Unknown option: --exclude | The dashboard build command predates the workflow and uses the removed repomix flag; deploy-digest.yml PATCHes it back to sh scripts/pages-build.sh on every main push, or fix it once in the Pages dashboard |
 
 ## Contributing and License

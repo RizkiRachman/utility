@@ -295,20 +295,24 @@
       "violation_action": "BLOCKED"
     },
     "cross_model_review": {
-      "version": "0.8.0",
+      "version": "0.9.0",
       "enabled": true,
       "desc": "Per-phase model separation and independent (cross-model) review enforcement.",
-      "model_tiers": {
+            "model_tiers": {
+        "light": [
+          "sumopod/hy4-flash"
+        ],
         "executor": [
-          "openrouter/z-ai/glm-5.3-flash"
+          "sumopod/glm-5.3-flash"
         ],
         "default": [
-          "openrouter/z-ai/glm-5.3-flash"
+          "sumopod/glm-5.3-flash"
         ],
         "fallback": [
-          "openrouter/deepseek/deepseek-v4.1-flash",
-          "openrouter/gpt-6-luna",
-          "openrouter/qwen/qwen3.8-flash"
+          "sumopod/hy4-flash"
+        ],
+        "reviewer": [
+          "opencode/deepseek-v4.1-flash-free"
         ],
         "separation_rule": "reviewer primary/default must differ from executor primary and executor fallback"
       },
@@ -361,7 +365,7 @@
         "judge": {
           "owner": "orchestrator",
           "tier": "reviewer",
-          "model": "openrouter/deepseek/deepseek-v4.1-flash",
+          "model": "opencode/deepseek-v4.1-flash-free",
           "desc": "Tier-2 LLM-as-judge scoring subtask; runs on a model different from the orchestrator's own model. A run without a judge response is labeled tier1_only."
         }
       },
@@ -398,11 +402,11 @@
       "degraded_mode": {
         "version": "0.8.1",
         "enabled": true,
-        "desc": "When the reviewer tier collapses onto the executor model family after fallback, set governance.cross_model_degraded=true and cap the combined verdict at RETRY. Never PASS under degraded mode. Cross-model separation is provider-wide (GLM executor vs DeepSeek reviewer on OpenRouter); this mode covers single-family collapse.",
+        "desc": "When the reviewer tier collapses onto the executor model family after fallback, set governance.cross_model_degraded=true and cap the combined verdict at RETRY. Never PASS under degraded mode. Cross-model separation is provider-wide (GLM executor vs DeepSeek reviewer); this mode covers single-family collapse.",
         "trigger": "reviewer model collapses onto the executor model family (GLM) after fallback",
         "cap_verdict": "RETRY",
-        "require_reviewer_model": "openrouter/deepseek/deepseek-v4.1-flash",
-        "degraded_reviewer_model": "openrouter/z-ai/glm-5.3-flash"
+        "require_reviewer_model": "opencode/deepseek-v4.1-flash-free",
+        "degraded_reviewer_model": "sumopod/glm-5.3-flash"
       }
     },
     "runtime_timeout": {

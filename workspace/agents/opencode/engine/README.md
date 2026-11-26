@@ -208,7 +208,7 @@ Three-tier scoring runs after every delegation:
 
 ## Agents
 
-17 instruction files under [`agents/`](agents/orchestrator.md). The build tier plans and writes code on `glm-5.3-flash` (openrouter/z-ai/glm-5.3-flash); quality and security reviews run on an independent model (`openrouter/deepseek/deepseek-v4.1-flash`); everything else runs the same primary (`glm-5.3-flash`). No agent audits its own output.
+17 instruction files under [`agents/`](agents/orchestrator.md). The build tier plans and writes code on `glm-5.3-flash` (sumopod/glm-5.3-flash); quality and security reviews run on an independent model (`opencode/deepseek-v4.1-flash-free`); explorer and librarian run the light tier (`sumopod/hy4-flash`); everything else runs the same primary (`glm-5.3-flash`). No agent audits its own output.
 
 | Agent | Role | Model | Access |
 |---|---|---|---|
@@ -217,19 +217,19 @@ Three-tier scoring runs after every delegation:
 | [`design-orchestrator`](agents/design-orchestrator.md) | UI/UX specialist orchestrator, 4-layer design pipeline | glm-5.3-flash | read/write |
 | [`product-manager`](agents/product-manager.md) | Requirements + GWT acceptance criteria | glm-5.3-flash | read-only |
 | [`system-analyst`](agents/system-analyst.md) | Impact analysis, specs, implementation plans | glm-5.3-flash | read-only |
-| [`software-architect`](agents/software-architect.md) | Architecture trade-offs, tech-debt assessment | openrouter/deepseek/deepseek-v4.1-flash | read-only |
+| [`software-architect`](agents/software-architect.md) | Architecture trade-offs, tech-debt assessment | opencode/deepseek-v4.1-flash-free | read-only |
 | [`developer`](agents/developer.md) | Implements the plan, writes tests alongside code | glm-5.3-flash | read/write |
 | [`devops-engineer`](agents/devops-engineer.md) | CI/CD, containerization, deploy, migrations, observability | glm-5.3-flash | read/write |
 | [`fixer`](agents/fixer.md) | Bounded, scoped fixes for well-defined tasks | glm-5.3-flash | read/write |
-| [`quality-analyst`](agents/quality-analyst.md) | Independent 5-axis quality review | openrouter/deepseek/deepseek-v4.1-flash | read-only |
-| [`security-engineer`](agents/security-engineer.md) | Security review: threat model, vulns, secrets | openrouter/deepseek/deepseek-v4.1-flash | read-only |
+| [`quality-analyst`](agents/quality-analyst.md) | Independent 5-axis quality review | opencode/deepseek-v4.1-flash-free | read-only |
+| [`security-engineer`](agents/security-engineer.md) | Security review: threat model, vulns, secrets | opencode/deepseek-v4.1-flash-free | read-only |
 | [`scrum-master`](agents/scrum-master.md) | Process owner: guards contract and state machine, unblocks BLOCKED | glm-5.3-flash | read-only |
 | [`learner`](agents/learner.md) | Post-execution retro: extract and persist lessons | glm-5.3-flash | read-only |
-| [`explorer`](agents/explorer.md) | Fast codebase search and unknown discovery | glm-5.3-flash | read-only |
-| [`librarian`](agents/librarian.md) | External docs and library research | glm-5.3-flash | read-only |
+| [`explorer`](agents/explorer.md) | Fast codebase search and unknown discovery | hy4-flash | read-only |
+| [`librarian`](agents/librarian.md) | External docs and library research | hy4-flash | read-only |
 | [`council`](agents/council.md) | Multi-model consensus and cross-model arbitration | multi | read-only |
 | [`observer`](agents/observer.md) | Visual analysis: images, PDFs, diagrams | glm-5.3-flash | read-only |
-**Cross-model review**: the build tier (`build`, @system-analyst, @developer, @fixer on `openrouter/z-ai/glm-5.3-flash`) never shares a model with its reviewers (@quality-analyst, @security-engineer on `openrouter/deepseek/deepseek-v4.1-flash`). Conflicting verdicts escalate to `BLOCKED`, arbitrated by @council. If a reviewer must double-fallback onto the executor provider family, set `governance.cross_model_degraded` and cap the verdict at RETRY (`rules.json → enforcement.cross_model_review.degraded_mode`).
+**Cross-model review**: the build tier (`build`, @system-analyst, @developer, @fixer on `sumopod/glm-5.3-flash`) never shares a model with its reviewers (@quality-analyst, @security-engineer on `opencode/deepseek-v4.1-flash-free`). Conflicting verdicts escalate to `BLOCKED`, arbitrated by @council. If a reviewer must double-fallback onto the executor provider family, set `governance.cross_model_degraded` and cap the verdict at RETRY (`rules.json → enforcement.cross_model_review.degraded_mode`).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
