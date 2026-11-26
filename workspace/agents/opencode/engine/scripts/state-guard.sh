@@ -266,6 +266,15 @@ if [[ -n "$TARGET_TO" ]]; then
   fi
   echo -e "${GREEN}PASS: transition $CURRENT_STATE -> $TARGET_TO is legal${NC}"
 fi
+# ─── Scores Ledger (soft gate) ─────────────────────────────────────────────
+if [[ -n "$CONTRACT" && -f "$CONTRACT" ]]; then
+  ST=$(jq -r '.state // "INIT"' "$CONTRACT" 2>/dev/null || echo "INIT")
+  LEDGER="$(dirname "$CONTRACT")/scores.jsonl"
+  if [[ "$ST" != "INIT" && "$ST" != "PLAN" && "$ST" != "PLAN_SCORED" && ! -f "$LEDGER" ]]; then
+    echo -e "${YELLOW}WARN: scores ledger missing at $LEDGER (state $ST)${NC}"
+    echo -e "${YELLOW}  Run auto-score.sh --file <contract> --phase <PHASE> after scoring${NC}"
+  fi
+fi
 # ─── Memory Bootstrap Receipt (soft gate) ─────────────────────────────────
 if [[ -n "$CONTRACT" && -f "$CONTRACT" ]]; then
   ST=$(jq -r '.state // "INIT"' "$CONTRACT" 2>/dev/null || echo "INIT")

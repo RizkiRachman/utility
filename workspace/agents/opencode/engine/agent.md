@@ -63,6 +63,9 @@ INIT → PLAN → PLAN_SCORED → EXECUTE → EXECUTE_SCORED → REVIEW → REVI
 2. **Tier 2 - LLM-as-Judge**: Scores 0-100 on requirements fulfillment (0-40), governance compliance (0-30), completeness (0-20), edge cases (0-10).
 3. **Tier 3 - Combined Verdict**: PASS (≥70), RETRY (50-69, max 3 attempts), BLOCKED (<50).
 4. **Scores Ledger**: each scoring run appends a JSONL line (timestamp, phase, combined, verdict) to scores.jsonl beside the contract (auto-score.sh --phase).
+5. **Persist the ledger (MANDATORY)** - after every delegation and scoring, run:
+   `lean-ctx ctx_shell /opt/engine/scripts/auto-score.sh --file session/contract.json --rules /opt/engine/rules/rules.json --phase <PHASE>`
+   This appends one JSONL line (timestamp, phase, combined, verdict, task, agent, model, commit) to `session/scores.jsonl`. A scoring phase with no ledger line is **not complete**; `scripts/state-guard.sh` warns when the ledger is absent past `PLAN_SCORED`.
 
 **Tier 1 checks** (start at 100, deduct per violation):
 
