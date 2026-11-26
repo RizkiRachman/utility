@@ -92,10 +92,10 @@ tasks:
             LOG=$(mktemp)
             if /app/kestra flow updates "$REG" --namespace "$PIPELINE" --user "$KU:$KP" > "$LOG" 2>&1; then
               grep -E "successfully updated|^- " "$LOG" || echo "registered (no summary line)"
-              rm -f "$LOG" "$REG"
+              rm -rf "$LOG" "$REG"
             else
               echo "REGISTRATION FAILED - full CLI output:"
               cat "$LOG"
-              rm -f "$LOG" "$REG"
+              rm -rf "$LOG" "$REG"
               exit 1
             fi
