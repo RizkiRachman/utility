@@ -11,13 +11,13 @@ AUDIT="${AUDIT_FILE:-$SESSION_DIR/workflow-audit.jsonl}"
 RULES="${RULES_FILE:-$ENGINE_ROOT/rules/rules.json}"
 
 OP="${1:-}"; [[ $# -gt 0 ]] && shift
-TOOL=""; AGENT=""; TARGET=""; STATUS=""; TO=""; FROM=""; EVIDENCE=""
+TOOL=""; AGENT=""; TARGET=""; STATUS=""; TO=""; FROM=""; EVIDENCE=""; CMD=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --tool) TOOL="$2"; shift 2 ;; --agent) AGENT="$2"; shift 2 ;;
     --target) TARGET="$2"; shift 2 ;; --status) STATUS="$2"; shift 2 ;;
     --to) TO="$2"; shift 2 ;; --from) FROM="$2"; shift 2 ;;
-    --evidence) EVIDENCE="$2"; shift 2 ;;
+    --evidence) EVIDENCE="$2"; shift 2 ;; --command) CMD="$2"; shift 2 ;;
     *) echo "WorkflowPolicy: unknown arg $1" >&2; exit 2 ;;
   esac
 done
@@ -71,7 +71,31 @@ resolve_evidence() {
   esac
 }
 
+# Shell writes to policy artifacts bypass every other boundary; deny them.
+protected_shell_write() {
+  local cmd="$1" pattern writes=false
+  [[ -n "$cmd" ]] || return 1
+  case "$cmd" in
+    *'>'*|*'mv '*|*'cp '*|*'tee '*|*'sed -i'*|*'jq '*|*'rm '*|*'chmod '*|*'chown '*) writes=true ;;
+  esac
+  [[ "$writes" == true ]] || return 1
+  pattern=$(jq -r '.enforcement.shell_policy.protected_patterns[]?' "$RULES" 2>/dev/null)
+  [[ -n "$pattern" ]] || pattern=$'contract.json\n.env\nopencode.json\n.session/\nworkflow-audit.jsonl\nscores.jsonl'
+  while IFS= read -r p; do
+    [[ -n "$p" && "$cmd" == *"$p"* ]] && return 0
+  done <<< "$pattern"
+  return 1
+}
+
 case "$OP" in
+  pre_shell)
+    [[ -n "$CMD" ]] || deny "missing --command"
+    [[ "$STATE" != "UNKNOWN" ]] || deny "contract unparseable"
+    state_valid "$STATE" || deny "state $STATE not declared in rules.json"
+    protected_shell_write "$CMD" && deny "protected artifact write via shell: $CMD"
+    allow "shell ${CMD:0:80}" "ALLOW shell command" ;;
+  post_shell)
+    allow "shell ${CMD:0:80}" "AUDITED shell ${CMD:0:80}" ;;
   pre_tool_action)
     [[ -n "$TOOL" ]] || deny "missing --tool"
     [[ "$STATE" != "UNKNOWN" ]] || deny "contract unparseable"
@@ -129,6 +153,6 @@ case "$OP" in
     [[ -z "$missing" ]] || deny "incomplete evidence:$missing"
     allow "completion evidence present" "ALLOW completion" ;;
   *)
-    echo "usage: workflow-controller.sh {pre_tool_action|post_tool_action|pre_delegation|post_delegation|pre_transition|post_transition|pre_completion} [flags]" >&2
+    echo "usage: workflow-controller.sh {pre_shell|post_shell|pre_tool_action|post_tool_action|pre_delegation|post_delegation|pre_transition|post_transition|pre_completion} [flags]" >&2
     exit 2 ;;
 esac

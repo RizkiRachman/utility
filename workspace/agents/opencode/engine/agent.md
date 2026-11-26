@@ -531,7 +531,7 @@ Controller operations (each appends a fail-closed audit event):
 - `pre_transition` / `post_transition` - legal edge, explicit agent identity, and evidence that resolves to an artifact (`file:PATH`, `phase:NAME`, `ledger:TEXT`; `manual:REASON` only for BLOCKED edges).
 - `pre_completion` - requires the scores ledger, memory-bootstrap receipt, judge-backed REVIEW evidence, judge coverage, and a verified learning record before COMPLETE.
 
-A live session (`state.md` present) with no contract fails closed. Shell paths are audited; a shell command that writes `contract.json` is blocked. Never write `contract.state` directly with jq or an editor.
+A live session (`state.md` present) with no contract fails closed. `pre_shell` / `post_shell` audit every shell command and deny write operators (`>`, `>>`, `mv`, `cp`, `tee`, `sed -i`, `jq`, `rm`, `chmod`, `chown`) against `rules.json -> enforcement.shell_policy.protected_patterns` (`contract.json`, `.env`, `opencode.json`, `.session/`, `workflow-audit.jsonl`, `scores.jsonl` plus configured additions). Never write `contract.state` directly with jq or an editor.
 
 ### Code Safety
 - **Never edit without `ctx_impact`** - run impact analysis first

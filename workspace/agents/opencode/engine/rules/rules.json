@@ -252,6 +252,11 @@
     }
   },
   "enforcement": {
+    "shell_policy": {
+      "enabled": true,
+      "protected_patterns": ["contract.json", ".env", "opencode.json", ".session/", "workflow-audit.jsonl", "scores.jsonl"],
+      "write_operators": [">", ">>", "mv", "cp", "tee", "sed -i", "jq", "rm", "chmod", "chown"]
+    },
     "retry_total_attempt_cap": 6,
     "version": "0.8.0",
     "desc": "Runtime contract validation and agent→state MCP enforcement",
