@@ -507,15 +507,15 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 
 ### Central WorkflowPolicy Controller (C6)
 
-State mutation is centralized: **only** `scripts/transition.sh --to STATE --agent NAME --evidence ID` may change `contract.state`. It validates the edge through `scripts/workflow-controller.sh` (reusing `state-guard.sh --to`), writes the contract atomically, and emits immutable `pre_transition`/`post_transition` events to `session/workflow-audit.jsonl`.
+State mutation is centralized: **only** `scripts/transition.sh --to STATE --agent NAME --evidence ID` may change `contract.state`. It takes an exclusive `flock`, validates the edge through `scripts/workflow-controller.sh` (reusing `state-guard.sh --to`), calls `pre_completion` on the COMPLETE edge, writes atomically, and emits immutable `pre_transition`/`post_transition` events to `session/workflow-audit.jsonl`.
 
-Controller operations (each appends an audit event):
-- `pre_tool_action` / `post_tool_action` - the workflow-guard plugin calls these before/after `edit`, `write`, `patch`, `task`, `subagent`.
-- `pre_delegation` / `post_delegation` - verifies the agent is permitted in the current state.
-- `pre_transition` / `post_transition` - legal edge plus a required evidence ID.
-- `pre_completion` - requires the scores ledger, memory bootstrap receipt, and judge coverage before COMPLETE.
+Controller operations (each appends a fail-closed audit event):
+- `pre_tool_action` / `post_tool_action` - called before/after `edit`, `write`, `patch`. A target is required; writes to `contract.json`, `.env*`, `opencode.json`, and `.session/` are denied.
+- `pre_delegation` / `post_delegation` - `task`/`subagent` hooks route here with a required agent identity; state-guard checks the agent is permitted.
+- `pre_transition` / `post_transition` - legal edge, explicit agent identity, and evidence that resolves to an artifact (`file:PATH`, `phase:NAME`, `ledger:TEXT`; `manual:REASON` only for BLOCKED edges).
+- `pre_completion` - requires the scores ledger, memory-bootstrap receipt, judge-backed REVIEW evidence, judge coverage, and a verified learning record before COMPLETE.
 
-Never write `contract.state` directly with jq or an editor. A direct write is an untracked transition and is invalid.
+A live session (`state.md` present) with no contract fails closed. Shell paths are audited; a shell command that writes `contract.json` is blocked. Never write `contract.state` directly with jq or an editor.
 
 ### Code Safety
 - **Never edit without `ctx_impact`** - run impact analysis first

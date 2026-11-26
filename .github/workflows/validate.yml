@@ -112,3 +112,11 @@ jobs:
       - name: Model config drift (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/check-model-config-drift.sh
+
+      - name: Score calibration (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T4-score-calibration.sh
+
+      - name: Controller integration (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T5-controller-integration.sh

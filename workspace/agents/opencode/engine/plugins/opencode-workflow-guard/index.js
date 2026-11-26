@@ -9,7 +9,7 @@ const v2 = {
       await guardTool(directory, event.tool, event.args ?? event.input ?? {});
     });
     await ctx.tool.hook("execute.after", async (event) => {
-      await toolCompleted(directory, event.tool, event.status || "completed");
+      await toolCompleted(directory, event.tool, event.args ?? event.input ?? {}, event.status || "completed");
     });
   },
 };
@@ -19,7 +19,7 @@ const server = async ({ directory } = {}) => ({
     await guardTool(directory || process.cwd(), input.tool, output?.args ?? {});
   },
   "tool.execute.after": async (input, output) => {
-    await toolCompleted(directory || process.cwd(), input.tool, output?.status || "completed");
+    await toolCompleted(directory || process.cwd(), input.tool, output?.args ?? {}, output?.status || "completed");
   },
 });
 
