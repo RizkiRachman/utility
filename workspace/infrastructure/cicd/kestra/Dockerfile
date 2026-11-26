@@ -18,6 +18,11 @@ ARG KESTRA_PLUGINS="io.kestra.plugin:plugin-git:1.3.0 io.kestra.plugin:plugin-sc
 USER root
 COPY certs/ /usr/local/share/ca-certificates/
 
+# Load the copied CAs into the system trust store - without this the certs
+# are inert for system TLS tools (curl, git) and builds fail behind the
+# TLS-intercepting proxy with "unable to get local issuer certificate".
+RUN update-ca-certificates
+
 RUN set -eux; \
     if [ -z "$KESTRA_PLUGINS" ]; then \
       echo "FATAL: KESTRA_PLUGINS is empty - refusing to build a plugin-less" >&2; \
