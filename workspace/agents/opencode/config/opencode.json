@@ -144,7 +144,7 @@
   "plugins": [
     "/opt/engine/plugins/opencode-firecrawl"
   ],
-  "providers": {
+    "providers": {
     "sumopod": {
       "name": "SumoPod",
       "package": "@opencode/ai/providers/openai-compatible",
@@ -153,36 +153,11 @@
         "apiKey": "{env:SUMOPOD_API_KEY}"
       },
       "models": {
-        "deepseek-flash": {
-          "name": "DeepSeek Flash"
-        },
         "glm-5.3-flash": {
-          "name": "GLM 5.3 Flash"
-        }
-      }
-    },
-    "openrouter": {
-      "name": "OpenRouter",
-      "package": "@opencode/ai/providers/openai-compatible",
-      "settings": {
-        "baseURL": "https://openrouter.ai/api/v1",
-        "apiKey": "{env:OPENROUTER_API_KEY}"
-      },
-      "models": {
-        "z-ai/glm-5.3-flash": {
-          "name": "GLM 5.3 Flash (primary; 1M ctx)"
+          "name": "GLM 5.3 Flash (executor + default; 1M ctx)"
         },
-        "~z-ai/glm-flash-latest": {
-          "name": "GLM Flash Latest (alias of z-ai/glm-5.3-flash)"
-        },
-        "deepseek/deepseek-v4.1-flash": {
-          "name": "DeepSeek V4.1 Flash (reviewer + first fallback; 1M ctx)"
-        },
-        "gpt-6-luna": {
-          "name": "GPT 6 Luna (fallback)"
-        },
-        "qwen/qwen3.8-flash": {
-          "name": "Qwen 3.8 Flash (fallback; 1M ctx)"
+        "hy4-flash": {
+          "name": "HY4 Flash (light tier + executor fallback)"
         }
       }
     }
@@ -502,7 +477,7 @@
     "software-architect": {
       "description": "Strategic architecture advisor and independent design reviewer — trade-offs, system-level debugging, YAGNI enforcement. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "opencode/deepseek-v4.1-flash-free",
       "steps": 60,
       "permissions": [
         {
@@ -676,7 +651,7 @@
     "quality-analyst": {
       "description": "Independent quality reviewer — code quality, edge cases, tests, performance, and DB/DevOps operability. Cross-model reviewer. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "opencode/deepseek-v4.1-flash-free",
       "steps": 80,
       "permissions": [
         {
@@ -734,7 +709,7 @@
     "security-engineer": {
       "description": "Independent security reviewer — threat modeling, vulnerability assessment, secrets/trust-boundary review. Cross-model reviewer. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "opencode/deepseek-v4.1-flash-free",
       "steps": 60,
       "permissions": [
         {
@@ -792,7 +767,7 @@
     "explorer": {
       "description": "Codebase search specialist for discovering unknowns. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "sumopod/hy4-flash",
       "steps": 30,
       "permissions": [
         {
@@ -850,7 +825,7 @@
     "librarian": {
       "description": "External documentation and library research specialist. Read-only — no edits.",
       "mode": "subagent",
-      "model": "sumopod/glm-5.3-flash",
+      "model": "sumopod/hy4-flash",
       "steps": 30,
       "permissions": [
         {
@@ -1168,7 +1143,7 @@
       ]
     },
     "explore": {
-      "model": "sumopod/glm-5.3-flash",
+      "model": "sumopod/hy4-flash",
       "permissions": [
         {
           "action": "edit",

@@ -69,13 +69,12 @@ Compose file: [`docker-compose.example.yaml`](../../../docker-compose.example.ya
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `OPENCODE_API_KEY` | Yes | `REPLACE_ME` | OpenCode auth; written to `auth.json`, then unset from the env |
+| `OPENCODE_API_KEY` | Yes | `REPLACE_ME` | OpenCode auth + opencode model gateway (reviewer tier); written to `auth.json`, then unset from the env |
 | `OPENCODE_SERVER_PASSWORD` | No | (empty) | Auth key for OpenCode's own HTTP basic auth / pairing screen |
-| `SUMOPOD_API_KEY` | No | (empty) | Declared fallback provider, currently INACTIVE: no API key. Keep empty unless a key becomes available |
-| `SUMOPOD_BASE_URL` | No | `https://ai.sumopod.com/v1` | Inactive fallback endpoint |
-| `SUMOPOD_BASE_MODEL` | No | `glm-5.3-flash` | Inactive fallback executor id (kept for reference) |
-| `SUMOPOD_BASE_MODEL_NAME` | No | `glm-5.3-flash` | Inactive fallback display name |
-| `OPENROUTER_API_KEY` | Yes | (empty) | OpenRouter API key; primary provider. Primary and executor tier run `openrouter/z-ai/glm-5.3-flash`; fallbacks `deepseek/deepseek-v4.1-flash`, `gpt-6-luna`, `qwen/qwen3.8-flash` |
+| `SUMOPOD_API_KEY` | Yes | (empty) | Primary provider key. Executor tier runs `glm-5.3-flash`; light tier + fallback `hy4-flash` |
+| `SUMOPOD_BASE_URL` | No | `https://ai.sumopod.com/v1` | Primary provider endpoint |
+| `SUMOPOD_BASE_MODEL` | No | `glm-5.3-flash` | Primary executor model id |
+| `SUMOPOD_BASE_MODEL_NAME` | No | `glm-5.3-flash` | Primary model display name |
 | `CONTEXT7_API_KEY` | Yes | `REPLACE_ME` | Context7 docs MCP key |
 | `FIRECRAWL_API_KEY` | No | (unset) | Firecrawl key; developer search works keyless, alexandria + firecrawl-cli skills need it |
 | `RAG_EMBEDDINGS_URL` | No | (empty) | OpenAI-compatible `/v1/embeddings` endpoint for the rag server; all three `RAG_EMBEDDINGS_*` set switches it to remote embeddings |
@@ -111,12 +110,11 @@ Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` 
 
 | Tier | Model | Notes |
 |---|---|---|
-| Primary + executor (build, orchestrator, system-analyst, developer, fixer, all default agents) | openrouter/z-ai/glm-5.3-flash | Live provider; set OPENROUTER_API_KEY; 1M ctx; $0.0399 in / $0.0784 out (cheapest 1M model) |
-| Fallback chain | deepseek/deepseek-v4.1-flash, then gpt-6-luna, then qwen/qwen3.8-flash | First live fallback wins; ~z-ai/glm-flash-latest is an alias of the primary |
-| Reviewers (quality-analyst, security-engineer, software-architect, tier-2 judge) | openrouter/deepseek/deepseek-v4.1-flash | Different model family than the GLM executor (genuine cross-model, single provider); 1M ctx; $0.0507 in / $0.2028 out |
-| Declared fallback (inactive) | sumopod/glm-5.3-flash, sumopod/deepseek-flash | No API key available; display names carry an INACTIVE marker; never primary |
+| Primary + executor (build, orchestrator, system-analyst, developer, fixer, all default agents) | sumopod/glm-5.3-flash | Live provider; set SUMOPOD_API_KEY; 1M ctx |
+| Light tier (explorer, librarian, explore subagent) + executor fallback | sumopod/hy4-flash | Fast short-loop lookups; 24x cheaper cache reads make cached agent sessions roughly half the blended cost of glm |
+| Reviewers (quality-analyst, security-engineer, software-architect, tier-2 judge) | opencode/deepseek-v4.1-flash-free | Different model family than the GLM executor (genuine cross-model); opencode gateway, no extra key |
 
-If a reviewer can only run on the same provider family as the executor after fallback, set governance.cross_model_degraded=true and cap the combined verdict at RETRY (engine/rules/rules.json, enforcement.cross_model_review.degraded_mode). Context and pricing verified against the live OpenRouter model registry (1M ctx = 1048576 tokens).
+If a reviewer can only run on the same provider family as the executor after fallback, set governance.cross_model_degraded=true and cap the combined verdict at RETRY (engine/rules/rules.json, enforcement.cross_model_review.degraded_mode). Model availability verified against the live sumopod and opencode gateway registries.
 
 ## Security Notes
 
@@ -236,7 +234,7 @@ The workspace-root `pre-installer/` store holds apt `.deb` files, pip wheels, np
 
 Every version above lands in `agents/opencode/pre-install/versions.lock` when populate runs; that file is the pin record. There is no separate version list to keep in sync.
 
-**Custom plugins removed** (`@razroo/opencode-model-fallback@0.3.2`, `@tarquinen/opencode-dcp@3.2.0`, `opencode-websearch-cited@1.2.0`): they target the V1 plugin API and V2 additionally rejects their old `file://<file>` entries (`configured plugin path must be a directory`), so they never loaded. They are dropped from the image and `config/opencode.json` until ported to the `@opencode/plugin` V2 API; provider failover is carried by the provider config (openrouter primary, sumopod declared-inactive fallback) plus rules.json degraded_mode. Contrast: the first-party V2-native `@firecrawl/opencode` plugin is adopted offline-vendored at `engine/plugins/opencode-firecrawl` (developer search works keyless out of the box); the community V1-era plugins above remain removed.
+**Custom plugins removed** (`@razroo/opencode-model-fallback@0.3.2`, `@tarquinen/opencode-dcp@3.2.0`, `opencode-websearch-cited@1.2.0`): they target the V1 plugin API and V2 additionally rejects their old `file://<file>` entries (`configured plugin path must be a directory`), so they never loaded. They are dropped from the image and `config/opencode.json` until ported to the `@opencode/plugin` V2 API; provider failover is carried by the provider config (sumopod primary; the reviewer tier rides the built-in opencode gateway) plus rules.json degraded_mode. Contrast: the first-party V2-native `@firecrawl/opencode` plugin is adopted offline-vendored at `engine/plugins/opencode-firecrawl` (developer search works keyless out of the box); the community V1-era plugins above remain removed.
 
 ## Project Structure
 

@@ -71,8 +71,7 @@ small curated model list in `src/lib/models.tsx` and sends the selected `provide
 `/api/chat`, which validates it against the same list. The built-in list includes Gemini, GPT,
 Claude Sonnet, and Claude Opus options; free Gemini variants are marked with a `Free` badge.
 
-The built-in model ids are available on [models.dev's OpenRouter provider
-list](https://models.dev/providers/openrouter/).
+The built-in model ids are available on [models.dev](https://models.dev/).
 
 ## SDK packages
 
