@@ -7,13 +7,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG="${TELEMETRY_LOG:-session/telemetry.jsonl}"
 CONTRACT="${CONTRACT_FILE:-session/contract.json}"
 OP="${1:-}"; [[ $# -gt 0 ]] && shift
-PHASE=""; CLASS=""; TASK=""; RUN=""; TOKIN="0"; TOKOUT="0"; VERDICT=""
+PHASE=""; CLASS=""; TASK=""; RUN=""; TOKIN="0"; TOKOUT="0"; VERDICT=""; PHASES=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --phase) PHASE="$2"; shift 2 ;; --class) CLASS="$2"; shift 2 ;;
     --task) TASK="$2"; shift 2 ;; --run-id) RUN="$2"; shift 2 ;;
     --tokens-in) TOKIN="$2"; shift 2 ;; --tokens-out) TOKOUT="$2"; shift 2 ;;
     --verdict) VERDICT="$2"; shift 2 ;;
+    --phases) PHASES="$2"; shift 2 ;;
     *) echo "phase-telemetry.sh: unknown arg $1" >&2; exit 2 ;;
   esac
 done
@@ -77,5 +78,29 @@ case "$OP" in
       | ($r | map(select(.event=="stop") | .run_id)) as $sp
       | [ $st[] | select(. as $x | ($sp | index($x)) == null) ]
     ' "$LOG" ;;
-  *) echo "usage: phase-telemetry.sh {start|stop|report|active} [flags]" >&2; exit 2 ;;
+  coverage)
+    if [[ -f "$LOG" ]]; then
+      out=$(jq -R -s --arg cls "$CLASS" --arg task "$TASK" --arg phases "$PHASES" '
+        split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+        | map(select(type == "object")) as $r
+        | ($r | map(select(.event=="stop") | .run_id)) as $sp
+        | ($r | map(select(.event=="start" and (.run_id as $x | ($sp|index($x)) != null)))) as $done
+        | (if $phases != "" then ($phases|split(","))
+           elif ($cls=="trivial" or $cls=="prototype") then ["EXECUTE"]
+           else ["PLAN","EXECUTE","REVIEW"] end) as $expected
+        | ($done | map(select((.task_class//"unclassified")==$cls and (.task_id//"unknown")==$task) | .phase)) as $ph
+        | ($expected | map(select(. as $p | ($ph|index($p)) != null))) as $covered
+        | ($expected | map(select(. as $p | ($ph|index($p)) == null))) as $missing
+        | {class:$cls, task:$task, expected:$expected, covered:$covered, missing:$missing,
+           status:(if ($missing|length)==0 then "complete" else "incomplete" end)}
+      ' "$LOG") || exit 1
+    else
+      expected='["PLAN","EXECUTE","REVIEW"]'
+      [[ "$CLASS" == "trivial" || "$CLASS" == "prototype" ]] && expected='["EXECUTE"]'
+      [[ -n "$PHASES" ]] && expected=$(printf '%s' "$PHASES" | jq -R 'split(",")')
+      out=$(jq -cn --arg cls "$CLASS" --arg task "$TASK" --argjson e "$expected" '{class:$cls,task:$task,expected:$e,covered:[],missing:$e,status:"incomplete"}')
+    fi
+    printf '%s\n' "$out"
+    [[ "$(printf '%s' "$out" | jq -r .status)" == "complete" ]] ;;
+  *) echo "usage: phase-telemetry.sh {start|stop|report|active|coverage} [flags]" >&2; exit 2 ;;
 esac

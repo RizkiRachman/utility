@@ -26,6 +26,9 @@ from the `auto-score.sh` JSONL ledger).
 | T13-prompt-budget.sh | Duplicate instruction text measured and gated; shared pointer required | `prompt-budget.sh` + `shared/protocol.md` |
 | T14-plugin-registration.sh | Guard plugin registration and deployed files verified | `check-plugin-registration.sh` |
 | T15-enforcement-gates.sh | Full schema gate, edge-specific evidence, BLOCKED manual exit, completion phases | `workflow-controller.sh` + `transition.sh` |
+| T16-shard-recovery.sh | Interruption rollback and journal-based recovery of shard merges | `merge-shards.sh` |
+| T17-telemetry-coverage.sh | Required phases instrumented per task class | `phase-telemetry.sh` |
+| T18-learning-impact.sh | Learning reuse recorded and reported across tasks | `learning-record.sh` |
 
 ## Usage
 
