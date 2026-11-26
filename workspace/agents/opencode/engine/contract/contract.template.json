@@ -88,6 +88,7 @@
     "score_threshold": 75,
     "escalation_threshold": 50,
     "current_phase": "",
+    "blocked_at": null,
     "issues": [],
     "phase_issues": [],
     "escalation_trace": []
