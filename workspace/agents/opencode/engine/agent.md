@@ -437,7 +437,7 @@ lean-ctx ctx_session save
 
 ### Learning Records (evidence + decay)
 
-Persist durable lessons with `scripts/learning-record.sh write --key K --claim TEXT --evidence CSV --verified-by NAME --ttl-days N --source-task T`. Records append to `session/learning-records.jsonl` with evidence links (PR, commit, file, test), a verifying agent, and an `expires_at` TTL. Before a new session assembles `governance.current_guidance`, run `scripts/learning-record.sh active` to keep only verified, unexpired records; `scripts/learning-record.sh audit` reports total/verified/expired/unverified counts. Unverified or stale lessons are excluded from guidance.
+Persist durable lessons with `scripts/learning-record.sh write --key K --claim TEXT --evidence CSV --verified-by NAME --ttl-days N --source-task T`. Evidence uses `file:`, `test:`, `pr:`, `commit:`, or `review:` prefixes; file and test references must resolve, unknown kinds are rejected, and a stable `key` updates an existing record instead of appending a duplicate. Records carry a verifying agent and an `expires_at` TTL; write failures exit nonzero. Before a new session assembles `governance.current_guidance`, run `scripts/learning-record.sh active` to keep only verified, unexpired records; `scripts/learning-record.sh audit` reports total/verified/expired/unverified counts. Unverified or stale lessons are excluded from guidance.
 
 ### Session Lifecycle Protocol
 

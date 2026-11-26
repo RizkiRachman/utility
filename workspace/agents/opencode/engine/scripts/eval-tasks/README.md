@@ -16,6 +16,7 @@ from the `auto-score.sh` JSONL ledger).
 | T3-doc-style.sh | Docs pass the style gate | `scripts/check-doc-style.sh` |
 | T4-score-calibration.sh | Verdict boundaries, tier1_only cap, permissions halt | `auto-score.sh` thresholds + an 11-case corpus |
 | T5-controller-integration.sh | Controller policy, scope, evidence, completion, concurrency | `workflow-controller.sh` + `transition.sh` |
+| T6-judge-coverage.sh | Malformed ledger rows never count as judge evidence | `judge-coverage.sh` |
 
 ## Usage
 

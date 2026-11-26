@@ -100,6 +100,7 @@ shell_allowlist_extra = [
   "/opt/engine/scripts/learning-record.sh",
   "/opt/engine/scripts/eval-tasks/T4-score-calibration.sh",
   "/opt/engine/scripts/eval-tasks/T5-controller-integration.sh",
+  "/opt/engine/scripts/eval-tasks/T6-judge-coverage.sh",
   "archive-sessions.sh",
   "auto-persist.sh",
   "check-architecture-drift.sh",
@@ -142,6 +143,7 @@ shell_allowlist_extra = [
   "learning-record.sh",
   "T4-score-calibration.sh",
   "T5-controller-integration.sh",
+  "T6-judge-coverage.sh",
 ]
 #
 # --- Interpreter security note -------------------------------------------
