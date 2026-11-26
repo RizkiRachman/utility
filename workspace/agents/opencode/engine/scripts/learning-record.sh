@@ -4,6 +4,7 @@
 # keys are updated in place. Write failures are surfaced as a nonzero exit.
 set -uo pipefail
 LOG="${LEARNING_LOG:-session/learning-records.jsonl}"
+HITS="${LEARNING_HITS_LOG:-session/learning-hits.jsonl}"
 OP="${1:-}"; [[ $# -gt 0 ]] && shift
 KEY=""; CAT=""; CLAIM=""; EVIDENCE=""; VERIFIED_BY=""; TTL="90"; TASK=""; UNVERIFIED=false
 while [[ $# -gt 0 ]]; do
@@ -12,6 +13,7 @@ while [[ $# -gt 0 ]]; do
     --claim) CLAIM="$2"; shift 2 ;; --evidence) EVIDENCE="$2"; shift 2 ;;
     --verified-by) VERIFIED_BY="$2"; shift 2 ;; --ttl-days) TTL="$2"; shift 2 ;;
     --source-task) TASK="$2"; shift 2 ;; --unverified) UNVERIFIED=true; shift ;;
+    --hits-file) HITS="$2"; shift 2 ;;
     *) echo "learning-record.sh: unknown arg $1" >&2; exit 2 ;;
   esac
 done
@@ -58,5 +60,24 @@ case "$OP" in
     [[ -f "$LOG" ]] || { echo '{"total":0,"verified":0,"expired":0,"unverified":0}'; exit 0; }
     jq -s --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
       '{total:length, verified:(map(select((.verified_by//"")!=""))|length), expired:(map(select(.expires_at <= $now))|length), unverified:(map(select((.verified_by//"")==""))|length)}' "$LOG";;
-  *) echo "usage: learning-record.sh {write|active|audit} [flags]" >&2; exit 2 ;;
+  hit)
+    [[ -n "$KEY" ]] || { echo "usage: learning-record.sh hit --key K [--source-task T]" >&2; exit 2; }
+    [[ -f "$LOG" ]] || { echo "learning-record: no active record for $KEY" >&2; exit 1; }
+    jq -s -e --arg k "$KEY" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" 'any(.[]; .key==$k and .expires_at > $now)' "$LOG" >/dev/null 2>&1 || { echo "learning-record: no active record for $KEY" >&2; exit 1; }
+    mkdir -p "$(dirname "$HITS")" || exit 1
+    printf '%s\n' "$(jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg k "$KEY" --arg t "${TASK:-unknown}" '{event:"hit",key:$k,task:$t,ts:$ts}')" >> "$HITS" || exit 1
+    echo "hit: $KEY";;
+  impact)
+    recs='[]'; [[ -f "$LOG" ]] && recs=$(jq -s '.' "$LOG" 2>/dev/null || echo '[]')
+    hits='[]'; [[ -f "$HITS" ]] && hits=$(jq -s '.' "$HITS" 2>/dev/null || echo '[]')
+    jq -cn --argjson recs "$recs" --argjson hits "$hits" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+      ($recs | map(select(.expires_at > $now and (.verified_by//"") != ""))) as $active
+      | ($hits | group_by(.key) | map({key:.[0].key, hits:length, tasks:(map(.task)|unique)})) as $h
+      | {total_hits:($hits|length), active_records:($active|length),
+         keys:($active | map(. as $r | ($h | map(select(.key==$r.key)) | .[0]) as $m
+              | {key:$r.key, claim:$r.claim, hits:(if $m then $m.hits else 0 end),
+                 tasks:(if $m then $m.tasks else [] end),
+                 reused_across_tasks:(if $m then ($m.tasks|length) else 0 end)}))}
+    ';;
+  *) echo "usage: learning-record.sh {write|active|audit|hit|impact} [flags]" >&2; exit 2 ;;
 esac

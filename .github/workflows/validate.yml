@@ -164,3 +164,15 @@ jobs:
       - name: Enforcement gates (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T15-enforcement-gates.sh
+
+      - name: Shard recovery (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T16-shard-recovery.sh
+
+      - name: Telemetry coverage (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T17-telemetry-coverage.sh
+
+      - name: Learning impact (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T18-learning-impact.sh
