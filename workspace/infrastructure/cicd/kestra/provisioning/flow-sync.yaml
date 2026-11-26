@@ -1,0 +1,47 @@
+id: flow-sync
+namespace: provisioning
+description: |
+  GitOps auto-reload: every push to a linked Gitea repo re-registers its
+  flow files into the mapped pipeline namespace. Gitea webhook ->
+  this flow -> io.kestra.plugin.git.SyncFlows (native plugin-git task,
+  already pinned in the compose plugin set). Git is authoritative:
+  delete:true removes kestra flows that vanish from the repo.
+
+  Webhook setup (Gitea repo settings, Content type application/json,
+  Branch filter: main):
+    http://kestra:8080/api/v1/main/executions/webhook/provisioning/flow-sync/bpg-flow-sync
+
+  Currently linked:
+    development-tools/springboot-application-web-deployer -> deployer
+  (the flow file id in the repo is the registered id - keep them equal).
+
+  Manual runs work too: execute from the UI and the sync applies.
+  A daily reconcile re-applies git even without a push (drift heal).
+concurrency:
+  limit: 1
+labels:
+  bpg.group: cicd
+  bpg.type: provisioning
+tasks:
+  - id: read_vault
+    type: io.kestra.plugin.core.http.Request
+    uri: http://vault:8200/v1/general/data/cicd/kestra
+    method: GET
+    headers:
+      X-Vault-Token: "{{ secret('VAULT_TOKEN') }}"
+  - id: sync_deployer
+    type: io.kestra.plugin.git.SyncFlows
+    url: "{{ json(outputs.read_vault.body).data.data.gitea_url }}/development-tools/springboot-application-web-deployer.git"
+    branch: main
+    username: admin
+    password: "{{ json(outputs.read_vault.body).data.data.gitea_token }}"
+    gitDirectory: pipelines/kestra/flows
+    targetNamespace: deployer
+    delete: true
+triggers:
+  - id: gitea-push   # branch guard lives in the Gitea webhook settings (filter: main)
+    type: io.kestra.plugin.core.trigger.Webhook
+    key: bpg-flow-sync
+  - id: reconcile-daily
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 3 * * *"
