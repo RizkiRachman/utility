@@ -66,6 +66,8 @@ INIT → PLAN → PLAN_SCORED → EXECUTE → EXECUTE_SCORED → REVIEW → REVI
 5. **Persist the ledger (MANDATORY)** - after every delegation and scoring, run:
    `lean-ctx ctx_shell /opt/engine/scripts/auto-score.sh --file session/contract.json --rules /opt/engine/rules/rules.json --phase <PHASE>`
    This appends one JSONL line (timestamp, phase, combined, verdict, task, agent, model, commit) to `session/scores.jsonl`. A scoring phase with no ledger line is **not complete**; `scripts/state-guard.sh` warns when the ledger is absent past `PLAN_SCORED`.
+6. **Judge coverage (MANDATORY)** - before REVIEW and COMPLETE, run `lean-ctx ctx_shell /opt/engine/scripts/judge-coverage.sh session/scores.jsonl`; record the result under `governance.judge_coverage`. `coverage_pct = 0` means no phase had independent judge evidence - report it explicitly and never present a `tier1_only` score as judge-backed.
+
 
 **Tier 1 checks** (start at 100, deduct per violation):
 
