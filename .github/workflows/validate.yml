@@ -124,3 +124,7 @@ jobs:
       - name: Judge coverage (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T6-judge-coverage.sh
+
+      - name: Phase telemetry (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T7-telemetry.sh

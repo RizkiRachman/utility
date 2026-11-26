@@ -17,6 +17,7 @@ from the `auto-score.sh` JSONL ledger).
 | T4-score-calibration.sh | Verdict boundaries, tier1_only cap, permissions halt | `auto-score.sh` thresholds + an 11-case corpus |
 | T5-controller-integration.sh | Controller policy, scope, evidence, completion, concurrency | `workflow-controller.sh` + `transition.sh` |
 | T6-judge-coverage.sh | Malformed ledger rows never count as judge evidence | `judge-coverage.sh` |
+| T7-telemetry.sh | Per-phase timing/token aggregation excludes orphaned runs | `phase-telemetry.sh` |
 
 ## Usage
 
