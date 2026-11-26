@@ -18,6 +18,7 @@ from the `auto-score.sh` JSONL ledger).
 | T5-controller-integration.sh | Controller policy, scope, evidence, completion, concurrency | `workflow-controller.sh` + `transition.sh` |
 | T6-judge-coverage.sh | Malformed ledger rows never count as judge evidence | `judge-coverage.sh` |
 | T7-telemetry.sh | Per-phase timing/token aggregation excludes orphaned runs | `phase-telemetry.sh` |
+| T8-context-provenance.sh | Context records carry source, commit, timestamp, evidence status | `context-provenance.sh` |
 
 ## Usage
 
