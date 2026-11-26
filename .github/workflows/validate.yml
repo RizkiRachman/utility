@@ -152,3 +152,7 @@ jobs:
       - name: Prompt budget (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T13-prompt-budget.sh
+
+      - name: Plugin registration (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T14-plugin-registration.sh

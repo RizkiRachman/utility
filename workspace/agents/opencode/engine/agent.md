@@ -422,6 +422,10 @@ Rules: order is mandatory; never mix Exemplar + Generator for the same page; DES
 
 Use **Doubt-Driven Development (DDD)** when uncertain: spawn a fresh-context adversarial reviewer to cross-examine non-trivial decisions before they stand.
 
+### Guard Plugin Registration
+
+Verify with `scripts/check-plugin-registration.sh`: the guard plugin path must be present in the live OpenCode config, and `guard.js`, `index.js`, and `package.json` must exist and parse. Agents never edit `~/.config/opencode/opencode.json` directly; config changes go through the normal sync and restart path. A `not_registered` result means the hooks are inert and every controller gate is advisory until the config is synced.
+
 ### Before Commit (Post-Flight Protocol)
 
 
