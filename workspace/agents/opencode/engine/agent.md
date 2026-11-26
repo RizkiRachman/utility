@@ -348,6 +348,24 @@ Run this ladder in order before writing ANY code:
 
 **Not sacrificed:** Input validation at trust boundaries, data-loss error handling, security, accessibility, anything explicitly requested. Non-trivial logic leaves ONE runnable check (assert-based, no framework).
 
+### Session Start: Memory Bootstrap (MANDATORY — before any work)
+
+Every agent runs this step at session start, before Context Load, planning, or edits. Recall is an MCP tool call — **never** a shell command (`lean-ctx knowledge` shell calls are policy-blocked for agents).
+
+1. **Load the orchestration envelope** — `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"`.
+   - Empty → create fresh from `contract/contract.template.json`, set `state=INIT`.
+   - Found → resume from `state`, `retry.issues[]`, `decisions`, `governance`.
+2. **Recall prior lessons** — `ctx_knowledge recall --query "lessons" --mode semantic`.
+   - On hits, copy the relevant ones into `governance.current_guidance`; dedupe against `lessons_learned[]`.
+   - Empty on a first session → proceed normally.
+3. **Record the receipt** in the envelope before the first delegation:
+   ```json
+   "memory_bootstrap": { "at": "<ISO-8601>", "contract_recalled": true, "lessons_found": 0 }
+   ```
+4. **No delegation or edits without this receipt.** `scripts/state-guard.sh` emits a visible WARN when it is absent in any state past `INIT`.
+
+Why: knowledge writes are cheap and frequent; without a mandatory recall step they are never consumed, so the Learn layer degrades into write-only logging.
+
 ### Orchestration Flow (Scrum Team - Spec-Driven Development)
 
 This is the T3 ceremony. T2 tasks run the verify loop and the humanizer gate; T1 runs the verify gates only, and the humanizer gate only when user-facing text ships.
