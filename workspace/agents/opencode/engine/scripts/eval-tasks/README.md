@@ -21,6 +21,7 @@ from the `auto-score.sh` JSONL ledger).
 | T8-context-provenance.sh | Context records carry source, commit, timestamp, evidence status | `context-provenance.sh` |
 | T9-judge-agreement.sh | Labeled verdict corpus: agreement, false-pass/block, jitter flips | `fixtures/judge-labels.jsonl` |
 | T10-blocked-sla.sh | BLOCKED TTL stamped on transition and enforced against rules | `blocked-sla.sh` + `transition.sh` |
+| T11-merge-shards.sh | Parallel shard merge: conflict abort, path safety, rollback | `merge-shards.sh` |
 
 ## Usage
 
