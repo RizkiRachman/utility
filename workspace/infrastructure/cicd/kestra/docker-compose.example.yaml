@@ -1,5 +1,4 @@
 # Kestra stack - CI/CD-agnostic orchestrator (flows as code, catalog-driven dialogs).
-# Sits beside cicd/semaphore as an alternative platform; image built from this folder
 # (base kestra/kestra + corporate CA chain) so tasks can reach HTTPS endpoints via Zscaler.
 #
 # Usage:
