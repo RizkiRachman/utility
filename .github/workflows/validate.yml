@@ -140,3 +140,7 @@ jobs:
       - name: BLOCKED SLA (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T10-blocked-sla.sh
+
+      - name: Parallel shard merge (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T11-merge-shards.sh
