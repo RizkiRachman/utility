@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# T5-controller-integration.sh — focused policy-boundary tests.
+# Covers denied paths the workflow feedback identified as bypassable.
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENGINE="$(cd "$SCRIPT_DIR/../.." && pwd)"
+C="$ENGINE/scripts/workflow-controller.sh"; T="$ENGINE/scripts/transition.sh"
+D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
+mkdir -p "$D/session"
+cp "$ENGINE/contract/contract.template.json" "$D/contract.json"
+printf '# STATE\n\n## Current Focus\n\nTest.\n\n## Known Blockers\n\nNone.\n' > "$D/state.md"
+export CONTRACT_FILE="$D/contract.json" AUDIT_FILE="$D/audit.jsonl" RULES_FILE="$ENGINE/rules/rules.json"
+pass=0; fail=0
+expect() {
+  local want="$1" label="$2"; shift 2
+  if "$@" >/dev/null 2>&1; then got=allow; else got=deny; fi
+  if [[ "$got" == "$want" ]]; then pass=$((pass+1));
+  else fail=$((fail+1)); echo "FAIL $label: expected $want, got $got"; fi
+}
+expect deny "edit without target"      bash "$C" pre_tool_action --tool edit
+expect deny "write contract.json"      bash "$C" pre_tool_action --tool write --target "$D/contract.json"
+expect deny "write .env"               bash "$C" pre_tool_action --tool write --target "$D/.env"
+expect deny "write opencode.json"      bash "$C" pre_tool_action --tool write --target "$D/opencode.json"
+expect allow "ordinary edit"           bash "$C" pre_tool_action --tool edit --target "$D/README.md"
+expect deny "delegation without agent" bash "$C" pre_delegation
+expect deny "illegal agent"            bash "$C" pre_delegation --agent nonexistent-agent
+expect allow "valid delegation"        bash "$C" pre_delegation --agent orchestrator
+expect deny "illegal transition"       bash "$C" pre_transition --to EXECUTE --agent orchestrator --evidence "file:$D/state.md"
+expect deny "transition w/o evidence"  bash "$T" --to PLAN --agent orchestrator
+expect deny "unresolved evidence"      bash "$T" --to PLAN --agent orchestrator --evidence file:/no/such/artifact
+expect deny "completion w/o artifacts" bash "$C" pre_completion
+expect allow "legal transition"        bash "$T" --to PLAN --agent orchestrator --evidence "file:$D/state.md"
+[[ "$(jq -r .state "$D/contract.json")" == "PLAN" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL state after transition"; }
+
+# Live session with state.md but no contract must fail closed.
+mv "$D/contract.json" "$D/contract.bak"
+expect deny "missing contract in live session" bash "$C" pre_tool_action --tool edit --target "$D/x.md"
+mv "$D/contract.bak" "$D/contract.json"
+
+# Concurrent transition writers: one wins, contract stays valid JSON.
+bash "$T" --to PLAN_SCORED --agent orchestrator --evidence "file:$D/state.md" >/dev/null 2>&1 &
+p1=$!
+bash "$T" --to PLAN_SCORED --agent orchestrator --evidence "file:$D/state.md" >/dev/null 2>&1 &
+p2=$!
+wait "$p1"; wait "$p2"
+jq -e . "$D/contract.json" >/dev/null 2>&1 && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL contract corrupt after concurrent writers"; }
+
+# Plugin routing is asserted statically so the task runs anywhere; the
+# controller cases above already prove pre_delegation is a real audited op.
+grep -q 'DELEGATE.has(tool)' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
+  grep -q 'pre_delegation' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
+  pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL plugin delegation routing"; }
+grep -q 'SHELL.has(tool)' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
+  grep -q 'contract.json' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
+  pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL plugin shell contract-write guard"; }
+grep -q 'execute.after' "$ENGINE/plugins/opencode-workflow-guard/index.js" && \
+  pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL plugin post-action hook"; }
+
+echo "T5 controller integration: $pass passed, $fail failed"
+[[ "$fail" -eq 0 ]]

@@ -14,7 +14,8 @@ from the `auto-score.sh` JSONL ledger).
 | T1-validate-contract.sh | Contract template validates at threshold | `scripts/validate-contract.sh --score` |
 | T2-cross-refs.sh | All cross-references resolve | `scripts/check-cross-references.sh` |
 | T3-doc-style.sh | Docs pass the style gate | `scripts/check-doc-style.sh` |
-| T4-score-calibration.sh | Verdict boundaries, tier1_only cap, permissions halt | `auto-score.sh` thresholds + a 11-case corpus |
+| T4-score-calibration.sh | Verdict boundaries, tier1_only cap, permissions halt | `auto-score.sh` thresholds + an 11-case corpus |
+| T5-controller-integration.sh | Controller policy, scope, evidence, completion, concurrency | `workflow-controller.sh` + `transition.sh` |
 
 ## Usage
 
