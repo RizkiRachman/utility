@@ -231,11 +231,22 @@ services:
   kestra-postgres:
     container_name: kestra-postgres
     image: postgres:16-alpine
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=64MB"
+      - "-c"
+      - "max_connections=20"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "maintenance_work_mem=32MB"
     labels:
       bpg.group: infra
       bpg.type: cicd
     restart: unless-stopped
     mem_limit: 256m
+    mem_reservation: 128m
     environment:
       POSTGRES_DB: kestra
       POSTGRES_USER: kestra
@@ -250,7 +261,7 @@ services:
     container_name: kestra
     # all-in-one server (image default CMD is --help; without this the
     # container prints usage and exits 0 in a restart loop)
-    command: server standalone
+    command: server standalone --worker-thread=2 --no-tutorials
     image: kestra-ca:local
     labels:
       bpg.group: infra
@@ -262,7 +273,8 @@ services:
         KESTRA_PLUGINS: ${KESTRA_PLUGINS:-io.kestra.plugin:plugin-git:1.3.0 io.kestra.plugin:plugin-script-shell:1.3.0}
     restart: unless-stopped
     init: true
-    mem_limit: 4g
+    mem_limit: 1200m
+    mem_reservation: 640m
     stop_grace_period: 1m
     depends_on:
       kestra-postgres:
@@ -276,7 +288,13 @@ services:
     # drop the socket mounts and this line if tasks only use the Process runner
     user: "root"
     environment:
-      JAVA_TOOL_OPTIONS: "-Xmx2500m"
+      JAVA_TOOL_OPTIONS: >-
+        -Xms256m -Xmx512m
+        -XX:+UseG1GC -XX:G1PeriodicGCInterval=15000
+        -XX:MaxMetaspaceSize=160m
+        -XX:ReservedCodeCacheSize=64m
+        -XX:MaxDirectMemorySize=64m
+        -XX:ActiveProcessorCount=2
       SECRET_VAULT_TOKEN: ${SECRET_VAULT_TOKEN_B64:-}
       SECRET_WEBHOOK_KEY: ${SECRET_WEBHOOK_KEY_B64:-}
       DEPLOYER_WORK_DIR: /app/deployer
@@ -302,6 +320,8 @@ services:
             driverClassName: org.postgresql.Driver
             username: kestra
             password: ${KESTRA_DB_PASSWORD:-kestra}
+            maximum-pool-size: 5
+            minimum-idle: 1
         kestra:
           repository:
             type: postgres
@@ -311,6 +331,13 @@ services:
               base-path: "/app/storage"
           queue:
             type: postgres
+          worker:
+            job-buffer-size: 0
+          executor:
+            thread-count: 2
+          jdbc:
+            queues:
+              pollSize: 20
           tasks:
             tmp-dir:
               path: "/tmp/kestra-wd/tmp"
