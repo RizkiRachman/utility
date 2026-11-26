@@ -20,6 +20,7 @@ from the `auto-score.sh` JSONL ledger).
 | T7-telemetry.sh | Per-phase timing/token aggregation excludes orphaned runs | `phase-telemetry.sh` |
 | T8-context-provenance.sh | Context records carry source, commit, timestamp, evidence status | `context-provenance.sh` |
 | T9-judge-agreement.sh | Labeled verdict corpus: agreement, false-pass/block, jitter flips | `fixtures/judge-labels.jsonl` |
+| T10-blocked-sla.sh | BLOCKED TTL stamped on transition and enforced against rules | `blocked-sla.sh` + `transition.sh` |
 
 ## Usage
 

@@ -24,7 +24,20 @@ if [[ "$TO" == "COMPLETE" ]]; then
   bash "$SCRIPT_DIR/workflow-controller.sh" pre_completion --agent "$AGENT" || exit 1
 fi
 bash "$SCRIPT_DIR/workflow-controller.sh" pre_transition --to "$TO" --agent "$AGENT" --evidence "$EVIDENCE" || exit 1
-jq --arg to "$TO" '.state = $to' "$CONTRACT" > "${CONTRACT}.new" || exit 1
+stamp=""
+if [[ "$TO" == "BLOCKED" ]]; then stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; fi
+jq --arg to "$TO" --arg from "$FROM" --arg stamp "$stamp" --arg ts "$stamp" '
+  .state = $to
+  | if $to == "BLOCKED" then
+      .retry.blocked_at = $stamp
+      | .retry.escalation_trace += [{
+          phase: (.retry.current_phase // ""), blocked_at: $stamp,
+          reason: "blocked via transition.sh", issues: (.retry.issues // []),
+          attempt: (.retry.attempt // 0)
+        }]
+    elif $from == "BLOCKED" then .retry.blocked_at = null
+    else . end
+' "$CONTRACT" > "${CONTRACT}.new" || exit 1
 mv "${CONTRACT}.new" "$CONTRACT" || exit 1
 bash "$SCRIPT_DIR/workflow-controller.sh" post_transition --from "$FROM" --to "$TO" || exit 1
 echo "state: $FROM -> $TO"
