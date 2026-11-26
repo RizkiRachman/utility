@@ -142,7 +142,8 @@
     }
   ],
   "plugins": [
-    "/opt/engine/plugins/opencode-firecrawl"
+    "/opt/engine/plugins/opencode-firecrawl",
+    "/opt/engine/plugins/opencode-workflow-guard"
   ],
     "providers": {
     "sumopod": {
