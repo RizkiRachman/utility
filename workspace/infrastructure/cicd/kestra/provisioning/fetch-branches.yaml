@@ -1,0 +1,32 @@
+id: fetch-branches
+namespace: provisioning
+description: |
+  Returns branch names of a service repo from Gitea.
+  Used by deployer/springboot-application-web-deployer to populate the
+  Source Ref dropdown dynamically after a Target Service is selected.
+labels:
+  bpg.group: cicd
+  bpg.type: provisioning
+inputs:
+  - id: service
+    type: STRING
+    required: true
+    description: Bare repo name or owner/repo.
+tasks:
+  - id: read_vault
+    type: io.kestra.plugin.core.http.Request
+    uri: http://vault:8200/v1/general/data/cicd/kestra
+    method: GET
+    headers:
+      X-Vault-Token: "{{ secret('VAULT_TOKEN') }}"
+  - id: fetch
+    type: io.kestra.plugin.core.http.Request
+    uri: >-
+      {{ json(outputs.read_vault.body).data.data.gitea_url }}/api/v1/repos/{% set p = inputs.service | split('/') %}{% if p | length > 1 %}{{ p[0] }}/{{ p[1] }}{% else %}BPG-V5/{{ inputs.service }}{% endif %}/branches
+    method: GET
+    headers:
+      Authorization: "token {{ json(outputs.read_vault.body).data.data.gitea_token }}"
+outputs:
+  - id: branches
+    type: ARRAY
+    value: "{{ json(outputs.fetch.body) | jq('.[].name') }}"
