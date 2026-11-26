@@ -136,6 +136,7 @@ The `engine/` source mirrors the runtime layout - edit here, rebuild to deploy:
 
 > Full agent instruction files at `/opt/engine/agents/` (symlinked into the OpenCode config dir). Each file defines role, MCPs, skills, and post-flight protocol.
 >
+<!-- SINGLE SOURCE OF TRUTH for model IDs: engine/models.json. Mirrors must match; enforced by scripts/check-model-config-drift.sh -->
 > **Model tiers**: `executor` = `sumopod/glm-5.3-flash` (build/plan tier - developer, fixer, system-analyst); `default` = `sumopod/glm-5.3-flash` (all other agents); `light` = `sumopod/hy4-flash` (explorer, librarian, explore subagent - fast lookup loops; also the executor fallback); reviewers (`quality-analyst`, `security-engineer`, `software-architect`) pinned to `opencode/deepseek-v4.1-flash-free`. Reviewers never share the executor's model - this is the basis of **cross-model review**.
 
 ### Orchestrator

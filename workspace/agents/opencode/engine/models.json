@@ -1,0 +1,43 @@
+{
+  "$comment": "SINGLE SOURCE OF TRUTH for model IDs. Every mirror below must match these values. Drift is enforced by scripts/check-model-config-drift.sh, wired into check-conventions.sh. Do not edit a mirror without editing this node first.",
+  "version": "1.0.0",
+  "models": {
+    "light": "sumopod/hy4-flash",
+    "executor": "sumopod/glm-5.3-flash",
+    "default": "sumopod/glm-5.3-flash",
+    "fallback": "sumopod/hy4-flash",
+    "reviewer": "opencode/deepseek-v4.1-flash-free",
+    "judge": "opencode/deepseek-v4.1-flash-free"
+  },
+  "allowed_ids": [
+    "sumopod/hy4-flash",
+    "sumopod/glm-5.3-flash",
+    "opencode/deepseek-v4.1-flash-free"
+  ],
+  "mirrors": [
+    "workspace/agents/opencode/engine/rules/rules.json",
+    "workspace/agents/opencode/config/opencode.json",
+    "workspace/agents/opencode/engine/agent.md",
+    "workspace/agents/opencode/engine/opencode.json.template",
+    "workspace/agents/opencode/engine/README.md",
+    "workspace/agents/opencode/README.md",
+    "workspace/agents/opencode/.env.template",
+    "workspace/agents/opencode/engine/.env.template",
+    "workspace/agents/opencode/engine/skills/audit-observability/SKILL.md",
+    "workspace/agents/openui/README.md",
+    "workspace/agents/openui/.env.example",
+    "workspace/agents/openui/app/src/lib/models.tsx",
+    "workspace/agents/openui/mcp-bridge.mjs",
+    "docker-compose.example.yaml",
+    "README.md"
+  ],
+  "allowlist_canonical": "workspace/agents/opencode/config/lean-ctx-config.toml",
+  "allowlist_required_entries": [
+    "python3",
+    "/opt/engine/scripts/validate-contract.sh",
+    "/opt/engine/scripts/state-guard.sh",
+    "/opt/engine/scripts/snapshot-contract.sh",
+    "validate-contract.sh",
+    "state-guard.sh"
+  ]
+}
