@@ -354,14 +354,14 @@ Run this ladder in order before writing ANY code:
 
 **Not sacrificed:** Input validation at trust boundaries, data-loss error handling, security, accessibility, anything explicitly requested. Non-trivial logic leaves ONE runnable check (assert-based, no framework).
 
-### Session Start: Memory Bootstrap (MANDATORY — before any work)
+### Session Start: Memory Bootstrap (MANDATORY before any work)
 
-Every agent runs this step at session start, before Context Load, planning, or edits. Recall is an MCP tool call — **never** a shell command (`lean-ctx knowledge` shell calls are policy-blocked for agents).
+Every agent runs this step at session start, before Context Load, planning, or edits. Recall is an MCP tool call, **never** a shell command (`lean-ctx knowledge` shell calls are policy-blocked for agents).
 
-1. **Load the orchestration envelope** — `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"`.
+1. **Load the orchestration envelope**: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"`.
    - Empty → create fresh from `contract/contract.template.json`, set `state=INIT`.
    - Found → resume from `state`, `retry.issues[]`, `decisions`, `governance`.
-2. **Recall prior lessons** — `ctx_knowledge recall --query "lessons" --mode semantic`.
+2. **Recall prior lessons**: `ctx_knowledge recall --query "lessons" --mode semantic`.
    - On hits, copy the relevant ones into `governance.current_guidance`; dedupe against `lessons_learned[]`.
    - Empty on a first session → proceed normally.
 3. **Record the receipt** in the envelope before the first delegation:
@@ -434,6 +434,10 @@ lean-ctx ctx_shell /opt/engine/scripts/snapshot-contract.sh
 lean-ctx ctx_session save
 ```
 
+
+### Learning Records (evidence + decay)
+
+Persist durable lessons with `scripts/learning-record.sh write --key K --claim TEXT --evidence CSV --verified-by NAME --ttl-days N --source-task T`. Records append to `session/learning-records.jsonl` with evidence links (PR, commit, file, test), a verifying agent, and an `expires_at` TTL. Before a new session assembles `governance.current_guidance`, run `scripts/learning-record.sh active` to keep only verified, unexpired records; `scripts/learning-record.sh audit` reports total/verified/expired/unverified counts. Unverified or stale lessons are excluded from guidance.
 
 ### Session Lifecycle Protocol
 

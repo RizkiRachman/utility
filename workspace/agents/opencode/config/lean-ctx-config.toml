@@ -97,6 +97,7 @@ shell_allowlist_extra = [
   "/opt/engine/scripts/workflow-controller.sh",
   "/opt/engine/scripts/transition.sh",
   "/opt/engine/scripts/failure-loop.sh",
+  "/opt/engine/scripts/learning-record.sh",
   "/opt/engine/scripts/eval-tasks/T4-score-calibration.sh",
   "archive-sessions.sh",
   "auto-persist.sh",
@@ -137,6 +138,7 @@ shell_allowlist_extra = [
   "workflow-controller.sh",
   "transition.sh",
   "failure-loop.sh",
+  "learning-record.sh",
   "T4-score-calibration.sh",
 ]
 #
