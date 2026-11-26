@@ -103,8 +103,12 @@ jobs:
         working-directory: workspace
         run: sh certs/test-detect-zscaler.sh
 
-      # Non-blocking for now: the convention rule set is still maturing;
-      # flip to blocking once the remaining rules are verified clean.
-      - name: Conventions (non-blocking)
+      # Blocking. Session-derived checks self-skip in a source checkout with
+      # no live session/; every other convention must pass.
+      - name: Conventions (blocking)
         working-directory: workspace/agents/opencode
-        run: bash engine/scripts/check-conventions.sh || true
+        run: bash engine/scripts/check-conventions.sh
+
+      - name: Model config drift (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/check-model-config-drift.sh
