@@ -1,0 +1,101 @@
+id: pipeline-importer
+namespace: provisioning
+description: |
+  Pipeline Importer - imports a Gitea repository's flow files into a pipeline
+  namespace under a flow id you choose. Clones via the git plugin (no system
+  git needed), rewrites each flow's id + namespace from your inputs, then
+  registers via the kestra CLI using the server's own credentials.
+  No triggers - execute on demand. Credentials come from Vault; nothing
+  sensitive is stored in kestra.
+
+  Contract: flow files in a component repo are PIPELINE DEFINITIONS ONLY.
+  Component-level secret/KV wiring is handled by provisioning/component-bootstrap.
+
+  Repo input format: owner/repo (e.g. development-tools/springboot-application-web-deployer).
+labels:
+  bpg.group: cicd
+  bpg.type: provisioning
+inputs:
+  - id: repo
+    type: STRING
+    required: true
+    defaults: development-tools/springboot-application-web-deployer
+    description: Gitea repository as owner/repo
+  - id: pipeline
+    type: SELECT
+    required: true
+    values:
+      - deployer
+      - bpgv5
+    description: >
+      Target namespace (fixed list). Never add 'provisioning' -
+      that namespace holds the tooling itself.
+  - id: flow_name
+    type: STRING
+    required: true
+    description: >
+      The registered flow id. Any naming is accepted - it is sanitized
+      (lowercase, spaces and symbols become hyphens). First flow file
+      (alphabetical) gets this id; extra files get -2, -3 suffixes.
+  - id: branch
+    type: STRING
+    required: true
+    defaults: main
+    description: Branch to import from
+  - id: git_directory
+    type: STRING
+    required: true
+    defaults: pipelines/kestra/flows
+    description: Folder inside the repo holding the flow YAML files
+tasks:
+  - id: read_vault
+    type: io.kestra.plugin.core.http.Request
+    uri: http://vault:8200/v1/general/data/cicd/kestra
+    method: GET
+    headers:
+      X-Vault-Token: "{{ secret('VAULT_TOKEN') }}"
+  - id: work
+    type: io.kestra.plugin.core.flow.WorkingDirectory
+    tasks:
+      - id: clone
+        type: io.kestra.plugin.git.Clone
+        url: "{{ json(outputs.read_vault.body).data.data.gitea_url }}/{{ inputs.repo }}.git"
+        username: admin
+        password: "{{ json(outputs.read_vault.body).data.data.gitea_token }}"
+        branch: "{{ inputs.branch }}"
+      - id: register
+        type: io.kestra.plugin.scripts.shell.Commands
+        taskRunner:
+          type: io.kestra.plugin.core.runner.Process
+        env:
+          FLOW_NAME_RAW: "{{ inputs.flow_name }}"
+          PIPELINE: "{{ inputs.pipeline }}"
+        commands:
+          - |
+            set -e
+            NAME=$(printf '%s' "$FLOW_NAME_RAW" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+            REG=$(mktemp -d)
+            cp "{{ inputs.git_directory }}"/*.y*ml "$REG"/
+            cd "$REG"
+            KU=$(printf '%s\n' "$KESTRA_CONFIGURATION" | awk '/basic-auth:/{f=1;next} f&&/username:/{sub(/^[ \t]*username:[ \t]*/,"");gsub(/"/,"");print;exit}')
+            KP=$(printf '%s\n' "$KESTRA_CONFIGURATION" | awk '/basic-auth:/{f=1;next} f&&/password:/{sub(/^[ \t]*password:[ \t]*/,"");gsub(/"/,"");print;exit}')
+            i=0
+            for f in *.y*ml; do
+              i=$((i+1))
+              if [ "$i" -eq 1 ]; then name="$NAME"; else name="$NAME-$i"; fi
+              sed -i 's/\r$//' "$f"
+              sed -i "/^id:/s|.*|id: $name|" "$f"
+              sed -i "/^namespace:/s|.*|namespace: $PIPELINE|" "$f"
+              echo "$f -> $name ($PIPELINE)"
+            done
+            unset JAVA_TOOL_OPTIONS
+            LOG=$(mktemp)
+            if /app/kestra flow updates "$REG" --namespace "$PIPELINE" --user "$KU:$KP" > "$LOG" 2>&1; then
+              grep -E "successfully updated|^- " "$LOG" || echo "registered (no summary line)"
+              rm -f "$LOG" "$REG"
+            else
+              echo "REGISTRATION FAILED - full CLI output:"
+              cat "$LOG"
+              rm -f "$LOG" "$REG"
+              exit 1
+            fi

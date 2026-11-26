@@ -1,0 +1,45 @@
+id: component-bootstrap
+namespace: provisioning
+description: |
+  Component bootstrap - one-time wiring for a component namespace.
+  Verifies the shared Gitea token from Vault against the Gitea API and
+  records the resolved identity in the target namespace's KV store.
+  The token itself never lives in kestra - only in Vault.
+
+  Run once per component namespace, any time - order vs pipeline
+  import does not matter.
+labels:
+  bpg.group: cicd
+  bpg.type: provisioning
+inputs:
+  - id: namespace
+    type: SELECT
+    required: true
+    values:
+      - deployer
+      - bpgv5
+    description: >
+      Component namespace to wire. Same fixed list as the pipeline
+      importer. Never add 'provisioning' here.
+tasks:
+  - id: read_vault
+    type: io.kestra.plugin.core.http.Request
+    uri: http://vault:8200/v1/general/data/cicd/kestra
+    method: GET
+    headers:
+      X-Vault-Token: "{{ secret('VAULT_TOKEN') }}"
+  - id: verify_gitea
+    type: io.kestra.plugin.core.http.Request
+    uri: "{{ json(outputs.read_vault.body).data.data.gitea_url }}/api/v1/user"
+    method: GET
+    headers:
+      Authorization: "token {{ json(outputs.read_vault.body).data.data.gitea_token }}"
+  - id: record
+    type: io.kestra.plugin.core.kv.Set
+    namespace: "{{ inputs.namespace }}"
+    key: gitea-identity
+    value: "{{ json(outputs.verify_gitea.body).login }}"
+outputs:
+  - id: gitea_user
+    type: STRING
+    value: "{{ json(outputs.verify_gitea.body).login }}"
