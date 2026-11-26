@@ -320,6 +320,14 @@ Rules:
 - When the tier is unclear, classify one level lower, T3 becomes T2 and T2 becomes T1, and raise it only when the work proves bigger.
 - Security-sensitive changes are always T3.
 
+**Task class (recorded in `session.task_class`):** `trivial` (docs/typo, direct), `standard` (one-file fix, single implement-review loop), `cross-service` (multi-file feature, full graph with spec), `security-critical` (full graph, independent security review + council), `prototype` (explicit prototype mode, no production gate). Full orchestration applies only to `standard` and higher; gates are never skipped at any class.
+
+### Phase Telemetry
+
+Measure efficiency instead of asserting it. Before each phase run `scripts/phase-telemetry.sh start --phase NAME` (it prints a `run_id`); after the phase run `scripts/phase-telemetry.sh stop --run-id ID --tokens-in N --tokens-out N --verdict V`. `scripts/phase-telemetry.sh report` aggregates wall-clock and token totals by phase and task class from completed runs only; `active` lists open runs. Record the summary under `metrics.phase_durations` before COMPLETE. Malformed ledger rows and orphaned starts never count as completed work.
+
+
+
 ### Session Model
 
 Work is tracked in a single `session/` directory - no git branches required.

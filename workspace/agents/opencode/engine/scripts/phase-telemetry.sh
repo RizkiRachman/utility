@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# phase-telemetry.sh — per-phase wall-clock and token telemetry.
+# start/stop emit paired events keyed by run_id; report aggregates only
+# completed runs. Malformed rows and orphaned starts never inflate output.
+set -uo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG="${TELEMETRY_LOG:-session/telemetry.jsonl}"
+CONTRACT="${CONTRACT_FILE:-session/contract.json}"
+OP="${1:-}"; [[ $# -gt 0 ]] && shift
+PHASE=""; CLASS=""; TASK=""; RUN=""; TOKIN="0"; TOKOUT="0"; VERDICT=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --phase) PHASE="$2"; shift 2 ;; --class) CLASS="$2"; shift 2 ;;
+    --task) TASK="$2"; shift 2 ;; --run-id) RUN="$2"; shift 2 ;;
+    --tokens-in) TOKIN="$2"; shift 2 ;; --tokens-out) TOKOUT="$2"; shift 2 ;;
+    --verdict) VERDICT="$2"; shift 2 ;;
+    *) echo "phase-telemetry.sh: unknown arg $1" >&2; exit 2 ;;
+  esac
+done
+if [[ -z "$CLASS" && -f "$CONTRACT" ]]; then
+  CLASS=$(jq -r '.session.task_class // "unclassified"' "$CONTRACT" 2>/dev/null || echo unclassified)
+fi
+if [[ -z "$TASK" && -f "$CONTRACT" ]]; then
+  TASK=$(jq -r '.session.task_id // "unknown"' "$CONTRACT" 2>/dev/null || echo unknown)
+fi
+CLASS="${CLASS:-unclassified}"; TASK="${TASK:-unknown}"
+now_ms() { date +%s%3N 2>/dev/null || echo $(( $(date +%s) * 1000 )); }
+append() { mkdir -p "$(dirname "$LOG")" || return 1; printf '%s\n' "$1" >> "$LOG" || return 1; }
+
+case "$OP" in
+  start)
+    [[ -n "$PHASE" ]] || { echo "usage: ... start --phase NAME [--class C --task ID]" >&2; exit 2; }
+    run="$(date -u +%Y%m%dT%H%M%SZ)-$$-$RANDOM"
+    event=$(jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson ms "$(now_ms)" \
+      --arg r "$run" --arg p "$PHASE" --arg c "$CLASS" --arg t "$TASK" \
+      '{event:"start",run_id:$r,ts:$ts,started_ms:$ms,phase:$p,task_class:$c,task_id:$t}') || exit 1
+    append "$event" || exit 1
+    echo "$run" ;;
+  stop)
+    [[ -n "$RUN" ]] || { echo "usage: ... stop --run-id ID [--tokens-in N --tokens-out N --verdict V]" >&2; exit 2; }
+    [[ -f "$LOG" ]] || { echo "unknown run $RUN" >&2; exit 1; }
+    meta=$(jq -r --arg r "$RUN" 'select(type=="object" and .event=="start" and .run_id==$r) | [(.started_ms // empty), (.phase // "unknown"), (.task_class // "unclassified")] | @tsv' "$LOG" 2>/dev/null | tail -1)
+    [[ -n "$meta" ]] || { echo "unknown run $RUN" >&2; exit 1; }
+    started=$(printf '%s' "$meta" | cut -f1)
+    phase=$(printf '%s' "$meta" | cut -f2)
+    class=$(printf '%s' "$meta" | cut -f3)
+    elapsed=$(( $(now_ms) - started ))
+    event=$(jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson ms "$(now_ms)" \
+      --arg r "$RUN" --argjson e "$elapsed" --argjson ti "${TOKIN:-0}" --argjson to "${TOKOUT:-0}" \
+      --arg v "${VERDICT:-unknown}" --arg p "$phase" --arg c "$class" \
+      '{event:"stop",run_id:$r,ts:$ts,ended_ms:$ms,elapsed_ms:$e,tokens_in:$ti,tokens_out:$to,verdict:$v,phase:$p,task_class:$c}') || exit 1
+    append "$event" || exit 1
+    echo "run=$RUN elapsed_ms=$elapsed" ;;
+  report)
+    [[ -f "$LOG" ]] || { printf '{"runs":0,"total_elapsed_ms":0,"avg_elapsed_ms":0,"tokens_in":0,"tokens_out":0,"by_phase":{},"by_class":{}}\n'; exit 0; }
+    jq -R -s '
+      split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+      | map(select(type == "object" and .event == "stop")) as $s
+      | ($s | length) as $n
+      | ($s | map(.elapsed_ms // 0) | add // 0) as $tot
+      | {
+          runs: $n,
+          total_elapsed_ms: $tot,
+          avg_elapsed_ms: (if $n == 0 then 0 else ($tot / $n | floor) end),
+          tokens_in: ($s | map(.tokens_in // 0) | add // 0),
+          tokens_out: ($s | map(.tokens_out // 0) | add // 0),
+          by_phase: ($s | group_by(.phase) | map({key:(.[0].phase // "unknown"), value:length}) | from_entries),
+          by_class: ($s | group_by(.task_class) | map({key:(.[0].task_class // "unknown"), value:length}) | from_entries)
+        }
+    ' "$LOG" ;;
+  active)
+    [[ -f "$LOG" ]] || { echo "[]"; exit 0; }
+    jq -R -s '
+      split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+      | map(select(type == "object")) as $r
+      | ($r | map(select(.event=="start") | .run_id)) as $st
+      | ($r | map(select(.event=="stop") | .run_id)) as $sp
+      | [ $st[] | select(. as $x | ($sp | index($x)) == null) ]
+    ' "$LOG" ;;
+  *) echo "usage: phase-telemetry.sh {start|stop|report|active} [flags]" >&2; exit 2 ;;
+esac
