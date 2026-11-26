@@ -94,6 +94,8 @@ shell_allowlist_extra = [
   "/opt/engine/scripts/trend-analyzer.sh",
   "/opt/engine/scripts/uncertainty-router.sh",
   "/opt/engine/scripts/validate-toolkit.sh",
+  "/opt/engine/scripts/workflow-controller.sh",
+  "/opt/engine/scripts/transition.sh",
   "archive-sessions.sh",
   "auto-persist.sh",
   "check-architecture-drift.sh",
@@ -130,6 +132,8 @@ shell_allowlist_extra = [
   "trend-analyzer.sh",
   "uncertainty-router.sh",
   "validate-toolkit.sh",
+  "workflow-controller.sh",
+  "transition.sh",
 ]
 #
 # --- Interpreter security note -------------------------------------------
