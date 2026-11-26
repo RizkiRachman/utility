@@ -121,18 +121,3 @@ The offline package store, version resolution, and the corporate CA pipeline are
 
 This is an internal repository and is not open for external contribution. Changes are made in place through pull requests, which run the validate workflow (JSON validity, shell syntax, cross-references, doc style, contract score) automatically. No LICENSE file ships with the repository; treat the contents as proprietary and for internal use only.
 
-## Semaphore auto-provisioning (zero clicks)
-
-The `semaphore-init` sidecar runs once after the semaphore container is
-healthy and provisions the platform via the REST API - no manual setup:
-
-- project `Deployers` (create-if-missing, restart-safe)
-- `gitea-git` access key (from `GITEA_BOOTSTRAP_USERNAME/PASSWORD`)
-- `deployer-platform` static inventory carrying `VAULT_TOKEN` and Gitea
-  credentials - secrets live in inventory, never in dialogs
-- deployer repository + `pipeline-provisioner` and `platform-deployer`
-  templates with Run dialogs derived from `platform_catalog`
-
-Cold start = `docker compose up` - the console comes up ready to run.
-Optional overrides: `SEED_PROJECT_NAME`, `DEPLOYER_GIT_URL`.
-

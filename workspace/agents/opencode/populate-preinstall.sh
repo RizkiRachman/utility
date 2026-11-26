@@ -942,11 +942,6 @@ else
   echo "WARN: docker CLI fetch FAILED - builds fall back to network" >&2
 fi
 
-# Terraform binary zip for the semaphore image build
-# (workspace/infrastructure/cicd/semaphore/Dockerfile): it globs
-# terraform_<ver>_linux_<goarch>.zip at maxdepth 2 in the preinstall
-# context, so the canonical HashiCorp release filename in store/dist/ is
-# the contract. goarch naming (amd64/arm64), not npm naming (x64/arm64).
 TERRAFORM_VERSION="${TERRAFORM_VERSION:-1.11.4}"  # matches the Dockerfile ARG
 case "$(uname -m)" in
   x86_64)  TF_ARCH=amd64 ;;
@@ -968,7 +963,7 @@ elif fetch_terraform; then
   digest_check "$TF_STORE_PATH"
   mark_added "terraform ${TERRAFORM_VERSION}"
 else
-  echo "WARN: terraform fetch FAILED - semaphore build falls back to network" >&2
+  echo "WARN: terraform fetch FAILED - build falls back to network" >&2
 fi
 
 # --------------------------------------------------------------------------

@@ -99,67 +99,7 @@ services:
       SHOW_CONTENT_DIGEST: "true"
       NGINX_PROXY_PASS_URL: http://registry:5000
       PULL_URL: localhost:5000
-  semaphore-init:
-    container_name: semaphore-init
-    image: semaphoreui-tf:local
-    labels:
-      bpg.group: infra
-      bpg.type: cicd
-    depends_on:
-      semaphore:
-        condition: service_healthy
-    restart: on-failure
-    mem_limit: 256m
-    environment:
-      SEED_API_BASE: http://semaphore:3000
-      SEED_ADMIN: ${SEMAPHORE_ADMIN:-admin}
-      SEED_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD:-changeme123}
-      VAULT_TOKEN: ${VAULT_TOKEN:-}
-      GITEA_BOOTSTRAP_USERNAME: ${GITEA_BOOTSTRAP_USERNAME:-}
-      GITEA_BOOTSTRAP_PASSWORD: ${GITEA_BOOTSTRAP_PASSWORD:-}
-      DEPLOYER_GIT_URL: ${DEPLOYER_GIT_URL:-http://host.docker.internal:3300/development-tools/springboot-application-web-deployer}
-    volumes:
-      - ./workspace/infrastructure/cicd/semaphore/init:/init:ro
-    entrypoint: ["python3", "/init/seed_platform.py"]
 
-  semaphore:
-    container_name: semaphore
-    image: semaphoreui-tf:local
-    labels:
-      bpg.group: infra
-      bpg.type: cicd
-    build:
-      context: ./workspace/infrastructure/cicd/semaphore
-      additional_contexts:
-        preinstall: ./workspace/pre-installer
-    init: true
-    mem_limit: 512m
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:3001:3000"
-    environment:
-      SEMAPHORE_DB_DIALECT: sqlite
-      SEMAPHORE_DB_PATH: /var/lib/semaphore
-      SEMAPHORE_PLAYBOOK_PATH: /tmp/semaphore
-      SEMAPHORE_ADMIN: ${SEMAPHORE_ADMIN:-admin}
-      # DEV DEFAULT - works out of the box; set SEMAPHORE_ADMIN_PASSWORD in .env for real use
-      SEMAPHORE_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD:-changeme123}
-      SEMAPHORE_ADMIN_NAME: Admin
-      SEMAPHORE_ADMIN_EMAIL: admin@localhost
-      # DEV DEFAULT demo key (public repo) - generate your own for real use: head -c32 /dev/urandom | base64
-      SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION:-RmQdUQqpCIDAJodCL1qOjYfMqYiszKWxFk+AN8c8D1d=}
-      VAULT_ADDR: http://vault:8200
-    volumes:
-      - semaphore-data:/var/lib/semaphore
-      - ./workspace:/home/semaphore/workspace
-      - /var/run/docker.sock:/var/run/docker.sock
-    group_add:
-      - "${DOCKER_GID:-101}"
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
   terraform:
     image: hashicorp/terraform:latest
     profiles: ["tools"]
@@ -386,7 +326,6 @@ volumes:
   vault-data:
   vault-logs:
   registry-data:
-  semaphore-data:
   kestra-data:
   kestra-postgres-data:
   opencode-data:

@@ -16,10 +16,6 @@ FROM ${KESTRA_BASE}
 ARG KESTRA_PLUGINS="io.kestra.plugin:plugin-git:1.3.0 io.kestra.plugin:plugin-script-shell:1.3.0"
 
 USER root
-
-# Corporate proxy (Zscaler) intercepts TLS: the FULL CA chain must be trusted
-# by system consumers (apt/curl/git) AND by the JVM (plugins install, outbound
-# HTTPS from tasks). Same guard pattern as workspace/infrastructure/cicd/semaphore.
 COPY certs/ /usr/local/share/ca-certificates/
 
 RUN set -eux; \

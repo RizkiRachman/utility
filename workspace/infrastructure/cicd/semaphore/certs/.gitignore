@@ -1,5 +1,0 @@
-# Local corporate CA certificates (Zscaler etc.) - drop PEM .crt files here.
-# Never commit: these identify the TLS-intercepting proxy.
-*
-!.gitignore
-!.gitkeep
