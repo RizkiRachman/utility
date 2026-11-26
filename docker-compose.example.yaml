@@ -284,6 +284,13 @@ services:
       DEPLOYER_WORK_HOST_DIR: ${DEPLOYER_WORK_DIR:?set DEPLOYER_WORK_DIR in .env - absolute host path for the deployer workspace}
       VAULT_ADDR: http://vault:8200
       KESTRA_CONFIGURATION: |
+        logger:
+          levels:
+            org.flywaydb: WARN
+            org.jooq.impl.Dialect: ERROR
+            org.jooq.impl.Dialect.logVersionSupport: ERROR
+            io.micrometer.prometheus.PrometheusMeterRegistry: ERROR
+            io.micrometer.prometheusmetrics.PrometheusMeterRegistry: ERROR
         micronaut:
           io:
             watch:
