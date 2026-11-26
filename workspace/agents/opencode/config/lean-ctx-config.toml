@@ -23,6 +23,10 @@
 shell_allowlist_extra = [
   "docker", "sh", "bash", "sudo", "ss", "ccc",
 
+  # python3: scratch patchers under /tmp/opencode/*.py (printf-written, py_compiled before run).
+  # Strictly narrower than sh/bash above; pattern guards (-c blocks, word-parens) still apply.
+  "python3",
+
   # --- Workflow engine gate scripts (validator/automation only) ----------
   # Rationale: these are the contract state-machine gates that agent.md orders
   # every agent to run. All nine are engine-shipped, read-only validators or
