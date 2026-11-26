@@ -362,6 +362,10 @@ Run this ladder in order before writing ANY code:
 
 **Not sacrificed:** Input validation at trust boundaries, data-loss error handling, security, accessibility, anything explicitly requested. Non-trivial logic leaves ONE runnable check (assert-based, no framework).
 
+### Shared Protocol (binding on every agent)
+
+Every agent instruction file carries a short pointer to `engine/shared/protocol.md`. Read that file at session start: it holds the canonical envelope-recall syntax, access policy, persistence rules, and post-flight steps. `scripts/prompt-budget.sh` measures character duplication across `engine/agents/*.md` and fails when it exceeds `PROMPT_DUP_MAX` (default 20%) or any agent lacks the pointer. Expanding a repeated block inline instead of referencing the shared protocol is a budget violation.
+
 ### Session Start: Memory Bootstrap (MANDATORY before any work)
 
 Every agent runs this step at session start, before Context Load, planning, or edits. Recall is an MCP tool call, **never** a shell command (`lean-ctx knowledge` shell calls are policy-blocked for agents).

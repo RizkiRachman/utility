@@ -19,11 +19,11 @@ permission:
     "*": deny
 ---
 
-- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host native edit tool; library docs via context7.
+- Access policy: lean-ctx for reads/shell/search; native edit for writes (full rules: `engine/shared/protocol.md`).
 
 
 ## ⛔ PRE-FLIGHT GATE - DO NOT SKIP
-1. **Load contract**: resolve task_id from local session/contract.json first, then `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)` (legacy un-namespaced key: labeled fallback only)
+1. **Load contract**: recall the namespaced envelope via `ctx_knowledge` MCP (shared protocol section 1).
    → Extract ALL fields: `session`, `requirements`, `decisions`, `outputs`, `score`, `metrics`, `retry`, `lessons_learned[]`
    → If empty → STOP. Cannot analyze without contract.
    Gate: `/opt/engine/scripts/state-guard.sh --agent learner --contract session/contract.json` || STOP
@@ -61,7 +61,7 @@ Every completed task is a data point. Your job is to turn that data into durable
 
 ## Orchestration Envelope - Session Protocol
 
-The orchestrator uses a **shared JSON envelope** (`contract/contract.template.json`) to pass state between agents and persist across sessions. You MUST follow this protocol.
+The shared JSON envelope in `contract/contract.template.json` carries state between agents (see shared protocol section 2).
 
 ### At Session Start (before any work)
 1. **READ** - Resolve task_id from local session/contract.json first, then load the envelope: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`

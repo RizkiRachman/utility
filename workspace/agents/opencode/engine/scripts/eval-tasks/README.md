@@ -23,6 +23,7 @@ from the `auto-score.sh` JSONL ledger).
 | T10-blocked-sla.sh | BLOCKED TTL stamped on transition and enforced against rules | `blocked-sla.sh` + `transition.sh` |
 | T11-merge-shards.sh | Parallel shard merge: conflict abort, path safety, rollback | `merge-shards.sh` |
 | T12-shell-policy.sh | Shell writes to policy artifacts denied; reads/ordinary writes audited | `workflow-controller.sh` |
+| T13-prompt-budget.sh | Duplicate instruction text measured and gated; shared pointer required | `prompt-budget.sh` + `shared/protocol.md` |
 
 ## Usage
 

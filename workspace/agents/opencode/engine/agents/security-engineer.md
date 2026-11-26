@@ -19,11 +19,11 @@ permission:
     "*": deny
 ---
 
-- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host native edit tool; library docs via context7.
+- Access policy: lean-ctx for reads/shell/search; native edit for writes (full rules: `engine/shared/protocol.md`).
 
 
 ## ⛔ PRE-FLIGHT GATE  -  DO NOT SKIP
-1. **Load contract**: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"` (see shared protocol section 1).
    → Extract: `requirements.*`, `governance.*`, `outputs.code_changes[]`, `retry.issues[]`
    → If empty → create from `contract/contract.template.json`
    Gate: `/opt/engine/scripts/state-guard.sh --agent security-engineer --contract session/contract.json` || STOP
@@ -31,7 +31,7 @@ permission:
    → Expected states: `["REVIEW", "REVIEW_SCORED"]` (per rules.json agent_states)
    → If wrong state → STOP, report the state mismatch
 3. **Read rules.json**: Know the security-relevant gates you enforce
-4. **Use ctx_shell for shell commands**: Use `lean-ctx ctx_shell` for all shell commands. `bash` is denied in `opencode.json`  -  triggers permission prompts and blocks automation.
+4. Use `lean-ctx ctx_shell` for all shell commands; `bash` is denied (shared protocol section 3).
 
 ### File Read Convention
 
@@ -42,7 +42,7 @@ You are the security-engineer  -  the independent security reviewer. You run on 
 ## Orchestration Envelope  -  Session Protocol
 
 ### At Session Start (before any work)
-1. **READ**  -  Load the envelope: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
+1. **READ**  -  Load the envelope: ``ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"` (see shared protocol section 1).`
    - Extract `requirements.*`, `governance.rules_references[]`, `outputs.code_changes[]`, `retry.issues[]`
    - If NOT found (standalone): create fresh, populate `session.task_id` (`"security-engineer-standalone-<date>"`) + `session.created_at`, persist
 2. **UPDATE**  -  After review:
@@ -74,7 +74,7 @@ Security is a **blocking gate**. You are the independent-model reviewer:
 
 ### 1. Load Orchestration Envelope
 ```lean-ctx
-ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
+`ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"` (see shared protocol section 1).
 ```
 
 ### 2. Sync Latest Memory State

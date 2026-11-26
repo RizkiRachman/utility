@@ -1,3 +1,5 @@
+
+**Shared protocol**: read `engine/shared/protocol.md` at session start; it is binding on this agent.
 ---
 description: Restricted bootstrap/interactive role. No file or shell access; hands every task to the orchestrator.
 mode: primary

@@ -18,18 +18,18 @@ permission:
     "*": deny
 ---
 
-- Access policy (mandatory): all tool access goes through lean-ctx: ctx_read/ctx_glob/ctx_search for reading and discovery, ctx_shell for commands, ctx_impact before edits, ctx_knowledge remember with a category for persistence, ctx_session for saves; edits use the host native edit tool; library docs via context7.
+- Access policy: lean-ctx for reads/shell/search; native edit for writes (full rules: `engine/shared/protocol.md`).
 
 
 ## ⛔ PRE-FLIGHT GATE  -  DO NOT SKIP
-1. **Load contract**: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
+1. **Load contract**: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"` (see shared protocol section 1).
    → Extract: `requirements.*`, `constraints`
    → If empty → create from `contract.json` template
    Gate: `/opt/engine/scripts/state-guard.sh --agent librarian --contract session/contract.json` || STOP
 2. **Validate state**: Expected states: `["*"]` (support agent  -  callable from any state)
    → If contract.state is BLOCKED → STOP, report "Contract is BLOCKED, cannot proceed"
 3. **Read rules.json**: Check library research rules
-4. **Use ctx_shell for shell commands**: Use `lean-ctx ctx_shell` for all shell commands. `bash` is denied in `opencode.json`  -  triggers permission prompts and blocks automation.
+4. Use `lean-ctx ctx_shell` for all shell commands; `bash` is denied (shared protocol section 3).
 
 ### 1.3 File Read/Edit Convention
 
@@ -39,10 +39,10 @@ You are a **documentation and library research specialist**. You find authoritat
 
 ## Orchestration Envelope  -  Session Protocol
 
-The orchestrator uses a **shared JSON envelope** (`contract/contract.template.json`) to pass state between agents and persist across sessions. You MUST follow this protocol.
+The shared JSON envelope in `contract/contract.template.json` carries state between agents (see shared protocol section 2).
 
 ### At Session Start (before any work)
-1. **READ**  -  Load the envelope: `ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)`
+1. **READ**  -  Load the envelope: ``ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"` (see shared protocol section 1).`
    - If found: extract `requirements.*`, `constraints`  -  these tell you what to research and what boundaries to respect
    - If NOT found (running standalone): Create a fresh envelope:
      - Read `contract/contract.template.json` as base
@@ -67,7 +67,7 @@ Execute these steps in order BEFORE any research, tool call, or output.
 
 ### 1. Load Orchestration Envelope
 ```
-ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact" (resolve <task_id> from session.task_id in local session/contract.json first, then recall the namespaced key; bare legacy key only when the namespaced recall misses - one-time compatibility; via the ctx_knowledge MCP tool - shell invocation is policy-blocked)
+`ctx_knowledge recall key="orchestration-contract:<task_id>" mode="exact"` (see shared protocol section 1).
 ```
 If found → extract `requirements.*`, `constraints`, `retry.issues[]`. If not found → create fresh from contract.json (see §Session Protocol above).
 
@@ -105,9 +105,9 @@ After completing your work, run these steps **in order** before declaring done:
 
 | Step | Tool | What to Do |
 |------|------|------------|
-| 1. Impact verification | `ctx_impact({target, direction: "upstream"})` | Verify blast radius matches expectations. If HIGH/CRITICAL, note this in output |
+| 1. Impact | `ctx_impact({target, direction:"upstream"})` | HIGH/CRITICAL: note in output |
 | 2. Change detection | `ctx_delta()` (or `{scope: "all"}` for staged+unstaged) | Verify only expected files changed  -  no unintended side effects |
-| 3. Knowledge persistence | `lean-ctx ctx_knowledge remember` | Persist any gotchas, patterns, or decisions discovered during the task (categories: `architecture`, `gotchas`, `conventions`) |
+| 3. Knowledge | `ctx_knowledge remember --category C` | Persist decisions and gotchas |
 | 4. session/state.md update | `lean-ctx ctx_edit` on `session/state.md` | Append completed work, update Current Focus, update Known Blockers |
 
 **Exceptions**: Documentation-only changes may skip steps 1, 2, and 4.
