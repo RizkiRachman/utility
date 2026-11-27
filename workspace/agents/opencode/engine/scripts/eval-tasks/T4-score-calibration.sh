@@ -119,6 +119,57 @@ else
   fail=$((fail+1)); echo "FAIL full output was not machine-readable score JSON (rc=$rc)"
 fi
 
+# Optional judge fields may be omitted and receive their documented defaults.
+mkdir "$D/judge-minimal"
+cp "$template" "$D/judge-minimal/contract.json"
+printf '%s\n' '{"score":85}' > "$D/judge-minimal/judge.json"
+if output=$(bash "$AUTO_SCORE" --file "$D/judge-minimal/contract.json" --rules "$rules" --judge-file "$D/judge-minimal/judge.json" 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$rc" -eq 0 ]] && printf '%s\n' "$output" | jq -e '.score.judge.rationale | startswith("external judge artifact")' >/dev/null 2>&1 &&
+  printf '%s\n' "$output" | jq -e '.score.judge.missing_items == [] and .score.judge.model == ""' >/dev/null 2>&1; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL omitted optional judge fields were not defaulted safely (rc=$rc)"
+fi
+
+# Explicitly supplied malformed judge data fails before emitting score/ledger evidence.
+mkdir "$D/invalid-judge"
+for invalid_judge in \
+  '{"score":"85"}' \
+  '{"score":85,"rationale":[]}' \
+  '{"score":85,"missing_items":"none"}' \
+  '{"score":85,"model":42}'; do
+  printf '%s\n' "$invalid_judge" > "$D/invalid-judge/judge.json"
+  cp "$template" "$D/invalid-judge/contract.json"
+  if output=$(bash "$AUTO_SCORE" --file "$D/invalid-judge/contract.json" --rules "$rules" --judge-file "$D/invalid-judge/judge.json" --score-only 2>/dev/null); then
+    rc=0
+  else
+    rc=$?
+  fi
+  if [[ "$rc" -eq 2 && -z "$output" && ! -e "$D/invalid-judge/scores.jsonl" ]]; then
+    pass=$((pass+1))
+  else
+    fail=$((fail+1)); echo "FAIL malformed judge artifact emitted score/evidence (rc=$rc, output='$output')"
+  fi
+done
+
+# Tier 1 mode cannot consume a judge file and must not silently ignore it.
+mkdir "$D/tier1-with-judge"
+cp "$template" "$D/tier1-with-judge/contract.json"
+if output=$(bash "$AUTO_SCORE" --file "$D/tier1-with-judge/contract.json" --rules "$rules" --tier 1 --judge-file "$D/judge.json" --score-only 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$rc" -eq 2 && -z "$output" && ! -e "$D/tier1-with-judge/scores.jsonl" ]]; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL tier 1 silently ignored --judge-file (rc=$rc)"
+fi
+
 # Tier 2 is prompt export only, not a score; it must not create a ledger row.
 mkdir "$D/judge-prompt"
 cp "$template" "$D/judge-prompt/contract.json"
