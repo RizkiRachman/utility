@@ -2,7 +2,8 @@
 # scripts/loop-guard.sh - C3: controller-enforced loop iteration cap + changed-
 # approach retry hash. The CONTROLLER runs this (orchestrator, before each
 # delegation and after every *_SCORED verdict); agents never self-exempt.
-# Deterministic, file-based (session/loop-state.json), no daemon.
+# Deterministic, file-based (session/loop-state.json), no daemon. State
+# read/check/write is serialized; lock timeout fails closed.
 #
 # Exit codes: 0 = ok | 2 = force-changed-approach (identical attempt hash)
 #             3 = BLOCKED (max_loop_iterations exceeded)
@@ -29,11 +30,47 @@ if [[ -z "$MAX" ]]; then
   MAX=$(jq -r ".enforcement.loop_guard.max_loop_iterations // 12" "$RULES" 2>/dev/null || echo 12)
 fi
 task_id="${TASK:-$(jq -r '.session.task_id // "unknown"' "$CONTRACT" 2>/dev/null || echo unknown)}"
+[[ "$MAX" =~ ^[1-9][0-9]*$ ]] || { echo "{\"action\":\"error\",\"reason\":\"invalid max_loop_iterations: $MAX\"}"; exit 64; }
+state_dir=$(dirname "$STATE")
+mkdir -p "$state_dir"
+lock_file="${STATE}.lock"
+lock_dir="${STATE}.lockdir"
+lock_mode=""
+if command -v flock >/dev/null 2>&1; then
+  exec 9>"$lock_file" || exit 1
+  flock -x 9 || exit 1
+else
+  locked=false
+  for ((attempt=0; attempt<100; attempt++)); do
+    if mkdir "$lock_dir" 2>/dev/null; then locked=true; break; fi
+    sleep 0.02
+  done
+  [[ "$locked" == true ]] || { echo "{\"action\":\"error\",\"reason\":\"loop state lock timeout\"}"; exit 1; }
+  lock_mode="mkdir"
+fi
+tmp=""
+cleanup() {
+  [[ -z "$tmp" ]] || rm -f "$tmp"
+  [[ "$lock_mode" != "mkdir" ]] || rmdir "$lock_dir" 2>/dev/null || true
+}
+trap cleanup EXIT
+
 it=0; last_hash=""; previous_task=""
 if [[ -f "$STATE" ]]; then
-  it=$(jq -r ".iterations_used // 0" "$STATE" 2>/dev/null || echo 0)
-  last_hash=$(jq -r ".last_attempt_hash // \"\"" "$STATE" 2>/dev/null || echo "")
-  previous_task=$(jq -r '.task_id // ""' "$STATE" 2>/dev/null || echo "")
+  jq -e 'type == "object"
+    and (.iterations_used | type == "number" and floor == .)
+    and ((.last_attempt_hash // "") | type == "string")
+    and ((.task_id // "") | type == "string")' "$STATE" >/dev/null 2>&1 || {
+    echo "{\"action\":\"error\",\"reason\":\"invalid loop state\"}"
+    exit 1
+  }
+  it=$(jq -r '.iterations_used' "$STATE")
+  last_hash=$(jq -r '.last_attempt_hash // ""' "$STATE")
+  previous_task=$(jq -r '.task_id // ""' "$STATE")
+  [[ "$it" =~ ^[0-9]+$ ]] && [[ "$last_hash" == "" || "$last_hash" =~ ^[a-fA-F0-9]{64}$ ]] || {
+    echo "{\"action\":\"error\",\"reason\":\"invalid loop state values\"}"
+    exit 1
+  }
 fi
 if [[ -n "$previous_task" && "$previous_task" != "$task_id" ]]; then
   it=0
@@ -44,10 +81,10 @@ if [[ -n "$HASH" && -n "$last_hash" && "$HASH" == "$last_hash" ]]; then
   exit 2
 fi
 it=$((it + 1))
-tmp=$(mktemp)
+tmp=$(mktemp "${STATE}.tmp.XXXXXX")
 jq -n --arg t "$task_id" --arg p "$PHASE" --arg h "$HASH" --argjson it "$it" --argjson max "$MAX" "{task_id:\$t, last_phase:\$p, last_attempt_hash:\$h, iterations_used:\$it, max_iterations:\$max, updated_at:(now|todateiso8601)}" > "$tmp"
-mkdir -p "$(dirname "$STATE")"
 mv "$tmp" "$STATE"
+tmp=""
 if [[ "$it" -gt "$MAX" ]]; then
   echo "{\"action\":\"BLOCKED\",\"reason\":\"max_loop_iterations exceeded\",\"iterations_used\":$it,\"max_iterations\":$MAX,\"task\":\"$TASK\",\"phase\":\"$PHASE\"}"
   exit 3
