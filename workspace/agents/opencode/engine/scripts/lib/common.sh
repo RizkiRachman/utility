@@ -83,10 +83,11 @@ require_option_value() {
 # acquire_file_lock PATH [TIMEOUT_SECONDS]
 # Use atomic directory creation so the same lock contract works without flock.
 _LCOMMON_FILE_LOCK_DIR=""
+_LCOMMON_FILE_LOCK_TOKEN=""
 acquire_file_lock() {
     local path="${1:-}"
     local timeout="${2:-30}"
-    local lock_dir parent_dir start
+    local lock_dir parent_dir start token
     if [[ -z "$path" || ! "$timeout" =~ ^[0-9]+$ ]]; then
         printf 'acquire_file_lock: expected a path and non-negative timeout\n' >&2
         return 2
@@ -103,24 +104,41 @@ acquire_file_lock() {
         return 1
     fi
     start=$SECONDS
-    while ! mkdir "$lock_dir" 2>/dev/null; do
+    while :; do
+        if mkdir "$lock_dir" 2>/dev/null; then
+            token="${BASHPID:-$$}-$RANDOM-$RANDOM"
+            if ! printf '%s\n' "$token" > "$lock_dir/owner"; then
+                rmdir "$lock_dir" 2>/dev/null || true
+                printf 'ERROR: Cannot record lock ownership: %s\n' "$lock_dir" >&2
+                return 1
+            fi
+            _LCOMMON_FILE_LOCK_DIR="$lock_dir"
+            _LCOMMON_FILE_LOCK_TOKEN="$token"
+            return 0
+        fi
         if (( SECONDS - start >= timeout )); then
             printf 'ERROR: Timed out acquiring lock: %s\n' "$lock_dir" >&2
             return 1
         fi
         sleep 0.02
     done
-    _LCOMMON_FILE_LOCK_DIR="$lock_dir"
 }
 
 release_file_lock() {
     [[ -n "$_LCOMMON_FILE_LOCK_DIR" ]] || return 0
     local lock_dir="$_LCOMMON_FILE_LOCK_DIR"
-    if ! rmdir "$lock_dir"; then
+    local token="$_LCOMMON_FILE_LOCK_TOKEN"
+    local current_token
+    if ! IFS= read -r current_token < "$lock_dir/owner" || [[ "$current_token" != "$token" ]]; then
+        printf 'ERROR: Lock ownership changed before release: %s\n' "$lock_dir" >&2
+        return 1
+    fi
+    if ! rm -f "$lock_dir/owner" || ! rmdir "$lock_dir"; then
         printf 'ERROR: Cannot release lock directory: %s\n' "$lock_dir" >&2
         return 1
     fi
     _LCOMMON_FILE_LOCK_DIR=""
+    _LCOMMON_FILE_LOCK_TOKEN=""
 }
 
 # ── rules.json store_in resolution ─────────────────────────────────────────
