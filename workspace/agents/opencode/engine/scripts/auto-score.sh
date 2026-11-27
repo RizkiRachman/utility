@@ -135,7 +135,14 @@ EXAMPLES
     scripts/auto-score.sh --file contract.json --dry-run
 
 USAGE
-    exit 0
+}
+
+require_option_value() {
+    local option="$1"
+    if (( $# < 2 )) || [[ -z "$2" ]]; then
+        echo "ERROR: $option requires a non-empty value" >&2
+        exit 2
+    fi
 }
 
 # ── Logging ─────────────────────────────────────────────────────────────────
@@ -638,16 +645,16 @@ main() {
     # Parse args
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --file)     CONTRACT_FILE="$2"; shift 2 ;;
-            --phase)    SCORE_PHASE="$2"; shift 2 ;;
-            --rules)    RULES_FILE="$2"; shift 2 ;;
-            --tier)     TIER_FILTER="$2"; shift 2 ;;
-            --judge-file) JUDGE_FILE="$2"; shift 2 ;;
+            --file)     require_option_value "$@"; CONTRACT_FILE="$2"; shift 2 ;;
+            --phase)    require_option_value "$@"; SCORE_PHASE="$2"; shift 2 ;;
+            --rules)    require_option_value "$@"; RULES_FILE="$2"; shift 2 ;;
+            --tier)     require_option_value "$@"; TIER_FILTER="$2"; shift 2 ;;
+            --judge-file) require_option_value "$@"; JUDGE_FILE="$2"; shift 2 ;;
             --score-only) SCORE_ONLY=true; shift ;;
             --dry-run)  DRY_RUN=true; shift ;;
             --verbose)  VERBOSE=true; shift ;;
-            --help|-h)  usage ;;
-            *) echo "Unknown option: $1" >&2; usage ;;
+            --help|-h)  usage; exit 0 ;;
+            *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
         esac
     done
 

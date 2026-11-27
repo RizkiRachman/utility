@@ -53,6 +53,45 @@ check "zero-score"            0 true  false BLOCKED
 check "permissions-halt"     95 true  true  BLOCKED
 check "denied-attempt-alone" 95 true  false PASS
 
+# Value-taking options must fail deterministically when their value is absent.
+for missing_option in --file --rules --tier --phase --judge-file; do
+  if output=$(bash "$AUTO_SCORE" "$missing_option" 2>/dev/null); then
+    rc=0
+  else
+    rc=$?
+  fi
+  if [[ "$rc" -eq 2 && -z "$output" ]]; then
+    pass=$((pass+1))
+  else
+    fail=$((fail+1)); echo "FAIL missing value for $missing_option: rc=$rc output='$output'"
+  fi
+done
+if output=$(bash "$AUTO_SCORE" --file "" 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$rc" -eq 2 && -z "$output" ]]; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL empty --file value was not rejected (rc=$rc)"
+fi
+if output=$(bash "$AUTO_SCORE" --unknown-option 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$rc" -eq 2 && -z "$output" ]]; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL unknown option was not rejected (rc=$rc)"
+fi
+if bash "$AUTO_SCORE" --help >/dev/null 2>&1; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL --help did not exit successfully"
+fi
+
 # A denial in the controller audit must not deduct permission points in the
 # production scorer. Compare identical contracts with and without that event.
 D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
