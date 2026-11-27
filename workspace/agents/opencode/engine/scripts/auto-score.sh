@@ -469,26 +469,28 @@ tier2_generate_prompt() {
 
     local goal accept_criteria judge_prompt
 
-    goal=$(jq -r '.requirements.goal // ""' "$file" 2>/dev/null || echo "")
-    accept_criteria=$(jq -r '.requirements.acceptance_criteria // [] | join("; ")' "$file" 2>/dev/null || echo "")
+    goal=$(jq -c '.requirements.goal // ""' "$file" 2>/dev/null || echo '""')
+    accept_criteria=$(jq -c '.requirements.acceptance_criteria // []' "$file" 2>/dev/null || echo '[]')
     judge_prompt=$(jq -r '.scoring.tier2.judge_prompt // "You are an impartial judge evaluating an AI agent'\''s output. Score 0-100 based on: (1) Requirements fulfillment 0-40, (2) Governance compliance 0-30, (3) Completeness 0-20, (4) Edge cases and risks 0-10. Return JSON: { score: N, rationale: \"...\", missing_items: [...] }"' "$rules_file" 2>/dev/null || echo "")
 
-    cat <<JUDGE_EOF
-{
-  "judge_prompt": $(echo "$judge_prompt" | jq -Rs .),
-  "contract": {
-    "requirements": {
-      "goal": $(echo "$goal" | jq -Rs .),
-      "acceptance_criteria": $(echo "$accept_criteria" | jq -Rs .)
-    }
-  },
-  "output": {
-    "score": 0,
-    "rationale": "",
-    "missing_items": []
-  }
-}
-JUDGE_EOF
+    jq -n \
+        --arg judge_prompt "$judge_prompt" \
+        --argjson goal "$goal" \
+        --argjson acceptance_criteria "$accept_criteria" \
+        '{
+            judge_prompt: $judge_prompt,
+            contract: {
+                requirements: {
+                    goal: $goal,
+                    acceptance_criteria: $acceptance_criteria
+                }
+            },
+            output: {
+                score: 0,
+                rationale: "",
+                missing_items: []
+            }
+        }'
 }
 
 # ── Tier 2: LLM-as-Judge (returns a structured JSON result on stdout) ─────
