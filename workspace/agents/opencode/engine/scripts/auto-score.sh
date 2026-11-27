@@ -76,7 +76,10 @@ REQUIRED
 
 OPTIONS
     --rules PATH      Path to rules.json (default: PROJECT_DIR/rules/rules.json)
-    --tier N          Score only a specific tier: 1 (rules) or 2 (judge)
+    --tier N          Run tier 1 scoring, or export the tier 2 judge prompt.
+                      Tier 2 exports prompt JSON only; it does not score or
+                      write a ledger row. Use default/all tiers with
+                      --judge-file to score an external judge result.
                       (default: all — both tiers)
     --score-only      Output only the combined score number (for CI/scripts)
     --phase NAME      Optional phase label recorded in the scores.jsonl ledger
@@ -665,6 +668,10 @@ main() {
         echo "ERROR: --tier must be 1 or 2 (default: all)" >&2
         exit 2
     fi
+    if [[ "$TIER_FILTER" == "2" && ( -n "$JUDGE_FILE" || "$SCORE_ONLY" == true || -n "$SCORE_PHASE" ) ]]; then
+        echo "ERROR: --tier 2 exports a judge prompt only; omit --judge-file, --score-only, and --phase" >&2
+        exit 2
+    fi
 
     # R3-05: optional external judge artifact (real Tier 2 evidence)
     local judge_usable=false
@@ -719,7 +726,7 @@ main() {
     local judge_model=""
 
     if [[ "$TIER_FILTER" == "2" ]]; then
-        # --tier 2 mode: print judge prompt and subtotal, then exit
+        # Prompt export is not a scoring run: no verdict or ledger row exists.
         local t2_stdout
         t2_stdout=$(run_tier2 "$CONTRACT_FILE" "${RULES_FILE:-not_found}" "$tier1_subtotal")
         echo "$t2_stdout"
