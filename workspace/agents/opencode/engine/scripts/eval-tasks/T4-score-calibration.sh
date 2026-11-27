@@ -108,7 +108,28 @@ fi
 
 # Full output remains machine-readable JSON, without progress text on stdout.
 cp "$template" "$D/full-json-contract.json"
+printf '%s\n' '{"score":40,"rationale":"judge unavailable for unrelated criteria","missing_items":[],"model":"fixture"}' > "$D/judge.json"
 if output=$(bash "$AUTO_SCORE" --file "$D/full-json-contract.json" --rules "$rules" --judge-file "$D/judge.json" 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$rc" -eq 1 ]] && printf '%s\n' "$output" | jq -e '
+  .score.combined == 63
+  and .score.verdict == "RETRY"
+  and .score.tier1_only == false
+  and .score.judge.rationale == "judge unavailable for unrelated criteria"
+' >/dev/null 2>&1; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL judge rationale changed verdict or output was not machine-readable (rc=$rc)"
+fi
+
+# Structured judge results preserve delimiters and newlines in all fields.
+mkdir "$D/judge-text"
+cp "$template" "$D/judge-text/contract.json"
+printf '%s\n' '{"score":85,"rationale":"fixture|judge\nsecond line","missing_items":["edge|case","line\nbreak"],"model":"fixture|model"}' > "$D/judge-text/judge.json"
+if output=$(bash "$AUTO_SCORE" --file "$D/judge-text/contract.json" --rules "$rules" --judge-file "$D/judge-text/judge.json" 2>/dev/null); then
   rc=0
 else
   rc=$?
@@ -117,11 +138,12 @@ if [[ "$rc" -eq 0 ]] && printf '%s\n' "$output" | jq -e '
   .score.combined == 85
   and .score.verdict == "PASS"
   and .score.judge.rationale == "fixture|judge\nsecond line"
-  and .score.judge.missing_items == ["edge case"]
+  and .score.judge.missing_items == ["edge|case", "line\nbreak"]
+  and .score.judge.model == "fixture|model"
 ' >/dev/null 2>&1; then
   pass=$((pass+1))
 else
-  fail=$((fail+1)); echo "FAIL full output was not machine-readable score JSON (rc=$rc)"
+  fail=$((fail+1)); echo "FAIL structured judge fields did not round-trip (rc=$rc)"
 fi
 
 # Judge-unavailable fallback also crosses the internal boundary as structured JSON.
