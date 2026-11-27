@@ -50,13 +50,22 @@ jq '.session.task_id="task-one"' "$D/loop-contract.json" > "$D/lc.new" && mv "$D
 bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state "$D/task-loop.json" --task task-one --phase PLAN --hash "$attempt_a" --max 3 >/dev/null
 bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state "$D/task-loop.json" --task task-two --phase PLAN --hash "$attempt_a" --max 3 >/dev/null
 [[ "$(jq -r .iterations_used "$D/task-loop.json")" == "1" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL loop budget not reset for new task"; }
+if output=$(bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state "$D/raised-loop.json" --task task-one --max 13 2>/dev/null); then
+  fail=$((fail+1)); echo "FAIL loop guard allowed an override above configured max"
+elif [[ "$?" -eq 64 ]] && printf '%s\n' "$output" | jq -e '.action == "error" and .configured_max == 12 and .requested_max == 13' >/dev/null 2>&1; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL over-limit loop override did not return a structured error"
+fi
 
 # Concurrent distinct attempts must each increment the serialized budget.
 concurrent_state="$D/concurrent-loop.json"
+loop_rules="$D/loop-rules.json"
+jq '.enforcement.loop_guard.max_loop_iterations=30' "$ENGINE/rules/rules.json" > "$loop_rules"
 pids=()
 for n in $(seq 1 24); do
   hash=$(printf 'concurrent attempt %s' "$n" | shasum -a 256 | cut -d' ' -f1)
-  bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state "$concurrent_state" --task parallel-task --phase EXECUTE --hash "$hash" --max 30 >/dev/null &
+  RULES_PATH="$loop_rules" bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state "$concurrent_state" --task parallel-task --phase EXECUTE --hash "$hash" --max 30 >/dev/null &
   pids+=("$!")
 done
 concurrent_failed=0
