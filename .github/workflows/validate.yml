@@ -199,3 +199,7 @@ jobs:
       - name: Contract persistence (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T21-contract-persistence.sh
+
+      - name: State guard CLI (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T22-state-guard-cli.sh

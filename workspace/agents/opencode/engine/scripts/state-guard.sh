@@ -3,6 +3,7 @@ set -euo pipefail
 
 # ─── Config ────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 RULES_FILE="$(ls "$SCRIPT_DIR/../rules/rules.json" 2>/dev/null || true)"
 if [[ -z "$RULES_FILE" && -f /opt/engine/rules/rules.json ]]; then
   RULES_FILE="/opt/engine/rules/rules.json"
@@ -47,34 +48,51 @@ STATE=""
 BLAST_RADIUS=""
 DRY_RUN=false
 TARGET_TO=""
+INPUT_SOURCE=""
+select_input_source() {
+  if [[ -n "$INPUT_SOURCE" ]]; then
+    echo "ERROR: --contract, --state, and --contract-dir are mutually exclusive" >&2
+    exit 2
+  fi
+  INPUT_SOURCE="$1"
+}
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --agent)
+      require_option_value "$0" "$1" "${2-}" || exit 2
       AGENT="$2"
       shift 2
       ;;
     --contract)
+      require_option_value "$0" "$1" "${2-}" || exit 2
+      select_input_source contract
       CONTRACT="$2"
       shift 2
       ;;
     --contract-dir)
+      require_option_value "$0" "$1" "${2-}" || exit 2
+      select_input_source contract-dir
       CONTRACT_DIR="$2"
       shift 2
       ;;
     --state)
+      require_option_value "$0" "$1" "${2-}" || exit 2
+      select_input_source state
       STATE="$2"
       shift 2
       ;;
     --blast-radius)
+      require_option_value "$0" "$1" "${2-}" || exit 2
       BLAST_RADIUS="$2"
       if [[ "$BLAST_RADIUS" != "HIGH" && "$BLAST_RADIUS" != "CRITICAL" ]]; then
         echo -e "${RED}ERROR: --blast-radius must be HIGH or CRITICAL${NC}" >&2
-        exit 1
+        exit 2
       fi
       shift 2
       ;;
     --to)
+      require_option_value "$0" "$1" "${2-}" || exit 2
       TARGET_TO="$2"
       shift 2
       ;;
@@ -87,7 +105,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo -e "${RED}ERROR: Unknown option: $1${NC}" >&2
-      usage
+      exit 2
       ;;
   esac
 done
@@ -105,17 +123,12 @@ fi
 # ─── Validate inputs ───────────────────────────────────────────────────────
 if [[ -z "$AGENT" ]]; then
   echo -e "${RED}ERROR: --agent is required${NC}" >&2
-  usage
-fi
-
-if [[ -n "$CONTRACT" && -n "$STATE" ]]; then
-  echo -e "${RED}ERROR: --contract, --contract-dir, and --state are mutually exclusive${NC}" >&2
-  exit 1
+  exit 2
 fi
 
 if [[ -z "$CONTRACT" && -z "$STATE" ]]; then
   echo -e "${RED}ERROR: Either --contract, --contract-dir, or --state is required${NC}" >&2
-  usage
+  exit 2
 fi
 
 # ─── Check jq availability ────────────────────────────────────────────────

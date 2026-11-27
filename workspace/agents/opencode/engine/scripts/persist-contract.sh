@@ -28,6 +28,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # N1: session state lives with the PROJECT, not the engine copy
 source "${SCRIPT_DIR}/lib/paths.sh"
+source "${SCRIPT_DIR}/lib/common.sh"
 PROJECT_DIR="$(resolve_project_root "${SCRIPT_DIR}/..")"
 CONTRACT_FILE="${PROJECT_DIR}/session/contract.json"
 SCORE=""
@@ -61,13 +62,13 @@ EOF
 # --- Parse args ------------------------------------------------------------
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --file) CONTRACT_FILE="$2"; shift 2 ;;
-        --from-file) FROM_FILE="$2"; shift 2 ;;
-        --score) SCORE="$2"; shift 2 ;;
+        --file) require_option_value "$0" "$1" "${2-}" || exit 2; CONTRACT_FILE="$2"; shift 2 ;;
+        --from-file) require_option_value "$0" "$1" "${2-}" || exit 2; FROM_FILE="$2"; shift 2 ;;
+        --score) require_option_value "$0" "$1" "${2-}" || exit 2; SCORE="$2"; shift 2 ;;
         --validate) RUN_VALIDATE=true; shift ;;
         --verbose) VERBOSE=true; shift ;;
         --help|-h) usage ;;
-        *) echo "ERROR: Unknown option: $1" >&2; usage ;;
+        *) echo "ERROR: Unknown option: $1" >&2; exit 2 ;;
     esac
 done
 

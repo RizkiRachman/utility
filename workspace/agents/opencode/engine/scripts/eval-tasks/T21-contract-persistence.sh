@@ -12,6 +12,34 @@ export OPENCODE_PROJECT_ROOT="$D"
 pass=0
 fail=0
 
+for option in --file --from-file --score; do
+  if output=$(bash "$PERSIST" "$option" 2>&1); then
+    fail=$((fail+1)); echo "FAIL $option accepted without a value"
+  else
+    rc=$?
+    if [[ "$rc" -eq 2 ]] && grep -Fq -- "$option requires a value" <<< "$output"; then
+      pass=$((pass+1))
+    else
+      fail=$((fail+1)); echo "FAIL $option returned $rc without a clear value error"
+    fi
+  fi
+done
+if output=$(bash "$PERSIST" --unknown 2>&1); then
+  fail=$((fail+1)); echo "FAIL unknown persistence option returned success"
+else
+  rc=$?
+  if [[ "$rc" -eq 2 ]] && grep -Fq "Unknown option: --unknown" <<< "$output"; then
+    pass=$((pass+1))
+  else
+    fail=$((fail+1)); echo "FAIL unknown persistence option returned $rc"
+  fi
+fi
+if bash "$PERSIST" --help >/dev/null 2>&1; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL explicit persistence help was rejected"
+fi
+
 if bash "$PERSIST" --file "$D/custom/contract.json" --from-file "$D/source.json" >/dev/null 2>&1; then
   [[ -f "$D/custom/contract.json.lock" && ! -e "$D/session/contract.json.lock" ]] \
     && pass=$((pass+1)) \

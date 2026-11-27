@@ -68,6 +68,18 @@ log_dry() { echo -e "  ${CYAN}[DRY-RUN]${NC} $*"; }
 init_violations() { VIOLATIONS=0; }
 bump_violations() { VIOLATIONS=$((VIOLATIONS + 1)); }
 
+# require_option_value SCRIPT OPTION VALUE
+# Reject absent, empty, or option-shaped values before strict-mode expansion.
+require_option_value() {
+    local script_name="${1##*/}"
+    local option="$2"
+    local value="${3-}"
+    if [[ -z "$value" || "$value" == --* ]]; then
+        printf '%s: %s requires a value\n' "$script_name" "$option" >&2
+        return 2
+    fi
+}
+
 # ── rules.json store_in resolution ─────────────────────────────────────────
 # store_in_path DOTTED_PATH [FALLBACK] [RULES_FILE]
 #
