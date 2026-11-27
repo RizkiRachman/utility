@@ -52,6 +52,7 @@ with open(sys.argv[1], encoding="utf-8") as f:
 with open(sys.argv[2], encoding="utf-8") as f:
     contract = json.load(f)
 try:
+    jsonschema.Draft202012Validator.check_schema(schema)
     jsonschema.Draft202012Validator(schema).validate(contract)
 except Exception:
     raise SystemExit(1)
@@ -222,6 +223,8 @@ case "$OP" in
     [[ -n "$TO" ]] || deny "missing --to"
     [[ -n "$AGENT" ]] || deny "agent identity required for transition"
     [[ -n "$EVIDENCE" ]] || deny "evidence id required"
+    [[ "$STATE" != "UNKNOWN" ]] || deny "contract is invalid or does not satisfy its schema"
+    state_valid "$STATE" || deny "state $STATE not declared in rules.json"
     FROM="$STATE"
     phase_evidence_ok "$(evidence_kind "$EVIDENCE")" || deny "evidence kind not permitted for $FROM->$TO"
     resolve_evidence "$EVIDENCE" || deny "evidence $EVIDENCE does not resolve to an artifact"

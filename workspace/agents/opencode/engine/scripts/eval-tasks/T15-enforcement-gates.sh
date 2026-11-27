@@ -23,12 +23,14 @@ CONTRACT_FILE="$D/bad.json" bash "$C" pre_tool_action --tool edit --target "$D/R
 
 # 2. Scored edges require ledger evidence, not just a file.
 trans PLAN "file:$D/state.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL INIT->PLAN"; }
+jq '.score.combined=70 | .score.verdict="PASS"' "$D/contract.json" > "$D/c.new" && mv "$D/c.new" "$D/contract.json"
 trans PLAN_SCORED "file:$D/state.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL PLAN->PLAN_SCORED"; }
 if trans EXECUTE "file:$D/state.md"; then fail=$((fail+1)); echo "FAIL scored edge accepted file"; else pass=$((pass+1)); fi
 printf '%s\n' '{"phase":"PLAN_SCORED","verdict":"PASS","tier1_only":false}' > "$D/scores.jsonl"
 trans EXECUTE "ledger:PASS" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL scored edge rejected ledger"; }
 
 # 3. Leaving BLOCKED requires manual evidence and user override.
+jq '.score.combined=0 | .score.verdict="BLOCKED"' "$D/contract.json" > "$D/c.new" && mv "$D/c.new" "$D/contract.json"
 trans BLOCKED "file:$D/state.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL ->BLOCKED"; }
 if trans INIT "file:$D/state.md"; then fail=$((fail+1)); echo "FAIL BLOCKED exit accepted file"; else pass=$((pass+1)); fi
 jq '.governance.user_override=true' "$D/contract.json" > "$D/c.new" && mv "$D/c.new" "$D/contract.json"
@@ -39,6 +41,12 @@ jq '.state="EXECUTE_SCORED" | .score.combined=60 | .retry.attempt=3 | .retry.max
 if bash "$ENGINE/scripts/state-guard.sh" --agent orchestrator --contract "$D/exhausted.json" --to BLOCKED >/dev/null 2>&1; then pass=$((pass+1)); else fail=$((fail+1)); echo "FAIL exhausted retries denied BLOCKED"; fi
 jq '.retry.attempt=1' "$D/exhausted.json" > "$D/retries-left.json"
 if bash "$ENGINE/scripts/state-guard.sh" --agent orchestrator --contract "$D/retries-left.json" --to BLOCKED >/dev/null 2>&1; then fail=$((fail+1)); echo "FAIL retry-left escalation accepted"; else pass=$((pass+1)); fi
+
+# 3c. A schema-invalid current contract cannot transition, even with valid evidence.
+jq '.state="PLAN_SCORED" | .score.combined=0' "$D/contract.json" > "$D/invalid-phase.json"
+if CONTRACT_FILE="$D/invalid-phase.json" bash "$T" --to EXECUTE --agent orchestrator --evidence "file:$D/state.md" >/dev/null 2>&1; then
+  fail=$((fail+1)); echo "FAIL schema-invalid contract transitioned"
+else pass=$((pass+1)); fi
 
 # 4. Completion requires a ledger entry for every scored phase.
 ok "no bootstrap" "$(bash "$C" pre_completion >/dev/null 2>&1; echo $?)" "1"
