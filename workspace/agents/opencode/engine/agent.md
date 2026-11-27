@@ -531,7 +531,7 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 
 ### Central WorkflowPolicy Controller (C6)
 
-State mutation is centralized: **only** `scripts/transition.sh --to STATE --agent NAME --evidence ID` may change `contract.state`. It takes an exclusive `flock`, validates the edge through `scripts/workflow-controller.sh` (reusing `state-guard.sh --to`), calls `pre_completion` on the COMPLETE edge, writes atomically, and emits immutable `pre_transition`/`post_transition` events to `session/workflow-audit.jsonl`.
+State mutation is centralized: **only** `scripts/transition.sh --to STATE --agent NAME --evidence ID` may change `contract.state`. It takes the shared exclusive directory lock for the contract, validates the edge through `scripts/workflow-controller.sh` (reusing `state-guard.sh --to`), calls `pre_completion` on the COMPLETE edge, writes atomically, and emits immutable `pre_transition`/`post_transition` events to `session/workflow-audit.jsonl`.
 
 Controller operations (each appends a fail-closed audit event):
 - `pre_tool_action` / `post_tool_action` - called before/after `edit`, `write`, `patch`. A target is required; writes to `contract.json`, `scores.jsonl`, workflow/tool audit logs, `loop-state.json`, `.env*`, `opencode.json`, and `.session/` are denied.

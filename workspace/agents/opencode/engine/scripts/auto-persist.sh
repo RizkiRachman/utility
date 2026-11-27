@@ -18,12 +18,13 @@
 #   0 = Success
 #   1 = Error (invalid args, missing file, invalid JSON, etc.)
 #
-# Lock: acquires the same exclusive flock on <contract>.lock (fd 9) that
-# persist-contract.sh holds, covering the knowledge write and the file write.
+# Lock: acquires the shared exclusive directory lock for the selected contract,
+# covering the knowledge write and the file write.
 
 set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SCRIPT_DIR}/lib/knowledge.sh"
+source "${SCRIPT_DIR}/lib/common.sh"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -267,12 +268,16 @@ if [[ -n "$OLD_STATE" && -n "$NEW_STATE" && "$OLD_STATE" != "$NEW_STATE" ]]; the
 fi
 
 # ---------------------------------------------------------------------------
-# Session lock (R3-18): same flock contract as persist-contract.sh. Acquired
+# Session lock (R3-18): same lock contract as persist-contract.sh. Acquired
 # after the audit-log child call (which locks itself) so no nested lock.
 # ---------------------------------------------------------------------------
-# Group form: keeps fd 2 alive (bare `exec 9>f 2>/dev/null` silences all later stderr).
-{ exec 9>"${CONTRACT_FILE}.lock"; } 2>/dev/null || true
-flock 9 2>/dev/null || true
+acquire_file_lock "$CONTRACT_FILE" || exit 1
+trap release_file_lock EXIT
+if ! CONTRACT_JSON="$(jq -c '.' "$CONTRACT_FILE" 2>/dev/null)"; then
+    echo -e "${RED}[ERROR]${NC} Invalid JSON in contract file: $CONTRACT_FILE" >&2
+    exit 1
+fi
+TASK_ID=$(jq -r '.session.task_id // "default"' "$CONTRACT_FILE")
 
 # ---------------------------------------------------------------------------
 # Persist to lean-ctx knowledge (unless --no-knowledge)

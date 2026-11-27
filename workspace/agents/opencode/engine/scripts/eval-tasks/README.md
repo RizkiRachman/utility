@@ -31,8 +31,9 @@ from the `auto-score.sh` JSONL ledger).
 | T18-learning-impact.sh | Learning reuse recorded and reported across tasks | `learning-record.sh` |
 | T19-failure-loop.sh | Typed failure-loop strategy matrix exercised end to end | `failure-loop.sh` |
 | T20-doc-hygiene.sh | No em dashes in engine markdown; advertised counts match tree/config | `grep` + `jq` |
-| T21-contract-persistence.sh | Contract CLI values, target lock path, and validated atomic staging | `persist-contract.sh` |
+| T21-contract-persistence.sh | Contract CLI values, lock cleanup, and validated atomic staging | `persist-contract.sh` |
 | T22-state-guard-cli.sh | Missing values, unknown flags, and conflicting state selectors fail clearly | `state-guard.sh` |
+| T23-portable-contract-locking.sh | Contract writers share an exclusive, bounded-wait directory lock | `common.sh` + persistence writers |
 | T1-validate-contract.sh | Template contract passes the full validator incl. deadlock-config consistency | `validate-contract.sh` |
 
 ## Usage
