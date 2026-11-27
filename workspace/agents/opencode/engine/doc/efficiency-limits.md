@@ -67,12 +67,11 @@ checkable proxy for a proven outcome.
    protected data against a trusted execution baseline, so a mutation that
    bypasses all controller gates and omits that signal is not detected by this
    score.
-10. **Loop state updates are serialized.** `loop-guard.sh` holds an exclusive
-    lock across duplicate checking and counter updates, using `flock` when
-    available and a bounded directory-lock fallback otherwise. Lock timeout
-    denies the attempt rather than allowing an uncounted delegation. Its
-    configured `max_loop_iterations` is a hard ceiling; a caller may lower the
-    limit for a run but cannot raise it above `rules.json`.
+10. **Loop state updates are serialized.** `loop-guard.sh` uses the shared
+    directory-lock helper across duplicate checking and counter updates.
+    Lock timeout denies the attempt rather than allowing an uncounted
+    delegation. The configured `max_loop_iterations` is a hard ceiling. A
+    caller may lower it for a run but cannot raise it above `rules.json`.
 11. **Completion evidence is task-scoped.** `pre_completion` requires a
     non-empty task id and checks every phase row against it. The judge-backed
     REVIEW row must also belong to the current task; a previous task's score

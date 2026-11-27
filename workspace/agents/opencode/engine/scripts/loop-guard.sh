@@ -10,6 +10,7 @@
 # On 2/3 a JSON directive is printed for retry.issues[] / state transition.
 set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+source "$SCRIPT_DIR/lib/common.sh"
 CONTRACT="session/contract.json"
 STATE="session/loop-state.json"
 MAX=""; TASK=""; PHASE=""; HASH=""
@@ -42,25 +43,14 @@ task_id="${TASK:-$(jq -r '.session.task_id // "unknown"' "$CONTRACT" 2>/dev/null
 }
 state_dir=$(dirname "$STATE")
 mkdir -p "$state_dir"
-lock_file="${STATE}.lock"
-lock_dir="${STATE}.lockdir"
-lock_mode=""
-if command -v flock >/dev/null 2>&1; then
-  exec 9>"$lock_file" || exit 1
-  flock -x 9 || exit 1
-else
-  locked=false
-  for ((attempt=0; attempt<100; attempt++)); do
-    if mkdir "$lock_dir" 2>/dev/null; then locked=true; break; fi
-    sleep 0.02
-  done
-  [[ "$locked" == true ]] || { echo "{\"action\":\"error\",\"reason\":\"loop state lock timeout\"}"; exit 1; }
-  lock_mode="mkdir"
-fi
+acquire_file_lock "$STATE" 2 || {
+  echo "{\"action\":\"error\",\"reason\":\"loop state lock unavailable\"}"
+  exit 1
+}
 tmp=""
 cleanup() {
   [[ -z "$tmp" ]] || rm -f "$tmp"
-  [[ "$lock_mode" != "mkdir" ]] || rmdir "$lock_dir" 2>/dev/null || true
+  release_file_lock
 }
 trap cleanup EXIT
 
