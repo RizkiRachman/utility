@@ -493,6 +493,7 @@ run_tier2_judge() {
     local judge_rationale="LLM judge unavailable in bash context — Tier 2 requires LLM invocation"
     local judge_missing="[]"
     local judge_model=""
+    local judge_available=false
 
     # R3-05: external judge artifact — real Tier 2 score when supplied
     if [[ -n "$JUDGE_FILE" ]]; then
@@ -501,7 +502,8 @@ run_tier2_judge() {
             score: (.score | round),
             rationale: (.rationale // "external judge artifact"),
             missing_items: (.missing_items // []),
-            model: (.model // "")
+            model: (.model // ""),
+            available: true
         }' "$JUDGE_FILE"
         return
     fi
@@ -535,7 +537,8 @@ run_tier2_judge() {
         --arg rationale "$judge_rationale" \
         --argjson missing_items "$judge_missing" \
         --arg model "$judge_model" \
-        '{score:$score, rationale:$rationale, missing_items:$missing_items, model:$model}'
+        --argjson available "$judge_available" \
+        '{score:$score, rationale:$rationale, missing_items:$missing_items, model:$model, available:$available}'
 }
 
 # ── Tier 2: Display wrapper (display → stderr, result → stdout) ───────────
@@ -566,15 +569,16 @@ run_tier2() {
         >&2 log_info "Judge score would be determined by LLM response"
     fi
 
-    local result judge_score judge_rationale judge_missing judge_model
+    local result judge_score judge_rationale judge_missing judge_model judge_available
     result=$(run_tier2_judge "$file" "$rules_file")
     judge_score=$(jq -r '.score' <<< "$result")
     judge_rationale=$(jq -r '.rationale' <<< "$result")
     judge_missing=$(jq -c '.missing_items' <<< "$result")
     judge_model=$(jq -r '.model' <<< "$result")
+    judge_available=$(jq -r '.available' <<< "$result")
 
-    # Fallback: if LLM judge unavailable (score=0), use Tier 1 subtotal as per spec
-    if [[ "$judge_score" == "0" && "$judge_rationale" == *"unavailable"* ]]; then
+    # Fallback only when the judge was not actually available.
+    if [[ "$judge_available" == false ]]; then
         judge_score="$subtotal"
         judge_rationale="LLM judge unavailable — fell back to Tier 1 subtotal (${subtotal})"
         judge_missing="[]"
@@ -590,7 +594,8 @@ run_tier2() {
         --arg rationale "$judge_rationale" \
         --argjson missing_items "$judge_missing" \
         --arg model "$judge_model" \
-        '{score:$score, rationale:$rationale, missing_items:$missing_items, model:$model}'
+        --argjson available "$judge_available" \
+        '{score:$score, rationale:$rationale, missing_items:$missing_items, model:$model, available:$available}'
 }
 
 # ── Tier 3: Combined Verdict ───────────────────────────────────────────────
@@ -739,6 +744,7 @@ main() {
     local judge_rationale=""
     local judge_missing="[]"
     local judge_model=""
+    local judge_available=false
 
     if [[ "$TIER_FILTER" == "2" ]]; then
         # Prompt export is not a scoring run: no verdict or ledger row exists.
@@ -770,6 +776,7 @@ main() {
             judge_rationale=$(jq -r '.rationale' <<< "$tier2_result")
             judge_missing=$(jq -c '.missing_items' <<< "$tier2_result")
             judge_model=$(jq -r '.model' <<< "$tier2_result")
+            judge_available=$(jq -r '.available' <<< "$tier2_result")
         fi
     fi
 
@@ -787,9 +794,7 @@ main() {
     local verdict
     verdict=$(compute_verdict "$combined_score")
     # N2: judge unavailable -> tier1 baseline, verdict capped at RETRY
-    local judge_unavailable=false
-    if [[ "$judge_rationale" == *"unavailable"* ]]; then  # N2: run_tier2 falls back to tier1 score, so key on rationale
-        judge_unavailable=true
+    if [[ "$judge_available" == false ]]; then
         if [[ "$TIER_FILTER" != "1" && "$TIER_FILTER" != "2" ]]; then
             combined_score=$tier1_subtotal
         fi
