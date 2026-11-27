@@ -187,9 +187,8 @@ check_schema_valid() {
 }
 
 # ── Tier 1 Check 2: Permissions violated (-40) ──────────────────────────────
-# Read rules.json → state_machine.read_only_fields. If any read-only field
-# in the contract has been written (for baseline, check governance section
-# respects the read_only_fields list).
+# A denied policy action alone does not establish that a protected mutation
+# occurred. The score consumes the explicit contract violation signal only.
 check_permissions_violated() {
     local file="$1"
     local rules_file="$2"
@@ -214,19 +213,11 @@ check_permissions_violated() {
     local contract_ro
     contract_ro=$(jq -r '.governance.permissions.read_only_fields // [] | .[]' "$file" 2>/dev/null || echo "")
 
+    # A denied action is evidence that the gate worked, not that a mutation
+    # occurred. Only the explicit breach flag is accepted as violation evidence.
     if [[ "$(jq -r '.governance.permissions_violated // false' "$file" 2>/dev/null)" == "true" ]]; then
         violations+="governance.permissions_violated "
         log_verbose "Contract explicitly records a permissions violation"
-    fi
-
-    local audit_file
-    audit_file="$(dirname "$file")/workflow-audit.jsonl"
-    if [[ -f "$audit_file" ]]; then
-        if jq -e -R -s 'split("\n") | map(select(length > 0)) | map(try fromjson catch null)
-            | any(.[]; type == "object" and .status == "deny")' "$audit_file" >/dev/null 2>&1; then
-            violations+="denied_policy_action "
-            log_verbose "Workflow audit contains denied policy actions"
-        fi
     fi
 
     # Check the governance section — per spec: "if governance section exists

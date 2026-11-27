@@ -14,8 +14,8 @@ from the `auto-score.sh` JSONL ledger).
 | T1-validate-contract.sh | Contract template validates at threshold | `scripts/validate-contract.sh --score` |
 | T2-cross-refs.sh | All cross-references resolve | `scripts/check-cross-references.sh` |
 | T3-doc-style.sh | Docs pass the style gate | `scripts/check-doc-style.sh` |
-| T4-score-calibration.sh | Verdict boundaries, tier1_only cap, permissions halt | `auto-score.sh` thresholds + an 11-case corpus |
-| T5-controller-integration.sh | Controller policy, scope, evidence, completion, concurrency | `workflow-controller.sh` + `transition.sh` |
+| T4-score-calibration.sh | Verdict boundaries, tier1_only cap, permission signal handling | `auto-score.sh` thresholds + score corpus and audit fixture |
+| T5-controller-integration.sh | Controller policy, request-bound delegation loops, evidence, completion, concurrency | `workflow-controller.sh` + `loop-guard.sh` + `transition.sh` |
 | T6-judge-coverage.sh | Malformed ledger rows never count as judge evidence | `judge-coverage.sh` |
 | T7-telemetry.sh | Per-phase timing/token aggregation excludes orphaned runs | `phase-telemetry.sh` |
 | T8-context-provenance.sh | Context records carry source, commit, timestamp, evidence status | `context-provenance.sh` |

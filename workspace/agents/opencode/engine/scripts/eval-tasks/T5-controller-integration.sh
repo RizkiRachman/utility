@@ -24,7 +24,12 @@ expect deny "write opencode.json"      bash "$C" pre_tool_action --tool write --
 expect allow "ordinary edit"           bash "$C" pre_tool_action --tool edit --target "$D/README.md"
 expect deny "delegation without agent" bash "$C" pre_delegation
 expect deny "illegal agent"            bash "$C" pre_delegation --agent nonexistent-agent
-expect allow "valid delegation"        bash "$C" pre_delegation --agent orchestrator
+attempt_a=$(printf 'delegation A' | shasum -a 256 | cut -d' ' -f1)
+attempt_b=$(printf 'delegation B' | shasum -a 256 | cut -d' ' -f1)
+expect allow "first delegation"        bash "$C" pre_delegation --agent orchestrator --attempt-hash "$attempt_a"
+expect allow "distinct unchanged delegation" bash "$C" pre_delegation --agent orchestrator --attempt-hash "$attempt_b"
+expect deny "identical delegation retry" bash "$C" pre_delegation --agent orchestrator --attempt-hash "$attempt_b"
+expect deny "delegation missing attempt identity" bash "$C" pre_delegation --agent orchestrator
 expect deny "illegal transition"       bash "$C" pre_transition --to EXECUTE --agent orchestrator --evidence "file:$D/state.md"
 expect deny "transition w/o evidence"  bash "$T" --to PLAN --agent orchestrator
 expect deny "unresolved evidence"      bash "$T" --to PLAN --agent orchestrator --evidence file:/no/such/artifact
@@ -32,10 +37,26 @@ expect deny "completion w/o artifacts" bash "$C" pre_completion
 expect allow "legal transition"        bash "$T" --to PLAN --agent orchestrator --evidence "file:$D/state.md"
 [[ "$(jq -r .state "$D/contract.json")" == "PLAN" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL state after transition"; }
 
+# A new task gets an independent iteration budget even if its first attempt
+# fingerprint matches the previous task's last attempt.
+cp "$D/contract.json" "$D/loop-contract.json"
+jq '.session.task_id="task-one"' "$D/loop-contract.json" > "$D/lc.new" && mv "$D/lc.new" "$D/loop-contract.json"
+bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state "$D/task-loop.json" --task task-one --phase PLAN --hash "$attempt_a" --max 3 >/dev/null
+bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state "$D/task-loop.json" --task task-two --phase PLAN --hash "$attempt_a" --max 3 >/dev/null
+[[ "$(jq -r .iterations_used "$D/task-loop.json")" == "1" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL loop budget not reset for new task"; }
+
 # Live session with state.md but no contract must fail closed.
 mv "$D/contract.json" "$D/contract.bak"
 expect deny "missing contract in live session" bash "$C" pre_tool_action --tool edit --target "$D/x.md"
 mv "$D/contract.bak" "$D/contract.json"
+
+# Full JSON Schema validation is mandatory; an unavailable validator fails closed.
+mkdir "$D/no-python"
+printf '#!/bin/sh\nexit 1\n' > "$D/no-python/python3"
+chmod +x "$D/no-python/python3"
+if PATH="$D/no-python:$PATH" CONTRACT_FILE="$D/contract.json" bash "$C" pre_tool_action --tool edit --target "$D/README.md" >/dev/null 2>&1; then
+  fail=$((fail+1)); echo "FAIL missing jsonschema validator accepted contract"
+else pass=$((pass+1)); fi
 
 # Concurrent transition writers: one wins, contract stays valid JSON.
 bash "$T" --to PLAN_SCORED --agent orchestrator --evidence "file:$D/state.md" >/dev/null 2>&1 &

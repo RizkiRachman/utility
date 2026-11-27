@@ -20,6 +20,7 @@ jq
 ripgrep
 ca-certificates
 python3
+python3-jsonschema
 pipx
 python3-venv
 coreutils

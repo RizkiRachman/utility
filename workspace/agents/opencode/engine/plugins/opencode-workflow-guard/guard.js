@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, appendFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
@@ -27,6 +28,15 @@ function callController(base, flags) {
 
 function agentOf(args) {
   return args.agent || args.subagent_type || args.agent_type || args.subagent || null;
+}
+
+function stableStringify(value) {
+  if (value === undefined) return "null";
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function fallbackState(base) {
@@ -71,7 +81,8 @@ export async function guardTool(directory, tool, args = {}) {
   if (DELEGATE.has(tool)) {
     const agent = agentOf(args);
     if (!agent) throw new Error("WorkflowPolicy: delegation requires an agent identity");
-    if (callController(base, ["pre_delegation", "--agent", agent]) === null) fallbackGate(base, tool, agent);
+    const attemptHash = createHash("sha256").update(stableStringify(args)).digest("hex");
+    if (callController(base, ["pre_delegation", "--agent", agent, "--attempt-hash", attemptHash]) === null) fallbackGate(base, tool, agent);
     return;
   }
 

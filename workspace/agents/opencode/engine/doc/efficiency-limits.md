@@ -55,7 +55,16 @@ checkable proxy for a proven outcome.
    that the file content or revision still matches what was reviewed, and
    capture is agent-invoked rather than attached to every retrieval.
 
-8. **Schema gate is structural plus declared enums/patterns.** The controller checks parseability, required keys, declared top-level types, and the enum/pattern constraints present in `contract.schema.json` (for example the state-machine `state` enum and `score.verdict` verdicts). It does not check `format` (date-time) or numeric min/max constraints; JSON Schema combinators (`allOf`, `oneOf`, conditional `if/then`) are unenforced.
+8. **Schema validation is a required runtime dependency.** The controller and
+   contract validator run full Draft 2020-12 validation and fail closed if
+   `python3-jsonschema` is unavailable. The opencode image installs it through
+   the apt package manifest; CI installs the Python package before validation.
+9. **Permission scoring is not mutation forensics.** `auto-score.sh` no longer
+   treats a denied policy action as a completed breach; it uses the explicit
+   `governance.permissions_violated` signal. The engine does not yet compare
+   protected data against a trusted execution baseline, so a mutation that
+   bypasses all controller gates and omits that signal is not detected by this
+   score.
 
 These limits are deliberate: the engine enforces what it can observe and
 labels what it cannot, rather than presenting a proxy as a measured result.

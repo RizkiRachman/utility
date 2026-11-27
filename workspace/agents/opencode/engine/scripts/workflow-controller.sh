@@ -12,41 +12,37 @@ RULES="${RULES_FILE:-$ENGINE_ROOT/rules/rules.json}"
 SCHEMA="${SCHEMA_FILE:-$ENGINE_ROOT/contract/contract.schema.json}"
 
 OP="${1:-}"; [[ $# -gt 0 ]] && shift
-TOOL=""; AGENT=""; TARGET=""; STATUS=""; TO=""; FROM=""; EVIDENCE=""; CMD=""
+TOOL=""; AGENT=""; TARGET=""; STATUS=""; TO=""; FROM=""; EVIDENCE=""; CMD=""; ATTEMPT_HASH=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --tool) TOOL="$2"; shift 2 ;; --agent) AGENT="$2"; shift 2 ;;
     --target) TARGET="$2"; shift 2 ;; --status) STATUS="$2"; shift 2 ;;
     --to) TO="$2"; shift 2 ;; --from) FROM="$2"; shift 2 ;;
     --evidence) EVIDENCE="$2"; shift 2 ;; --command) CMD="$2"; shift 2 ;;
+    --attempt-hash) ATTEMPT_HASH="$2"; shift 2 ;;
     *) echo "WorkflowPolicy: unknown arg $1" >&2; exit 2 ;;
   esac
 done
 
-# Full schema gate: parseable JSON plus every top-level and nested required
-# key declared in contract.schema.json. A valid state in a partial contract is
-# not enough to pass the controller.
-# Schema gate: parseable JSON, every top-level and nested required key, and the
-# declared top-level type for each required property. A missing or unparseable
-# schema fails closed. Not full JSON Schema: enums, formats, and patterns are
-# unchecked; see doc/efficiency-limits.md.
-# Schema gate: parseable JSON, every top-level and nested required key, the
-# declared top-level type for each required property, and the enum and pattern
-# constraints the schema declares (absent values are skipped). A missing or
-# unparseable schema fails closed. Not full JSON Schema: formats and numeric
-# ranges are unchecked; see doc/efficiency-limits.md.
+# Schema gate: full Draft 2020-12 validation. The runtime must provide
+# python3-jsonschema; an unavailable validator fails closed.
+sha256_stream() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum | cut -d' ' -f1
+  else shasum -a 256 2>/dev/null | cut -d' ' -f1; fi
+}
+
 contract_schema_valid() {
   local key want section
   [[ -f "$SCHEMA" ]] || return 1
   jq -e . "$SCHEMA" >/dev/null 2>&1 || return 1
   jq -e . "$CONTRACT" >/dev/null 2>&1 || return 1
-  if command -v python3 >/dev/null 2>&1; then
-    python3 - "$SCHEMA" "$CONTRACT" <<'PY' >/dev/null 2>&1
+  command -v python3 >/dev/null 2>&1 || return 1
+  python3 - "$SCHEMA" "$CONTRACT" <<'PY' >/dev/null 2>&1
 import json, sys
 try:
     import jsonschema
-except Exception:
-    raise SystemExit(0)
+except ImportError:
+    raise SystemExit(2)
 with open(sys.argv[1], encoding="utf-8") as f:
     schema = json.load(f)
 with open(sys.argv[2], encoding="utf-8") as f:
@@ -57,8 +53,7 @@ try:
 except Exception:
     raise SystemExit(1)
 PY
-    [[ $? -eq 0 ]] || return 1
-  fi
+  [[ $? -eq 0 ]] || return 1
   while IFS= read -r key; do
     [[ -n "$key" ]] && jq -e --arg k "$key" 'has($k)' "$CONTRACT" >/dev/null 2>&1 || return 1
   done < <(jq -r '.required[]?' "$SCHEMA" 2>/dev/null)
@@ -195,16 +190,29 @@ case "$OP" in
     allow "$TOOL" "AUDITED tool=$TOOL" ;;
   pre_delegation)
     [[ -n "$AGENT" ]] || deny "missing --agent"
+    [[ "$ATTEMPT_HASH" =~ ^[a-fA-F0-9]{64}$ ]] || deny "missing or invalid --attempt-hash"
     [[ "$STATE" != "BLOCKED" && "$STATE" != "UNKNOWN" ]] || deny "state $STATE"
     [[ -f "$CONTRACT" ]] || deny "no contract for delegation"
     args=(--contract "$CONTRACT" --agent "$AGENT")
     bash "$SCRIPT_DIR/state-guard.sh" "${args[@]}" >/dev/null 2>&1 || deny "agent $AGENT not permitted in $STATE"
-    loop_hash=""
+    loop_diff_hash=""
     if command -v git >/dev/null 2>&1; then
-      loop_hash=$(git diff --no-ext-diff --binary 2>/dev/null | sha256sum 2>/dev/null | cut -d' ' -f1)
-      [[ -n "$loop_hash" ]] || loop_hash=$(git diff --no-ext-diff --binary 2>/dev/null | shasum -a 256 2>/dev/null | cut -d' ' -f1)
+      loop_diff_hash=$(
+        {
+          printf 'tracked\n'
+          git diff HEAD --no-ext-diff --binary 2>/dev/null
+          printf '\nuntracked\n'
+          git ls-files --others --exclude-standard -z 2>/dev/null |
+            while IFS= read -r -d '' path; do
+              if command -v sha256sum >/dev/null 2>&1; then sha256sum "$path" 2>/dev/null
+              else shasum -a 256 "$path" 2>/dev/null; fi
+            done
+        } | sha256_stream
+      )
     fi
     loop_task=$(jq -r '.session.task_id // "unknown"' "$CONTRACT" 2>/dev/null || echo unknown)
+    loop_hash=$(printf '%s\n' "$loop_task" "$STATE" "$AGENT" "$ATTEMPT_HASH" "$loop_diff_hash" | sha256_stream)
+    [[ "$loop_hash" =~ ^[a-fA-F0-9]{64}$ ]] || deny "unable to fingerprint delegation attempt"
     loop_rc=0
     bash "$SCRIPT_DIR/loop-guard.sh" \
       --contract "$CONTRACT" --state "$SESSION_DIR/loop-state.json" \

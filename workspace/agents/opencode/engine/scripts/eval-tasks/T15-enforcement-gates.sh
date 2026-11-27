@@ -68,5 +68,17 @@ jq '.contract_version="not-semver"' "$D/contract.json" > "$D/bad-ver.json"
 CONTRACT_FILE="$D/bad-ver.json" bash "$C" pre_tool_action --tool edit --target "$D/README.md" >/dev/null 2>&1 && \
   { fail=$((fail+1)); echo "FAIL bad version pattern accepted"; } || pass=$((pass+1))
 
+# The controller and full validator must fail closed if the runtime lacks
+# python3-jsonschema instead of silently accepting partial validation.
+mkdir "$D/no-python"
+printf '#!/bin/sh\nexit 1\n' > "$D/no-python/python3"
+chmod +x "$D/no-python/python3"
+if PATH="$D/no-python:$PATH" CONTRACT_FILE="$D/contract.json" bash "$C" pre_tool_action --tool edit --target "$D/README.md" >/dev/null 2>&1; then
+  fail=$((fail+1)); echo "FAIL controller accepted contract without full schema validator"
+else pass=$((pass+1)); fi
+if PATH="$D/no-python:$PATH" bash "$ENGINE/scripts/validate-contract.sh" --file "$ENGINE/contract/contract.template.json" --score >/dev/null 2>&1; then
+  fail=$((fail+1)); echo "FAIL contract validator skipped missing jsonschema"
+else pass=$((pass+1)); fi
+
 echo "T15 enforcement gates: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]
