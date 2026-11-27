@@ -49,6 +49,14 @@ case "$OP" in
       [[ "$token_count" =~ ^(0|[1-9][0-9]*)$ ]] || { echo "token counts must be non-negative integers" >&2; exit 2; }
     done
     [[ -f "$LOG" ]] || { echo "unknown run $RUN" >&2; exit 1; }
+    already_stopped=$(jq -R -s --arg r "$RUN" '
+      split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+      | any(.[]; type=="object" and .event=="stop" and .run_id==$r
+          and (.elapsed_ms | type=="number" and . >= 0)
+          and ((.tokens_in // 0) | type=="number" and . >= 0)
+          and ((.tokens_out // 0) | type=="number" and . >= 0))
+    ' "$LOG") || { echo "could not validate telemetry for run $RUN" >&2; exit 1; }
+    [[ "$already_stopped" == "false" ]] || { echo "run $RUN is already stopped" >&2; exit 1; }
     meta=$(jq -r --arg r "$RUN" 'select(type=="object" and .event=="start" and .run_id==$r) | [(.started_ms // empty), (.phase // "unknown"), (.task_class // "unclassified")] | @tsv' "$LOG" 2>/dev/null | tail -1)
     [[ -n "$meta" ]] || { echo "unknown run $RUN" >&2; exit 1; }
     started=$(printf '%s' "$meta" | cut -f1)
