@@ -38,6 +38,14 @@ if trans EXECUTE "ledger:PASS"; then fail=$((fail+1)); echo "FAIL below-threshol
 printf '%s\n' '{"phase":"PLAN","task_id":"task-current","combined":85,"verdict":"RETRY"}' >> "$D/scores.jsonl"
 if trans EXECUTE "ledger:PASS"; then fail=$((fail+1)); echo "FAIL latest retry ledger row ignored"; else pass=$((pass+1)); fi
 printf '%s\n' '{"phase":"PLAN","task_id":"task-current","combined":85,"verdict":"PASS"}' >> "$D/scores.jsonl"
+jq '(.state_machine.transitions[] | select(.from=="PLAN_SCORED" and .to=="EXECUTE") | .require_score)=90' "$D/rules.json" > "$D/r.new" && mv "$D/r.new" "$D/rules.json"
+if allow pre_transition --to EXECUTE --agent orchestrator --evidence ledger:PASS; then
+  fail=$((fail+1)); echo "FAIL configured score threshold ignored"
+else pass=$((pass+1)); fi
+printf '%s\n' '{"phase":"PLAN","task_id":"task-current","combined":90,"verdict":"PASS"}' >> "$D/scores.jsonl"
+allow pre_transition --to EXECUTE --agent orchestrator --evidence ledger:PASS && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL configured threshold rejected qualifying score"; }
+jq '(.state_machine.transitions[] | select(.from=="PLAN_SCORED" and .to=="EXECUTE") | .require_score)=70' "$D/rules.json" > "$D/r.new" && mv "$D/r.new" "$D/rules.json"
+printf '%s\n' '{"phase":"PLAN","task_id":"task-current","combined":85,"verdict":"PASS"}' >> "$D/scores.jsonl"
 trans EXECUTE "ledger:PASS" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL scored edge rejected ledger"; }
 
 # 3. Leaving BLOCKED requires manual evidence and user override.

@@ -65,17 +65,29 @@ phase_evidence_ok() {
   [[ ",$req," == *",$kind,"* ]]
 }
 
+phase_score_threshold() {
+  local phase="$1"
+  jq -er --arg from "${phase}_SCORED" '
+    [.state_machine.transitions[]
+      | select(.from == $from and (.require_score | type == "number"))
+      | .require_score]
+    | unique
+    | if length == 1 then .[0] else error("missing or ambiguous score threshold") end
+  ' "$RULES" 2>/dev/null
+}
+
 ledger_phase_pass() {
-  local ledger="$1" task_id="$2" phase="$3" judge_backed="${4:-false}"
+  local ledger="$1" task_id="$2" phase="$3" judge_backed="${4:-false}" threshold
   [[ -f "$ledger" && -n "$task_id" ]] || return 1
-  jq -e -R -s --arg t "$task_id" --arg p "$phase" --argjson judge "$judge_backed" '
+  threshold=$(phase_score_threshold "$phase") || return 1
+  jq -e -R -s --arg t "$task_id" --arg p "$phase" --argjson judge "$judge_backed" --argjson threshold "$threshold" '
     split("\n") | map(select(length > 0)) | map(try fromjson catch null)
     | map(select(type == "object" and .task_id == $t and .phase == $p))
     | last // null
     | . as $row
     | ($row | type == "object")
       and $row.verdict == "PASS"
-      and ($row.combined | type == "number" and . >= 70)
+      and ($row.combined | type == "number" and . >= $threshold)
       and ($judge == false or $row.tier1_only == false)
   ' "$ledger" >/dev/null 2>&1
 }
