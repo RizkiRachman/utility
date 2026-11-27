@@ -316,15 +316,15 @@ it is never re-derived per phase.
 Rules:
 
 - The state machine and the scoring pipeline exist for T3. Running T1 or T2 work through T3 ceremony is not discipline; it is waste.
-- Gates are never skipped at any tier: the repo check scripts or loop-validate runs before every ship.
+- Minimum gates are never skipped at any tier: the repo check scripts or loop-validate runs before every ship. Production gates apply by task class (see task classes below).
 - When the tier is unclear, classify one level lower, T3 becomes T2 and T2 becomes T1, and raise it only when the work proves bigger.
 - Security-sensitive changes are always T3.
 
-**Task class (recorded in `session.task_class`):** `trivial` (docs/typo, direct), `standard` (one-file fix, single implement-review loop), `cross-service` (multi-file feature, full graph with spec), `security-critical` (full graph, independent security review + council), `prototype` (explicit prototype mode, no production gate). Full orchestration applies only to `standard` and higher; gates are never skipped at any class.
+**Task class (recorded in `session.task_class`):** `trivial` (docs/typo, direct), `standard` (one-file fix, single implement-review loop), `cross-service` (multi-file feature, full graph with spec), `security-critical` (full graph, independent security review + council), `prototype` (explicit prototype mode: minimum gates only, no production orchestration). Full orchestration applies only to `standard` and higher. Two gate levels: minimum gates (repo check scripts or loop-validate before every ship) run for every tier and class, prototype included; production gates (spec gate, cross-model review, scoring pipeline) apply only to `standard` and higher.
 
 ### Phase Telemetry
 
-Measure efficiency instead of asserting it. Before each phase run `scripts/phase-telemetry.sh start --phase NAME` (it prints a `run_id`); after the phase run `scripts/phase-telemetry.sh stop --run-id ID --tokens-in N --tokens-out N --verdict V`. `scripts/phase-telemetry.sh report` aggregates wall-clock and token totals by phase and task class from completed runs only; `active` lists open runs. Record the summary under `metrics.phase_durations` before COMPLETE. Malformed ledger rows and orphaned starts never count as completed work. `scripts/phase-telemetry.sh coverage --class C --task ID` checks that every phase required by the task class has a completed start/stop pair and exits nonzero when one is missing. Learning reuse is tracked with `scripts/learning-record.sh hit --key K --source-task T` and summarized by `impact`. See `doc/efficiency-limits.md` for what is enforced locally versus what needs production data: token counts are caller-supplied, telemetry calls are instruction-driven, judge agreement is aggregation-level, and no production dataset proves lighter classes are cheaper.
+Measure efficiency instead of asserting it. Before each phase run `scripts/phase-telemetry.sh start --phase NAME` (it prints a `run_id`); after the phase run `scripts/phase-telemetry.sh stop --run-id ID --tokens-in N --tokens-out N --verdict V` (token figures are caller-supplied estimates, not provider measurements). `scripts/phase-telemetry.sh report` aggregates wall-clock and token totals by phase and task class from completed runs only; `active` lists open runs. Record the summary under `metrics.phase_durations` before COMPLETE. Malformed ledger rows and orphaned starts never count as completed work. `scripts/phase-telemetry.sh coverage --class C --task ID` checks that every phase required by the task class has a completed start/stop pair and exits nonzero when one is missing. Learning reuse is tracked with `scripts/learning-record.sh hit --key K --source-task T` and summarized by `impact`. See `doc/efficiency-limits.md` for what is enforced locally versus what needs production data: token counts are caller-supplied, telemetry calls are instruction-driven, judge agreement is aggregation-level, and no production dataset proves lighter classes are cheaper.
 
 
 
@@ -457,7 +457,7 @@ lean-ctx ctx_session save
 
 ### Context Provenance
 
-When context is retrieved for a task, record it with `scripts/context-provenance.sh record --source PATH --status verified|observed-once|unverified --tool NAME`. Each record ties the source path to the resolved commit, retrieval timestamp, and evidence status. Run `validate --source PATH` before citing a snippet as verified, and `report` to audit coverage and stale sources. Authority per field: `contract.json` is active task state; Lean-ctx holds derived memory; `state.md` is the append-only audit summary; source files and tests are implementation truth.
+When context is retrieved for a task, record it with `scripts/context-provenance.sh record --source PATH --status verified|observed-once|unverified --tool NAME`. Capture is agent-invoked by design; no automatic retrieval hook exists. Each record ties the source path to the resolved commit, retrieval timestamp, and evidence status. Run `validate --source PATH` before citing a snippet as verified, and `report` to audit coverage and stale sources. Authority per field: `contract.json` is active task state; Lean-ctx holds derived memory; `state.md` is the append-only audit summary; source files and tests are implementation truth.
 
 ### Learning Records (evidence + decay)
 
