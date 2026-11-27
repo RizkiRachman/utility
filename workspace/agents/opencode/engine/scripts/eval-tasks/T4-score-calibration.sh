@@ -119,6 +119,50 @@ else
   fail=$((fail+1)); echo "FAIL full output was not machine-readable score JSON (rc=$rc)"
 fi
 
+# Tier 2 is prompt export only, not a score; it must not create a ledger row.
+mkdir "$D/judge-prompt"
+cp "$template" "$D/judge-prompt/contract.json"
+if output=$(bash "$AUTO_SCORE" --file "$D/judge-prompt/contract.json" --rules "$rules" --tier 2 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$rc" -eq 0 ]] && printf '%s\n' "$output" | jq -e '.judge_prompt | type == "string"' >/dev/null 2>&1 &&
+  [[ ! -e "$D/judge-prompt/scores.jsonl" ]]; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL tier 2 did not honor prompt-only output contract (rc=$rc)"
+fi
+
+# Supplying a judge result to prompt-export mode must fail rather than ignore it.
+if output=$(bash "$AUTO_SCORE" --file "$D/judge-prompt/contract.json" --rules "$rules" --tier 2 --judge-file "$D/judge.json" 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$rc" -eq 2 && -z "$output" && ! -e "$D/judge-prompt/scores.jsonl" ]]; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL tier 2 silently accepted --judge-file (rc=$rc)"
+fi
+for incompatible in score-only phase; do
+  if [[ "$incompatible" == "score-only" ]]; then
+    args=(--score-only)
+  else
+    args=(--phase PLAN)
+  fi
+  if output=$(bash "$AUTO_SCORE" --file "$D/judge-prompt/contract.json" --rules "$rules" --tier 2 "${args[@]}" 2>/dev/null); then
+    rc=0
+  else
+    rc=$?
+  fi
+  if [[ "$rc" -eq 2 && -z "$output" && ! -e "$D/judge-prompt/scores.jsonl" ]]; then
+    pass=$((pass+1))
+  else
+    fail=$((fail+1)); echo "FAIL tier 2 silently accepted --$incompatible (rc=$rc)"
+  fi
+done
+
 # A score is not reported as usable if its mandatory ledger cannot be persisted.
 mkdir "$D/ledger-failure" && cp "$template" "$D/ledger-failure/contract.json"
 mkdir "$D/ledger-failure/scores.jsonl"
