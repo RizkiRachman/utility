@@ -85,7 +85,8 @@ OPTIONS
     --phase NAME      Optional phase label recorded in the scores.jsonl ledger
     --judge-file PATH External LLM judge result JSON
                       ({score, rationale, missing_items, model}); supplies a
-                      real Tier 2 score instead of the bash fallback
+                      real Tier 2 score instead of the bash fallback. Score
+                      is required; optional fields must match their types.
     --dry-run         Show each check without scoring or modifying anything
     --verbose         Detailed output per check
     --help            Show this help message and exit
@@ -495,17 +496,11 @@ run_tier2_judge() {
 
     # R3-05: external judge artifact — real Tier 2 score when supplied
     if [[ -n "$JUDGE_FILE" ]]; then
-        if [[ ! -f "$JUDGE_FILE" ]]; then
-            judge_rationale="Judge file not found: ${JUDGE_FILE} — judge unavailable, fell back to Tier 1 subtotal"
-        elif ! jq -e '(.score | type) == "number" and .score >= 0 and .score <= 100' "$JUDGE_FILE" >/dev/null 2>&1; then
-            judge_rationale="Judge file invalid (numeric .score 0..100 required): ${JUDGE_FILE} — judge unavailable, fell back to Tier 1 subtotal"
-        else
-            # Round to an integer: downstream combined-score math is bash integer arithmetic
-            judge_score=$(jq -r '.score | round' "$JUDGE_FILE" 2>/dev/null || echo 0)
-            judge_rationale=$(jq -r '.rationale // "external judge artifact"' "$JUDGE_FILE" 2>/dev/null | tr '\n' ' ' || echo "external judge artifact")
-            judge_missing=$(jq -c '.missing_items // []' "$JUDGE_FILE" 2>/dev/null || echo "[]")
-            judge_model=$(jq -r '.model // ""' "$JUDGE_FILE" 2>/dev/null || echo "")
-        fi
+        # Input shape is validated before scoring; downstream uses integer scores.
+        judge_score=$(jq -r '.score | round' "$JUDGE_FILE")
+        judge_rationale=$(jq -r '.rationale // "external judge artifact"' "$JUDGE_FILE" | tr '\n' ' ')
+        judge_missing=$(jq -c '.missing_items // []' "$JUDGE_FILE")
+        judge_model=$(jq -r '.model // ""' "$JUDGE_FILE")
         echo "${judge_score}|${judge_rationale}|${judge_missing}|${judge_model}"
         return
     fi
@@ -676,15 +671,26 @@ main() {
     # R3-05: optional external judge artifact (real Tier 2 evidence)
     local judge_usable=false
     if [[ -n "$JUDGE_FILE" ]]; then
+        if [[ "$TIER_FILTER" == "1" ]]; then
+            echo "ERROR: --judge-file requires the default/all tiers; --tier 1 does not consume judge results" >&2
+            exit 2
+        fi
         if [[ ! -f "$JUDGE_FILE" ]]; then
             echo "ERROR: judge file not found: $JUDGE_FILE" >&2
             exit 2
         fi
-        if jq -e '(.score | type) == "number" and .score >= 0 and .score <= 100' "$JUDGE_FILE" >/dev/null 2>&1; then
-            judge_usable=true
-        else
-            echo -e "${YELLOW}[WARN]${NC} Judge file invalid (numeric .score 0..100 required): $JUDGE_FILE" >&2
+        if ! jq -e '
+            type == "object"
+            and (.score | type == "number" and . >= 0 and . <= 100)
+            and (.rationale == null or (.rationale | type == "string"))
+            and (.missing_items == null or
+                (.missing_items | type == "array" and all(.[]; type == "string")))
+            and (.model == null or (.model | type == "string"))
+        ' "$JUDGE_FILE" >/dev/null 2>&1; then
+            echo "ERROR: invalid judge file: expected an object with numeric score 0..100 and correctly typed optional rationale, missing_items, and model fields: $JUDGE_FILE" >&2
+            exit 2
         fi
+        judge_usable=true
     fi
     # R3-05: tier1_only marks runs with no independent judge evidence
     local tier1_only=false
