@@ -34,6 +34,12 @@ if trans INIT "file:$D/state.md"; then fail=$((fail+1)); echo "FAIL BLOCKED exit
 jq '.governance.user_override=true' "$D/contract.json" > "$D/c.new" && mv "$D/c.new" "$D/contract.json"
 trans INIT "manual:user reviewed SLA breach" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL BLOCKED exit rejected manual"; }
 
+# 3b. Retry exhaustion, not only low score, makes BLOCKED escalation legal.
+jq '.state="EXECUTE_SCORED" | .score.combined=60 | .retry.attempt=3 | .retry.max_attempts=3' "$D/contract.json" > "$D/exhausted.json"
+if bash "$ENGINE/scripts/state-guard.sh" --agent orchestrator --contract "$D/exhausted.json" --to BLOCKED >/dev/null 2>&1; then pass=$((pass+1)); else fail=$((fail+1)); echo "FAIL exhausted retries denied BLOCKED"; fi
+jq '.retry.attempt=1' "$D/exhausted.json" > "$D/retries-left.json"
+if bash "$ENGINE/scripts/state-guard.sh" --agent orchestrator --contract "$D/retries-left.json" --to BLOCKED >/dev/null 2>&1; then fail=$((fail+1)); echo "FAIL retry-left escalation accepted"; else pass=$((pass+1)); fi
+
 # 4. Completion requires a ledger entry for every scored phase.
 ok "no bootstrap" "$(bash "$C" pre_completion >/dev/null 2>&1; echo $?)" "1"
 jq --arg t "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '.governance.memory_bootstrap.at=$t | .governance.judge_coverage.judge_backed=1' "$D/contract.json" > "$D/c.new" && mv "$D/c.new" "$D/contract.json"

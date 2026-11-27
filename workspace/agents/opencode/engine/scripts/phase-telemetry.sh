@@ -25,7 +25,13 @@ if [[ -z "$TASK" && -f "$CONTRACT" ]]; then
   TASK=$(jq -r '.session.task_id // "unknown"' "$CONTRACT" 2>/dev/null || echo unknown)
 fi
 CLASS="${CLASS:-unclassified}"; TASK="${TASK:-unknown}"
-now_ms() { date +%s%3N 2>/dev/null || echo $(( $(date +%s) * 1000 )); }
+now_ms() {
+  local ms
+  ms=$(date +%s%3N 2>/dev/null || true)
+  if [[ "$ms" =~ ^[0-9]+$ ]]; then printf '%s\n' "$ms"; else
+    python3 -c 'import time; print(int(time.time()*1000))'
+  fi
+}
 append() { mkdir -p "$(dirname "$LOG")" || return 1; printf '%s\n' "$1" >> "$LOG" || return 1; }
 
 case "$OP" in

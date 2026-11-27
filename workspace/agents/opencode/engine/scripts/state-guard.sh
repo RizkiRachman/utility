@@ -235,7 +235,10 @@ if [[ -n "$TARGET_TO" ]]; then
   fi
   if [[ -n "$EDGE_SCORE_LT" && -f "$CONTRACT" ]]; then
     ESC_SCORE=$(jq -r ".score.combined // 0" "$CONTRACT")
-    if (( ${ESC_SCORE%%.*} >= ${EDGE_SCORE_LT%%.*} )); then
+    ESC_ATT=$(jq -r ".retry.attempt // 0" "$CONTRACT")
+    ESC_MAX=$(jq -r ".retry.max_attempts // 3" "$CONTRACT")
+    EDGE_RETRY_OR=$(echo "$EDGE" | jq -r ".or_retry_exhausted // false")
+    if (( ${ESC_SCORE%%.*} >= ${EDGE_SCORE_LT%%.*} )) && ! [[ "$EDGE_RETRY_OR" == "true" && $ESC_ATT -ge $ESC_MAX ]]; then
       echo -e "${RED}BLOCKED: escalation edge requires score < $EDGE_SCORE_LT (got $ESC_SCORE); use the RETRY path${NC}" >&2
       exit 1
     fi

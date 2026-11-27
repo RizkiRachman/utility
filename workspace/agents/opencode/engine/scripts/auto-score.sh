@@ -214,6 +214,21 @@ check_permissions_violated() {
     local contract_ro
     contract_ro=$(jq -r '.governance.permissions.read_only_fields // [] | .[]' "$file" 2>/dev/null || echo "")
 
+    if [[ "$(jq -r '.governance.permissions_violated // false' "$file" 2>/dev/null)" == "true" ]]; then
+        violations+="governance.permissions_violated "
+        log_verbose "Contract explicitly records a permissions violation"
+    fi
+
+    local audit_file
+    audit_file="$(dirname "$file")/workflow-audit.jsonl"
+    if [[ -f "$audit_file" ]]; then
+        if jq -e -R -s 'split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+            | any(.[]; type == "object" and .status == "deny")' "$audit_file" >/dev/null 2>&1; then
+            violations+="denied_policy_action "
+            log_verbose "Workflow audit contains denied policy actions"
+        fi
+    fi
+
     # Check the governance section — per spec: "if governance section exists
     # and respects the read_only_fields list"
     for field in $contract_ro; do

@@ -47,7 +47,16 @@ check_one() {
       '{contract:$c,state:"BLOCKED",status:"no_timestamp",ttl_hours:$t,age_hours:null,blocked_at:null,action:"stamp_retry.blocked_at_on_transition"}' 2>/dev/null
     return 0
   fi
-  b_epoch=$(date -u -d "$stamp" +%s 2>/dev/null || echo "")
+  b_epoch=$(python3 - "$stamp" <<'PY' 2>/dev/null
+import datetime, sys
+s = sys.argv[1]
+try:
+    d = datetime.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+    print(int(d.timestamp()))
+except Exception:
+    pass
+PY
+  )
   if [[ -z "$b_epoch" ]]; then
     jq -cn --arg c "$CONTRACT" --argjson t "$ttl" --arg s "$stamp" \
       '{contract:$c,state:"BLOCKED",status:"invalid_timestamp",ttl_hours:$t,age_hours:null,blocked_at:$s,action:"fix_blocked_at"}' 2>/dev/null

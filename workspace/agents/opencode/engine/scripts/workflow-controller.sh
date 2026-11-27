@@ -40,6 +40,24 @@ contract_schema_valid() {
   [[ -f "$SCHEMA" ]] || return 1
   jq -e . "$SCHEMA" >/dev/null 2>&1 || return 1
   jq -e . "$CONTRACT" >/dev/null 2>&1 || return 1
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$SCHEMA" "$CONTRACT" <<'PY' >/dev/null 2>&1
+import json, sys
+try:
+    import jsonschema
+except Exception:
+    raise SystemExit(0)
+with open(sys.argv[1], encoding="utf-8") as f:
+    schema = json.load(f)
+with open(sys.argv[2], encoding="utf-8") as f:
+    contract = json.load(f)
+try:
+    jsonschema.Draft202012Validator(schema).validate(contract)
+except Exception:
+    raise SystemExit(1)
+PY
+    [[ $? -eq 0 ]] || return 1
+  fi
   while IFS= read -r key; do
     [[ -n "$key" ]] && jq -e --arg k "$key" 'has($k)' "$CONTRACT" >/dev/null 2>&1 || return 1
   done < <(jq -r '.required[]?' "$SCHEMA" 2>/dev/null)
@@ -180,6 +198,23 @@ case "$OP" in
     [[ -f "$CONTRACT" ]] || deny "no contract for delegation"
     args=(--contract "$CONTRACT" --agent "$AGENT")
     bash "$SCRIPT_DIR/state-guard.sh" "${args[@]}" >/dev/null 2>&1 || deny "agent $AGENT not permitted in $STATE"
+    loop_hash=""
+    if command -v git >/dev/null 2>&1; then
+      loop_hash=$(git diff --no-ext-diff --binary 2>/dev/null | sha256sum 2>/dev/null | cut -d' ' -f1)
+      [[ -n "$loop_hash" ]] || loop_hash=$(git diff --no-ext-diff --binary 2>/dev/null | shasum -a 256 2>/dev/null | cut -d' ' -f1)
+    fi
+    loop_task=$(jq -r '.session.task_id // "unknown"' "$CONTRACT" 2>/dev/null || echo unknown)
+    loop_rc=0
+    bash "$SCRIPT_DIR/loop-guard.sh" \
+      --contract "$CONTRACT" --state "$SESSION_DIR/loop-state.json" \
+      --task "$loop_task" --phase "$STATE" --hash "$loop_hash" >/dev/null 2>&1 || loop_rc=$?
+    if [[ "$loop_rc" -eq 2 ]]; then
+      deny "identical delegation attempt hash: change approach"
+    elif [[ "$loop_rc" -eq 3 ]]; then
+      deny "delegation loop limit exceeded"
+    elif [[ "$loop_rc" -ne 0 ]]; then
+      deny "loop guard unavailable or invalid"
+    fi
     allow "$AGENT" "ALLOW delegation agent=$AGENT state=$STATE" ;;
   post_delegation)
     allow "$AGENT" "AUDITED delegation agent=$AGENT" ;;
@@ -209,9 +244,16 @@ case "$OP" in
         | any(.[]; type == "object" and .tier1_only == false and (.phase // "") == "REVIEW")' "$ledger" >/dev/null 2>&1 || missing="$missing judge_backed_REVIEW"
     fi
     # Every scored phase must have run and written a ledger entry.
+    task_id=""
+    [[ -f "$CONTRACT" ]] && task_id=$(jq -r '.session.task_id // empty' "$CONTRACT" 2>/dev/null || echo "")
     for phase in PLAN EXECUTE REVIEW; do
-      jq -e -R -s --arg p "$phase" 'split("\n") | map(select(length > 0)) | map(try fromjson catch null)
-        | any(.[]; type == "object" and (.phase // "") == $p)' "$ledger" >/dev/null 2>&1 || missing="$missing ledger_${phase}"
+      if [[ -n "$task_id" ]]; then
+        jq -e -R -s --arg p "$phase" --arg t "$task_id" 'split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+          | any(.[]; type == "object" and (.phase // "") == $p and (.task_id // "") == $t)' "$ledger" >/dev/null 2>&1 || missing="$missing ledger_${phase}"
+      else
+        jq -e -R -s --arg p "$phase" 'split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+          | any(.[]; type == "object" and (.phase // "") == $p)' "$ledger" >/dev/null 2>&1 || missing="$missing ledger_${phase}"
+      fi
     done
     # A verified, unexpired learning record must exist.
     if [[ -f "$SESSION_DIR/learning-records.jsonl" ]]; then
