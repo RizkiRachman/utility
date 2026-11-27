@@ -50,18 +50,18 @@ INIT → PLAN → PLAN_SCORED → EXECUTE → EXECUTE_SCORED → REVIEW → REVI
 |-----------|------|-----------|
 | INIT → PLAN | Session created | Always |
 | PLAN → PLAN_SCORED | Plan produced | Always |
-| PLAN_SCORED → EXECUTE | Plan accepted | Score ≥ 70 |
+| PLAN_SCORED → EXECUTE | Plan accepted | Score meets `require_score` |
 | EXECUTE → EXECUTE_SCORED | Implementation done | Always |
-| EXECUTE_SCORED → REVIEW | Code review | Score ≥ 70 |
+| EXECUTE_SCORED → REVIEW | Code review | Score meets `require_score` |
 | REVIEW → REVIEW_SCORED | Review done | Always |
-| REVIEW_SCORED → COMPLETE | All gates pass | Score ≥ 70 |
-| Any → BLOCKED | Escalation | Score < 50 or retry ≥ 3 |
+| REVIEW_SCORED → COMPLETE | All gates pass | Score meets `require_score` |
+| Any → BLOCKED | Escalation | Score below `score_lt` or retries exhausted |
 
 ### Scoring Pipeline (Three-Tier)
 
-1. **Tier 1 - Rule-Based Checks**: Schema valid (-15), permissions violated (-40), blast radius HIGH (-40), writing order wrong (-15), over-engineering (-15), required fields missing (-15). Subtotal ≥ 70 → Tier 2.
+1. **Tier 1 - Rule-Based Checks**: Schema valid (-15), permissions violated (-40), blast radius HIGH (-40), writing order wrong (-15), over-engineering (-15), required fields missing (-15). Subtotal below configured PASS threshold skips Tier 2.
 2. **Tier 2 - LLM-as-Judge**: Scores 0-100 on requirements fulfillment (0-40), governance compliance (0-30), completeness (0-20), edge cases (0-10).
-3. **Tier 3 - Combined Verdict**: PASS (≥70), RETRY (50-69, max 3 attempts), BLOCKED (<50).
+3. **Tier 3 - Combined Verdict**: `scoring.thresholds.pass` (default 70) sets PASS; `retry_min` (default 50) sets the RETRY floor; lower scores are BLOCKED. Transition-specific `require_score` remains an additional gate.
 4. **Scores Ledger**: each scoring run appends a JSONL line (timestamp, phase, combined, verdict) to scores.jsonl beside the contract (auto-score.sh --phase).
 5. **Persist the ledger (MANDATORY)** - after every delegation and scoring, run:
    `lean-ctx ctx_shell /opt/engine/scripts/auto-score.sh --file session/contract.json --rules /opt/engine/rules/rules.json --phase <PHASE>`
