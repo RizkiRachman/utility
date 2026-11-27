@@ -25,6 +25,27 @@ check "tokens in" ".tokens_in" "900"
 check "tokens out" ".tokens_out" "300"
 check "phase from start" ".by_phase.PLAN" "1"
 check "class from contract" '.by_class.standard' "1"
+if bash "$S" stop --run-id "$r" --tokens-in -1 >/dev/null 2>&1; then
+  fail=$((fail+1)); echo "FAIL negative token count accepted"
+else pass=$((pass+1)); fi
+jq -cn --arg r "$r" '{event:"stop",run_id:$r,elapsed_ms:999,tokens_in:9000,tokens_out:9000}' >> "$TELEMETRY_LOG"
+jq -cn '{event:"stop",run_id:"orphan-stop",elapsed_ms:1000,tokens_in:1,tokens_out:1}' >> "$TELEMETRY_LOG"
+jq -cn '{event:"start",run_id:"invalid-stop",phase:"REVIEW",task_class:"standard",task_id:"t7"}' >> "$TELEMETRY_LOG"
+jq -cn '{event:"stop",run_id:"invalid-stop",elapsed_ms:"invalid",tokens_in:1,tokens_out:1}' >> "$TELEMETRY_LOG"
+jq -cn '{event:"stop",run_id:"invalid-stop",elapsed_ms:1000,tokens_in:-1,tokens_out:1}' >> "$TELEMETRY_LOG"
+check "duplicate orphan and malformed stops excluded" ".runs" "1"
+check "duplicate tokens excluded" ".tokens_in" "900"
+[[ "$(bash "$S" active | jq -r 'length')" == "1" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL malformed stop closed an active run"; }
+if bash "$S" coverage --class standard --task t7 --phases PLAN,REVIEW > "$D/coverage.json"; then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$rc" -eq 1 ]] && jq -e '.covered == ["PLAN"] and .missing == ["REVIEW"]' "$D/coverage.json" >/dev/null 2>&1; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL malformed stop counted toward phase coverage"
+fi
 printf '{bad json\n' >> "$TELEMETRY_LOG"
 check "malformed ignored" ".runs" "1"
 check "active empty" ".runs" "1"

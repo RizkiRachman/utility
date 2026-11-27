@@ -45,6 +45,9 @@ case "$OP" in
     echo "$run" ;;
   stop)
     [[ -n "$RUN" ]] || { echo "usage: ... stop --run-id ID [--tokens-in N --tokens-out N --verdict V]" >&2; exit 2; }
+    for token_count in "$TOKIN" "$TOKOUT"; do
+      [[ "$token_count" =~ ^(0|[1-9][0-9]*)$ ]] || { echo "token counts must be non-negative integers" >&2; exit 2; }
+    done
     [[ -f "$LOG" ]] || { echo "unknown run $RUN" >&2; exit 1; }
     meta=$(jq -r --arg r "$RUN" 'select(type=="object" and .event=="start" and .run_id==$r) | [(.started_ms // empty), (.phase // "unknown"), (.task_class // "unclassified")] | @tsv' "$LOG" 2>/dev/null | tail -1)
     [[ -n "$meta" ]] || { echo "unknown run $RUN" >&2; exit 1; }
@@ -62,7 +65,16 @@ case "$OP" in
     [[ -f "$LOG" ]] || { printf '{"runs":0,"total_elapsed_ms":0,"avg_elapsed_ms":0,"tokens_in":0,"tokens_out":0,"by_phase":{},"by_class":{}}\n'; exit 0; }
     jq -R -s '
       split("\n") | map(select(length > 0)) | map(try fromjson catch null)
-      | map(select(type == "object" and .event == "stop")) as $s
+      | map(select(type == "object")) as $r
+      | ($r | map(select(.event=="start" and (.run_id | type=="string" and length>0)) | .run_id) | unique) as $started
+      | ($r | map(select(
+          .event=="stop"
+          and (.run_id | type=="string" and length>0)
+          and (.elapsed_ms | type=="number" and . >= 0)
+          and ((.tokens_in // 0) | type=="number" and . >= 0)
+          and ((.tokens_out // 0) | type=="number" and . >= 0)
+          and (.run_id as $id | ($started | index($id)) != null)
+        )) | unique_by(.run_id)) as $s
       | ($s | length) as $n
       | ($s | map(.elapsed_ms // 0) | add // 0) as $tot
       | {
@@ -80,16 +92,31 @@ case "$OP" in
     jq -R -s '
       split("\n") | map(select(length > 0)) | map(try fromjson catch null)
       | map(select(type == "object")) as $r
-      | ($r | map(select(.event=="start") | .run_id)) as $st
-      | ($r | map(select(.event=="stop") | .run_id)) as $sp
-      | [ $st[] | select(. as $x | ($sp | index($x)) == null) ]
+      | ($r | map(select(
+          .event=="stop"
+          and (.run_id | type == "string" and length > 0)
+          and (.elapsed_ms | type == "number" and . >= 0)
+          and ((.tokens_in // 0) | type == "number" and . >= 0)
+          and ((.tokens_out // 0) | type == "number" and . >= 0)
+        ) | .run_id) | unique) as $sp
+      | [ $r[]
+          | select(.event=="start" and (.run_id | type == "string" and length > 0))
+          | .run_id
+          | select(. as $x | ($sp | index($x)) == null)
+        ] | unique
     ' "$LOG" ;;
   coverage)
     if [[ -f "$LOG" ]]; then
       out=$(jq -R -s --arg cls "$CLASS" --arg task "$TASK" --arg phases "$PHASES" '
         split("\n") | map(select(length > 0)) | map(try fromjson catch null)
         | map(select(type == "object")) as $r
-        | ($r | map(select(.event=="stop") | .run_id)) as $sp
+        | ($r | map(select(
+            .event=="stop"
+            and (.run_id | type == "string" and length > 0)
+            and (.elapsed_ms | type == "number" and . >= 0)
+            and ((.tokens_in // 0) | type == "number" and . >= 0)
+            and ((.tokens_out // 0) | type == "number" and . >= 0)
+          ) | .run_id) | unique) as $sp
         | ($r | map(select(.event=="start" and (.run_id as $x | ($sp|index($x)) != null)))) as $done
         | (if $phases != "" then ($phases|split(","))
            elif ($cls=="trivial" or $cls=="prototype") then ["EXECUTE"]
