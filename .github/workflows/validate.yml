@@ -184,3 +184,7 @@ jobs:
       - name: Doc hygiene (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T20-doc-hygiene.sh
+
+      - name: Contract validator (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T1-validate-contract.sh

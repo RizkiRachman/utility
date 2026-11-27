@@ -43,5 +43,16 @@ if bash "$C" pre_completion >/dev/null 2>&1; then fail=$((fail+1)); echo "FAIL c
 printf '%s\n' '{"phase":"PLAN","verdict":"PASS","tier1_only":false}' '{"phase":"EXECUTE","verdict":"PASS","tier1_only":false}' >> "$D/scores.jsonl"
 if bash "$C" pre_completion >/dev/null 2>&1; then pass=$((pass+1)); else fail=$((fail+1)); echo "FAIL complete evidence denied"; fi
 
+# 5. Declared enum and pattern constraints are enforced at controller entry.
+jq '.state="BOGUS"' "$D/contract.json" > "$D/bad-state.json"
+CONTRACT_FILE="$D/bad-state.json" bash "$C" pre_tool_action --tool edit --target "$D/README.md" >/dev/null 2>&1 && \
+  { fail=$((fail+1)); echo "FAIL bad state enum accepted"; } || pass=$((pass+1))
+jq '.score.verdict="MEH"' "$D/contract.json" > "$D/bad-verdict.json"
+CONTRACT_FILE="$D/bad-verdict.json" bash "$C" pre_tool_action --tool edit --target "$D/README.md" >/dev/null 2>&1 && \
+  { fail=$((fail+1)); echo "FAIL bad score verdict accepted"; } || pass=$((pass+1))
+jq '.contract_version="not-semver"' "$D/contract.json" > "$D/bad-ver.json"
+CONTRACT_FILE="$D/bad-ver.json" bash "$C" pre_tool_action --tool edit --target "$D/README.md" >/dev/null 2>&1 && \
+  { fail=$((fail+1)); echo "FAIL bad version pattern accepted"; } || pass=$((pass+1))
+
 echo "T15 enforcement gates: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]
