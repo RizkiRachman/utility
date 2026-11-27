@@ -101,7 +101,7 @@ BEHAVIOR
       Floors at 0 (never negative). Skips Tier 2 below the configured pass threshold.
 
     Tier 2 — LLM-as-Judge (pass-through):
-      Reads requirements.goal + acceptance_criteria from the contract.
+      Reads requirements.goal, acceptance_criteria, and constraints from the contract.
       Prints a judge-ready JSON prompt to stdout (for orchestrator to forward).
       With --judge-file, consumes the returned artifact as the Tier 2 score.
       Without a judge artifact, returns conservative fallback (Tier 1 subtotal)
@@ -467,22 +467,25 @@ tier2_generate_prompt() {
     local file="$1"
     local rules_file="$2"
 
-    local goal accept_criteria judge_prompt
+    local goal accept_criteria constraints judge_prompt
 
     goal=$(jq -c '.requirements.goal // ""' "$file" 2>/dev/null || echo '""')
     accept_criteria=$(jq -c '.requirements.acceptance_criteria // []' "$file" 2>/dev/null || echo '[]')
+    constraints=$(jq -c '.requirements.constraints // []' "$file" 2>/dev/null || echo '[]')
     judge_prompt=$(jq -r '.scoring.tier2.judge_prompt // "You are an impartial judge evaluating an AI agent'\''s output. Score 0-100 based on: (1) Requirements fulfillment 0-40, (2) Governance compliance 0-30, (3) Completeness 0-20, (4) Edge cases and risks 0-10. Return JSON: { score: N, rationale: \"...\", missing_items: [...] }"' "$rules_file" 2>/dev/null || echo "")
 
     jq -n \
         --arg judge_prompt "$judge_prompt" \
         --argjson goal "$goal" \
         --argjson acceptance_criteria "$accept_criteria" \
+        --argjson constraints "$constraints" \
         '{
             judge_prompt: $judge_prompt,
             contract: {
                 requirements: {
                     goal: $goal,
-                    acceptance_criteria: $acceptance_criteria
+                    acceptance_criteria: $acceptance_criteria,
+                    constraints: $constraints
                 }
             },
             output: {
