@@ -184,6 +184,17 @@ shell_allowlist_extra = [
   "T4-score-calibration.sh",
   "T5-controller-integration.sh",
   "T6-judge-coverage.sh",
+
+  # --- General read-only / dev-inspection commands (user-requested) --------
+  # Safe additions that never touch machine system state and never override
+  # the protected-pattern policy: filesystem search and inspection, archive
+  # handling for deploys, checksums, and scratch-dir helpers. This extends
+  # the allowlist only; it removes nothing and changes no security setting
+  # (shell_security, shell_allow_inline_scripts, and the shell-policy deny
+  # list for protected paths are untouched).
+  "find", "git", "node", "tar", "diff", "cmp", "stat", "du", "file",
+  "which", "basename", "dirname", "realpath", "md5sum", "sha256sum",
+  "xargs", "mkdir", "rmdir", "touch", "ps", "uname",
 ]
 #
 # --- Interpreter security note -------------------------------------------
