@@ -55,5 +55,9 @@ grep -q 'Inventory is pinned' "$ENGINE/README.md" && pass=$((pass+1)) || { fail=
 grep -q 'bpg.group: infra' "$ROOT/../../ai/mcp/falkordb/docker-compose.example.yaml" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL kg compose missing house labels"; }
 grep -q '^  falkordb:' "$ROOT/../../../docker-compose.example.yaml" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL falkordb service missing in root compose"; }
 
+[[ -f "$ROOT/../../ai/mcp/cocoindex-code/Dockerfile" && -f "$ROOT/../../ai/mcp/cocoindex-code/docker-compose.example.yaml" && -f "$ROOT/../../ai/mcp/cocoindex-code/config-entry.json" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL ccc container files missing"; }
+grep -q 'bpg.group: infra' "$ROOT/../../ai/mcp/cocoindex-code/docker-compose.example.yaml" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL ccc compose missing house labels"; }
+grep -q '^  cocoindex-code:' "$ROOT/../../../docker-compose.example.yaml" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL cocoindex-code service missing in parent compose"; }
+
 echo "T20 doc hygiene: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]
