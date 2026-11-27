@@ -16,7 +16,8 @@
 #
 # Exit codes:
 #   0 = Success
-#   1 = Error (invalid args, missing file, invalid JSON, etc.)
+#   1 = Persistence or runtime error
+#   2 = Invalid command-line arguments
 #
 # Lock: acquires the shared exclusive directory lock for the selected contract,
 # covering the knowledge write and the file write.
@@ -106,7 +107,8 @@ EXAMPLES:
 
 EXIT CODES:
     0   Success
-    1   Error
+    1   Persistence or runtime error
+    2   Invalid command-line arguments
 
 EOF
     exit 0
@@ -118,10 +120,12 @@ EOF
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --file)
+            require_option_value "$0" "$1" "${2-}" || exit 2
             CONTRACT_FILE="$2"
             shift 2
             ;;
         --session)
+            require_option_value "$0" "$1" "${2-}" || exit 2
             SESSION_ID="$2"
             shift 2
             ;;
@@ -138,6 +142,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --triggered-by)
+            require_option_value "$0" "$1" "${2-}" || exit 2
             TRIGGERED_BY="$2"
             shift 2
             ;;
@@ -145,13 +150,13 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
-        --help)
+        --help|-h)
             usage
             ;;
         *)
             echo -e "${RED}[ERROR]${NC} Unknown option: $1" >&2
             echo "Run '$(basename "$0") --help' for usage." >&2
-            exit 1
+            exit 2
             ;;
     esac
 done
