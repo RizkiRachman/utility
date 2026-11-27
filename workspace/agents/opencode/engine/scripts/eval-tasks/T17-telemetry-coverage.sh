@@ -8,7 +8,11 @@ D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
 export TELEMETRY_LOG="$D/tel.jsonl"
 pass=0; fail=0
 ok() { [[ "$2" == "$3" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL $1: expected $3, got $2"; }; }
-finish() { local r; r=$($S start --phase "$1" --class "$2" --task "$3"); $S stop --run-id "$r" >/dev/null 2>&1; }
+finish() {
+  local r
+  r=$($S start --phase "$1" --class "$2" --task "$3")
+  $S stop --run-id "$r" >/dev/null || { echo "FAIL stop for phase $1, task $3" >&2; return 1; }
+}
 cov() { $S coverage --class "$1" --task "$2" "${@:3}" 2>/dev/null; }
 
 # Two of three standard phases -> incomplete, missing REVIEW.
