@@ -8,6 +8,7 @@ D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
 pass=0; fail=0
 ok() { [[ "$2" == "$3" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL $1: expected $3, got $2"; }; }
 run() { bash "$S" "$@" > "$D/out.json" 2>/dev/null; echo $?; }
+run_without_jq() { PATH="$D/no-jq" /bin/bash "$S" "$@" > "$D/out.json" 2>/dev/null; echo $?; }
 strategy() { jq -r .strategy "$D/out.json" 2>/dev/null; }
 
 # Deterministic classes change approach immediately; block at the limit.
@@ -41,10 +42,19 @@ ok "flaky at limit"      "$(run --type flaky --attempt 3 --max 3)" "3"
 ok "unknown fresh"       "$(run --type other --attempt 1 --max 3)" "0"
 ok "unknown same hash"   "$(run --type other --hash X --last-hash X)" "2"
 ok "unknown at limit"    "$(run --type other --attempt 3 --max 3)" "4"
+ok "quoted task context" "$(run --type test --task 'task"with quote')" "0"
+jq -e '.task == "task\"with quote"' "$D/out.json" >/dev/null 2>&1 && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL task context was not safely JSON encoded"; }
 
 # Malformed invocation is rejected.
 ok "missing type"        "$(run)" "5"
 ok "unknown arg"         "$(run --type test --bogus 1)" "5"
+ok "missing attempt value" "$(run --type test --attempt)" "5"
+ok "non-numeric attempt" "$(run --type test --attempt nope --max 3)" "5"
+ok "zero attempt"        "$(run --type test --attempt 0 --max 3)" "5"
+ok "zero max"            "$(run --type test --attempt 1 --max 0)" "5"
+ok "oversized attempt"   "$(run --type test --attempt 9999999999999999 --max 3)" "5"
+mkdir "$D/no-jq"
+ok "missing jq"          "$(run_without_jq --type test)" "5"
 
 echo "T19 failure loop: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]

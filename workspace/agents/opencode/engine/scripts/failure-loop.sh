@@ -6,24 +6,39 @@
 #   exit 3 = ESCALATE              | 4 = BLOCKED
 set -uo pipefail
 TYPE=""; ATTEMPT=""; MAX=""; HASH=""; LAST=""; TASK=""; PHASE=""
+require_value() {
+  local option="$1"
+  if (( $# < 2 )) || [[ -z "$2" ]]; then
+    echo "failure-loop.sh: $option requires a non-empty value" >&2
+    exit 5
+  fi
+}
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --type) TYPE="$2"; shift 2 ;; --attempt) ATTEMPT="$2"; shift 2 ;;
-    --max) MAX="$2"; shift 2 ;; --hash) HASH="$2"; shift 2 ;;
-    --last-hash) LAST="$2"; shift 2 ;; --task) TASK="$2"; shift 2 ;;
-    --phase) PHASE="$2"; shift 2 ;;
+    --type) require_value "$@"; TYPE="$2"; shift 2 ;;
+    --attempt) require_value "$@"; ATTEMPT="$2"; shift 2 ;;
+    --max) require_value "$@"; MAX="$2"; shift 2 ;;
+    --hash) require_value "$@"; HASH="$2"; shift 2 ;;
+    --last-hash) require_value "$@"; LAST="$2"; shift 2 ;;
+    --task) require_value "$@"; TASK="$2"; shift 2 ;;
+    --phase) require_value "$@"; PHASE="$2"; shift 2 ;;
     *) echo "failure-loop.sh: unknown arg $1" >&2; exit 5 ;;
   esac
 done
 ATTEMPT=${ATTEMPT:-1}; MAX=${MAX:-3}
 [[ -n "$TYPE" ]] || { echo "usage: failure-loop.sh --type CLASS [--attempt N --max N --hash H --last-hash H]" >&2; exit 5; }
+[[ "$ATTEMPT" =~ ^[1-9][0-9]{0,14}$ ]] || { echo "failure-loop.sh: --attempt must be a positive integer with at most 15 digits" >&2; exit 5; }
+[[ "$MAX" =~ ^[1-9][0-9]{0,14}$ ]] || { echo "failure-loop.sh: --max must be a positive integer with at most 15 digits" >&2; exit 5; }
+command -v jq >/dev/null 2>&1 || { echo "failure-loop.sh: jq is required to emit a decision" >&2; exit 5; }
 
 decide() {
   local strategy="$1" reason="$2" code="$3"
   jq -cn --arg t "$TYPE" --arg s "$strategy" --arg r "$reason" \
     --argjson a "$ATTEMPT" --argjson m "$MAX" --arg p "${PHASE:-}" --arg k "${TASK:-}" \
-    '{type:$t,attempt:$a,max:$m,strategy:$s,reason:$r,phase:$p,task:$k}' 2>/dev/null \
-    || printf '{"type":"%s","strategy":"%s","reason":"%s"}\n' "$TYPE" "$strategy" "$reason"
+    '{type:$t,attempt:$a,max:$m,strategy:$s,reason:$r,phase:$p,task:$k}' 2>/dev/null || {
+      echo "failure-loop.sh: unable to serialize decision" >&2
+      exit 5
+    }
   exit "$code"
 }
 
