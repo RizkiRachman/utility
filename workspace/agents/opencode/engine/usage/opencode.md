@@ -494,7 +494,7 @@ Per-agent overrides:
 
 ### 9.1 MCP Servers
 
-This project has 5 MCP servers configured in `opencode.json`:
+This project has 6 MCP servers configured in `opencode.json`:
 
 | Server | Type | Command | Notes |
 |--------|------|---------|-------|
@@ -503,6 +503,7 @@ This project has 5 MCP servers configured in `opencode.json`:
 | **fetch** | local | `mcp-server-fetch` |  -  |
 | **rag** | local | `node /opt/rag/server.js` | enabled |
 | **openui** | local | `node /home/node/workspace/agents/openui/mcp-bridge.mjs` | `OPENUI_URL` set |
+| **cocoindex-code** | local | `ccc mcp` | AST-aware code search |
 
 ### 9.2 Compaction
 
