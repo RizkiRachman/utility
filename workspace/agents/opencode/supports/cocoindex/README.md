@@ -14,6 +14,8 @@ AST-aware semantic code search for the OpenCode container. The `ccc` binary is b
 
 This folder is documentation only. The `ccc` binary is the MCP server, so nothing here is copied into the image.
 
+A containerized variant of this integration lives at [`workspace/ai/mcp/cocoindex-code/`](../../../ai/mcp/cocoindex-code/README.md); the legacy in-image `ccc mcp` stays the active path until the config entry is switched (see that README's switch procedure).
+
 ## Where it fits
 
 It complements the other search layers rather than replacing them.
