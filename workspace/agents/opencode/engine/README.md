@@ -4,6 +4,8 @@
 
 Contract-driven state machine orchestration engine for AI agent workflows: 17 agents, 46 skills, gated scoring on every delegation.
 
+Inventory is pinned: 46 skills are the `SKILL.md` manifests under `engine/skills/` (vendored plugin skills under `engine/plugins/` are third-party content, not counted); 17 agents are the instruction files in `engine/agents/`; 6 MCP servers are the `.mcp.servers` keys in `config/opencode.json`. `T20-doc-hygiene.sh` keeps README, tree, and config in agreement.
+
 <p>
   <img alt="states: 8 + BLOCKED" src="https://img.shields.io/badge/states-8%20%2B%20BLOCKED-0969DA">
   <img alt="agents: 17" src="https://img.shields.io/badge/agents-17-8250DF">

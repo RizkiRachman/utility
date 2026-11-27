@@ -48,5 +48,7 @@ mcps=$(jq -r '.mcp.servers | keys | length' "$ROOT/config/opencode.json" 2>/dev/
 bad=$(grep -rhoE '[0-9]+ MCP servers' "$ENGINE" --include='*.md' 2>/dev/null | grep -oE '^[0-9]+' | grep -vc "^$mcps\$" || true)
 ok "mcp count claims match config" "$bad" "0"
 
+grep -q 'Inventory is pinned' "$ENGINE/README.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL inventory boundary note"; }
+
 echo "T20 doc hygiene: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]

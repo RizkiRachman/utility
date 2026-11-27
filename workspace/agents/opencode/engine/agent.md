@@ -424,7 +424,7 @@ Use **Doubt-Driven Development (DDD)** when uncertain: spawn a fresh-context adv
 
 ### Guard Plugin Registration
 
-Verify with `scripts/check-plugin-registration.sh`: the guard plugin path must be present in the live OpenCode config, and `guard.js`, `index.js`, and `package.json` must exist and parse. Agents never edit `~/.config/opencode/opencode.json` directly; config changes go through the normal sync and restart path. A `not_registered` result means the hooks are inert and every controller gate is advisory until the config is synced.
+Verify with `scripts/check-plugin-registration.sh`: the guard plugin path must be present in the live OpenCode config, and `guard.js`, `index.js`, and `package.json` must exist and parse. Agents never edit `~/.config/opencode/opencode.json` directly; config changes go through the normal sync and restart path. A `not_registered` result means the hooks are inert and every controller gate is advisory until the config is synced. The check is configuration-level: it proves the path and file integrity, not that a running OpenCode process loaded the hook or that tool events reach the controller.
 
 ### Before Commit (Post-Flight Protocol)
 
@@ -538,7 +538,7 @@ Controller operations (each appends a fail-closed audit event):
 - `pre_delegation` / `post_delegation` - `task`/`subagent` hooks route here with a required agent identity; state-guard checks the agent is permitted.
 - `pre_transition` / `post_transition` - legal edge, explicit agent identity, and evidence whose kind is permitted for the edge (`rules.json -> enforcement.phase_evidence`): scored edges require `ledger:`, exits from BLOCKED require `manual:` with `governance.user_override=true`. `FROM` is resolved before evidence so manual BLOCKED exits work.
 - `pre_completion` - requires the scores ledger, memory-bootstrap receipt, judge-backed REVIEW evidence, judge coverage, ledger entries for PLAN/EXECUTE/REVIEW, and a verified learning record. Malformed ledger rows are skipped, never trusted.
-- Controller entry validates the full contract schema (top-level plus nested required keys) against `contract/contract.schema.json`; a structurally incomplete contract with a valid `state` is treated as UNKNOWN and denies all operations.
+- Controller entry validates the contract schema against `contract/contract.schema.json`: parseable JSON, top-level plus nested required keys, and the declared top-level type of each required property; a missing or unparseable schema fails closed. It does not check enums, patterns, or formats (see `doc/efficiency-limits.md`). A structurally incomplete contract with a valid `state` is treated as UNKNOWN and denies all operations.
 
 A live session (`state.md` present) with no contract fails closed. `pre_shell` / `post_shell` audit every shell command and deny write operators (`>`, `>>`, `mv`, `cp`, `tee`, `sed -i`, `jq`, `rm`, `chmod`, `chown`) against `rules.json -> enforcement.shell_policy.protected_patterns` (`contract.json`, `.env`, `opencode.json`, `.session/`, `workflow-audit.jsonl`, `scores.jsonl` plus configured additions). Never write `contract.state` directly with jq or an editor.
 
