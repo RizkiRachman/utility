@@ -14,6 +14,38 @@ check() {
   if [[ "$got" == "$want" ]]; then pass=$((pass+1));
   else fail=$((fail+1)); echo "FAIL $label: $expr expected $want, got $got"; fi
 }
+for option in --phase --class --task --run-id --tokens-in --tokens-out --verdict --phases; do
+  if bash "$S" start "$option" >/dev/null 2>"$D/arg-error"; then
+    fail=$((fail+1)); echo "FAIL $option accepted without a value"
+  else
+    rc=$?
+    if [[ "$rc" -eq 2 ]] && grep -Fq -- "$option requires a value" "$D/arg-error"; then
+      pass=$((pass+1))
+    else
+      fail=$((fail+1)); echo "FAIL $option returned $rc without a clear value error"
+    fi
+  fi
+done
+if bash "$S" start --phase --class standard >/dev/null 2>"$D/arg-error"; then
+  fail=$((fail+1)); echo "FAIL option name accepted as --phase value"
+else
+  rc=$?
+  if [[ "$rc" -eq 2 ]] && grep -Fq -- "--phase requires a value" "$D/arg-error"; then
+    pass=$((pass+1))
+  else
+    fail=$((fail+1)); echo "FAIL missing --phase value returned $rc"
+  fi
+fi
+if bash "$S" start --phase "" >/dev/null 2>"$D/arg-error"; then
+  fail=$((fail+1)); echo "FAIL empty --phase value accepted"
+else
+  rc=$?
+  if [[ "$rc" -eq 2 ]] && grep -Fq -- "--phase requires a value" "$D/arg-error"; then
+    pass=$((pass+1))
+  else
+    fail=$((fail+1)); echo "FAIL empty --phase value returned $rc"
+  fi
+fi
 check "empty report" ".runs" "0"
 r=$(bash "$S" start --phase PLAN)
 [[ -n "$r" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL start returned run id"; }

@@ -8,13 +8,21 @@ LOG="${TELEMETRY_LOG:-session/telemetry.jsonl}"
 CONTRACT="${CONTRACT_FILE:-session/contract.json}"
 OP="${1:-}"; [[ $# -gt 0 ]] && shift
 PHASE=""; CLASS=""; TASK=""; RUN=""; TOKIN="0"; TOKOUT="0"; VERDICT=""; PHASES=""
+require_value() {
+  local option="$1"
+  shift
+  if [[ $# -eq 0 || -z "$1" || "$1" == --* ]]; then
+    echo "phase-telemetry.sh: $option requires a value" >&2
+    exit 2
+  fi
+}
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --phase) PHASE="$2"; shift 2 ;; --class) CLASS="$2"; shift 2 ;;
-    --task) TASK="$2"; shift 2 ;; --run-id) RUN="$2"; shift 2 ;;
-    --tokens-in) TOKIN="$2"; shift 2 ;; --tokens-out) TOKOUT="$2"; shift 2 ;;
-    --verdict) VERDICT="$2"; shift 2 ;;
-    --phases) PHASES="$2"; shift 2 ;;
+    --phase) require_value "$@"; PHASE="$2"; shift 2 ;; --class) require_value "$@"; CLASS="$2"; shift 2 ;;
+    --task) require_value "$@"; TASK="$2"; shift 2 ;; --run-id) require_value "$@"; RUN="$2"; shift 2 ;;
+    --tokens-in) require_value "$@"; TOKIN="$2"; shift 2 ;; --tokens-out) require_value "$@"; TOKOUT="$2"; shift 2 ;;
+    --verdict) require_value "$@"; VERDICT="$2"; shift 2 ;;
+    --phases) require_value "$@"; PHASES="$2"; shift 2 ;;
     *) echo "phase-telemetry.sh: unknown arg $1" >&2; exit 2 ;;
   esac
 done
