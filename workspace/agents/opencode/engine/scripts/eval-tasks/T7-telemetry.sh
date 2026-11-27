@@ -91,5 +91,19 @@ check "active empty" ".runs" "1"
 if bash "$S" stop --run-id does-not-exist >/dev/null 2>&1; then
   fail=$((fail+1)); echo "FAIL unknown run should be denied"
 else pass=$((pass+1)); fi
+TELEMETRY_LOG="$D/clock-tel.jsonl"
+export TELEMETRY_LOG
+jq -cn '{event:"start",run_id:"clock-adjusted",started_ms:9999999999999,phase:"PLAN",task_class:"standard"}' > "$TELEMETRY_LOG"
+if bash "$S" stop --run-id clock-adjusted >/dev/null 2>&1; then
+  check "clock rollback run retained" ".runs" "1"
+  check "clock rollback elapsed clamped" ".total_elapsed_ms" "0"
+  [[ "$(bash "$S" active | jq -r 'length')" == "0" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL clamped stop left run active"; }
+else
+  fail=$((fail+1)); echo "FAIL clock-adjusted run could not be stopped"
+fi
+jq -cn '{event:"start",run_id:"invalid-start",started_ms:"invalid",phase:"PLAN",task_class:"standard"}' >> "$TELEMETRY_LOG"
+if bash "$S" stop --run-id invalid-start >/dev/null 2>&1; then
+  fail=$((fail+1)); echo "FAIL malformed start timestamp accepted"
+else pass=$((pass+1)); fi
 echo "T7 telemetry: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]

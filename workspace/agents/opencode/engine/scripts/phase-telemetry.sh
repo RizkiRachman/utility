@@ -65,12 +65,17 @@ case "$OP" in
           and ((.tokens_out // 0) | type=="number" and . >= 0))
     ' "$LOG") || { echo "could not validate telemetry for run $RUN" >&2; exit 1; }
     [[ "$already_stopped" == "false" ]] || { echo "run $RUN is already stopped" >&2; exit 1; }
-    meta=$(jq -r --arg r "$RUN" 'select(type=="object" and .event=="start" and .run_id==$r) | [(.started_ms // empty), (.phase // "unknown"), (.task_class // "unclassified")] | @tsv' "$LOG" 2>/dev/null | tail -1)
+    meta=$(jq -r --arg r "$RUN" '
+      select(type=="object" and .event=="start" and .run_id==$r
+        and (.started_ms | type=="number" and . >= 0))
+      | [(.started_ms), (.phase // "unknown"), (.task_class // "unclassified")] | @tsv
+    ' "$LOG" 2>/dev/null | tail -1)
     [[ -n "$meta" ]] || { echo "unknown run $RUN" >&2; exit 1; }
     started=$(printf '%s' "$meta" | cut -f1)
     phase=$(printf '%s' "$meta" | cut -f2)
     class=$(printf '%s' "$meta" | cut -f3)
     elapsed=$(( $(now_ms) - started ))
+    (( elapsed >= 0 )) || elapsed=0
     event=$(jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson ms "$(now_ms)" \
       --arg r "$RUN" --argjson e "$elapsed" --argjson ti "${TOKIN:-0}" --argjson to "${TOKOUT:-0}" \
       --arg v "${VERDICT:-unknown}" --arg p "$phase" --arg c "$class" \
