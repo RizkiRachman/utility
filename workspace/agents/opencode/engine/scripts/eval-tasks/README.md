@@ -31,7 +31,7 @@ from the `auto-score.sh` JSONL ledger).
 | T18-learning-impact.sh | Learning reuse recorded and reported across tasks | `learning-record.sh` |
 | T19-failure-loop.sh | Typed failure-loop strategy matrix exercised end to end | `failure-loop.sh` |
 | T20-doc-hygiene.sh | No em dashes in engine markdown; advertised counts match tree/config | `grep` + `jq` |
-| T21-contract-persistence.sh | Persistence locks are created for the selected contract path | `persist-contract.sh` |
+| T21-contract-persistence.sh | Locks target contract and validates same-directory staging before replacement | `persist-contract.sh` |
 | T1-validate-contract.sh | Template contract passes the full validator incl. deadlock-config consistency | `validate-contract.sh` |
 
 ## Usage

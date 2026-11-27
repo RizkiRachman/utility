@@ -133,7 +133,7 @@ scripts/check-conventions.sh
 bash scripts/detect-parallel-conflicts.sh --file1 /tmp/a.txt --file2 /tmp/b.txt
 ```
 
-**`scripts/persist-contract.sh`** - Atomic envelope persistence via temp-file + rename pattern with optional score injection. Prevents partial writes that could corrupt the contract envelope.
+**`scripts/persist-contract.sh`** - Stages the envelope beside its target, optionally validates before replacement, then commits with a same-filesystem rename. This keeps validation failures from replacing the current contract and avoids cross-filesystem copy behavior.
 
 ```bash
 bash scripts/persist-contract.sh --file session/contract.json --inject-score 85

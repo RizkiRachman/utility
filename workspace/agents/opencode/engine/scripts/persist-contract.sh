@@ -11,12 +11,12 @@
 # Options:
 #   --file PATH    Target file (default: $PROJECT_DIR/session/contract.json, session-derived)
 #   --score N      Score value to inject before writing (optional)
-#   --validate     Run validate-contract.sh on the file after write
+#   --validate     Validate the staged file before replacing the target
 #   --verbose      Verbose output
 #
 # Exit codes:
 #   0 = Write successful (and validation passed, if --validate)
-#   1 = Validation failed (only with --validate)
+#   1 = Validation failed before the target was replaced
 #   2 = Write failed (temp file error, rename failed)
 #
 # Lock: holds an exclusive flock on <contract>.lock (fd 9) for its whole
@@ -51,7 +51,7 @@ Options:
   --file PATH    Target file (default: $PROJECT_DIR/session/contract.json)
   --from-file P  Install an already-prepared contract file atomically
   --score N      Score value to inject before writing
-  --validate     Run validate-contract.sh on the file after write
+  --validate     Validate the staged file before replacing the target
   --verbose      Verbose output
   --help         Show this message
 EOF
@@ -95,57 +95,59 @@ if [[ -z "$FROM_FILE" && ! -f "$CONTRACT_FILE" ]]; then
     exit 2
 fi
 
-# --- Validate JSON before writing ------------------------------------------
-if ! python3 -c "
-import json, sys
-with open('${FROM_FILE:-$CONTRACT_FILE}') as f:
-    json.load(f)
-sys.exit(0)
-" 2>/dev/null; then
-    echo "ERROR: Invalid JSON in ${FROM_FILE:-$CONTRACT_FILE} — aborting" >&2
+# --- Prepare a same-directory staging file --------------------------------
+SOURCE_FILE="${FROM_FILE:-$CONTRACT_FILE}"
+if ! TEMP_FILE=$(mktemp "${CONTRACT_FILE}.tmp.XXXXXX"); then
+    echo "ERROR: Failed to create staging file beside $CONTRACT_FILE" >&2
     exit 2
 fi
+cleanup() {
+    if [[ -n "${TEMP_FILE:-}" ]]; then
+        rm -f -- "$TEMP_FILE"
+    fi
+}
+trap cleanup EXIT
 
-# --- Optionally inject score -----------------------------------------------
 if [[ -n "$SCORE" ]]; then
     if [[ "$VERBOSE" == true ]]; then
         echo -e "${YELLOW}[INFO]${NC} Injecting score: $SCORE"
     fi
-    python3 -c "
+    if ! python3 - "$SOURCE_FILE" "$TEMP_FILE" "$SCORE" <<'PY'
 import json
-with open('${FROM_FILE:-$CONTRACT_FILE}') as f:
-    data = json.load(f)
-data['score'] = data.get('score', {})
-data['score']['combined'] = $SCORE
-verdict = 'PASS' if $SCORE >= 70 else ('RETRY' if $SCORE >= 50 else 'BLOCKED')
-data['score']['verdict'] = verdict
-with open('$CONTRACT_FILE.new', 'w') as f:
-    json.dump(data, f, indent=2)
-" 2>&1 || {
-    echo "ERROR: Score injection failed" >&2
+import math
+import sys
+
+source, target, raw_score = sys.argv[1:]
+score = json.loads(raw_score)
+if isinstance(score, bool) or not isinstance(score, (int, float)) or not math.isfinite(score):
+    raise ValueError("score must be a finite JSON number")
+with open(source) as stream:
+    data = json.load(stream)
+data["score"] = data.get("score") or {}
+data["score"]["combined"] = score
+data["score"]["verdict"] = "PASS" if score >= 70 else ("RETRY" if score >= 50 else "BLOCKED")
+with open(target, "w") as stream:
+    json.dump(data, stream, indent=2)
+    stream.write("\n")
+PY
+    then
+        echo "ERROR: Score injection failed" >&2
+        exit 2
+    fi
+elif ! cp "$SOURCE_FILE" "$TEMP_FILE"; then
+    echo "ERROR: Failed to stage contract from $SOURCE_FILE" >&2
     exit 2
-}
 fi
 
-# --- Step 1: Write to temp file --------------------------------------------
-[[ -f "$CONTRACT_FILE.new" ]] && mv "$CONTRACT_FILE.new" "$CONTRACT_FILE"
-TEMP_FILE=$(mktemp /tmp/contract-persist-XXXXXX.json)
-if [[ -z "$TEMP_FILE" ]]; then
-    echo "ERROR: Failed to create temp file" >&2
-    exit 2
-fi
-
-# Copy to temp
-cp "${FROM_FILE:-$CONTRACT_FILE}" "$TEMP_FILE"
-
-# Verify temp file is valid JSON
-if ! python3 -c "
+if ! python3 - "$TEMP_FILE" <<'PY'
 import json
-with open('$TEMP_FILE') as f:
-    json.load(f)
-" 2>/dev/null; then
-    echo "ERROR: Temp file has invalid JSON — aborting" >&2
-    rm -f "$TEMP_FILE"
+import sys
+
+with open(sys.argv[1]) as stream:
+    json.load(stream)
+PY
+then
+    echo "ERROR: Staged contract is invalid JSON — aborting" >&2
     exit 2
 fi
 
@@ -153,30 +155,30 @@ if [[ "$VERBOSE" == true ]]; then
     echo -e "${YELLOW}[INFO]${NC} Temp file: $TEMP_FILE (valid JSON)"
 fi
 
-# --- Step 2: Atomically rename --------------------------------------------
-if ! mv "$TEMP_FILE" "$CONTRACT_FILE"; then
-    echo "ERROR: Rename failed: $TEMP_FILE → $CONTRACT_FILE" >&2
-    rm -f "$TEMP_FILE"
-    exit 2
-fi
-
-if [[ "$VERBOSE" == true ]]; then
-    echo -e "${GREEN}[PASS]${NC} Atomic write successful: $CONTRACT_FILE"
-fi
-
-# --- Step 3: Optional validation --------------------------------------------
+# --- Validate before committing -------------------------------------------
 if [[ "$RUN_VALIDATE" == true ]]; then
     if [[ "$VERBOSE" == true ]]; then
-        echo -e "${YELLOW}[INFO]${NC} Running post-write validation..."
+        echo -e "${YELLOW}[INFO]${NC} Validating staged contract..."
     fi
-    SCORE_OUTPUT=$("$SCRIPT_DIR/validate-contract.sh" --file "$CONTRACT_FILE" --score 2>/dev/null || true)
-    if [[ -z "$SCORE_OUTPUT" ]] || [[ "$SCORE_OUTPUT" == "0" ]]; then
-        echo -e "${RED}[FAIL]${NC} Post-write validation failed" >&2
+    SCORE_OUTPUT=$("$SCRIPT_DIR/validate-contract.sh" --file "$TEMP_FILE" --score 2>/dev/null || true)
+    if [[ -z "$SCORE_OUTPUT" || "$SCORE_OUTPUT" == "0" ]]; then
+        echo -e "${RED}[FAIL]${NC} Staged contract validation failed; target was not changed" >&2
         exit 1
     fi
     if [[ "$VERBOSE" == true ]]; then
-        echo -e "${GREEN}[PASS]${NC} Post-write validation passed (score: $SCORE_OUTPUT)"
+        echo -e "${GREEN}[PASS]${NC} Staged contract validation passed (score: $SCORE_OUTPUT)"
     fi
+fi
+
+# --- Commit by same-filesystem rename -------------------------------------
+if ! mv "$TEMP_FILE" "$CONTRACT_FILE"; then
+    echo "ERROR: Rename failed: $TEMP_FILE → $CONTRACT_FILE" >&2
+    exit 2
+fi
+TEMP_FILE=""
+
+if [[ "$VERBOSE" == true ]]; then
+    echo -e "${GREEN}[PASS]${NC} Atomic write successful: $CONTRACT_FILE"
 fi
 
 exit 0
