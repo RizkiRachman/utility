@@ -17,7 +17,7 @@ from the `auto-score.sh` JSONL ledger).
 | T4-score-calibration.sh | Verdict boundaries, tier1_only cap, permission signal handling | `auto-score.sh` thresholds + score corpus and audit fixture |
 | T5-controller-integration.sh | Controller policy, request-bound delegation loops, evidence, completion, concurrency | `workflow-controller.sh` + `loop-guard.sh` + `transition.sh` |
 | T6-judge-coverage.sh | Malformed ledger rows never count as judge evidence | `judge-coverage.sh` |
-| T7-telemetry.sh | Aggregation excludes invalid stops; CLI rejects repeated stops and missing option values | `phase-telemetry.sh` |
+| T7-telemetry.sh | Aggregation excludes invalid stops; CLI validates inputs and tolerates clock rollback | `phase-telemetry.sh` |
 | T8-context-provenance.sh | Context records carry source, commit, timestamp, evidence status | `context-provenance.sh` |
 | T9-judge-agreement.sh | Labeled aggregation corpus: verdict math, false-pass/block, jitter stability (fixtures only, not real-judge agreement) | `fixtures/judge-labels.jsonl` |
 | T10-blocked-sla.sh | BLOCKED TTL stamped on transition and enforced against rules | `blocked-sla.sh` + `transition.sh` |
