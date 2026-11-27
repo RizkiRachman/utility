@@ -96,7 +96,7 @@ detect_contract_file() {
     exit 1
 }
 
-# --- Step 0: JSON Schema validation (optional — requires python3 jsonschema) -
+# --- Step 0: JSON Schema validation (requires python3-jsonschema) -----------
 check_jsonschema() {
     local file="$1"
     local schema="$PROJECT_DIR/contract/contract.schema.json"
@@ -105,8 +105,8 @@ check_jsonschema() {
         return 0
     fi
     if ! python3 -c "import jsonschema" 2>/dev/null; then
-        log_verbose "python3 jsonschema module not installed — skipping schema validation (graceful skip)"
-        return 0
+        log_fail "python3-jsonschema is required; refusing to skip schema validation"
+        return 1
     fi
     if python3 -c "
 import json, sys
@@ -884,6 +884,11 @@ main() {
         exit 2
     fi
 
+    if [[ -f "$PROJECT_DIR/contract/contract.schema.json" ]] && ! python3 -c "import jsonschema" 2>/dev/null; then
+        echo "ERROR: python3-jsonschema is required; refusing to skip schema validation" >&2
+        exit 2
+    fi
+
     if [[ ! -f "$RULES_FILE" ]]; then
         echo "WARNING: Rules file not found: $RULES_FILE (transition validation disabled)" >&2
     fi
@@ -896,7 +901,7 @@ main() {
         echo ""
     fi
 
-    # Step 0: JSON Schema validation (graceful skip when jsonschema unavailable)
+    # Step 0: JSON Schema validation (required; missing validator is a failure)
     if run_check check_jsonschema "$CONTRACT_FILE"; then
         PASS_COUNT=$((PASS_COUNT + 1))
     else

@@ -23,6 +23,10 @@ grep -q 'combined -ge 70' "$AUTO_SCORE" || { echo "FAIL drift: PASS threshold !=
 grep -q 'combined -ge 50' "$AUTO_SCORE" || { echo "FAIL drift: RETRY threshold != 50 in auto-score.sh"; drift=1; }
 grep -q 'judge_unavailable.*PASS' "$AUTO_SCORE" || { echo "FAIL drift: tier1_only never-PASS cap missing"; drift=1; }
 grep -q 'permissions_violated' "$AUTO_SCORE" || { echo "FAIL drift: permissions hard-halt missing"; drift=1; }
+if grep -q 'status == "deny"' "$AUTO_SCORE"; then
+  echo "FAIL drift: denied actions are being treated as completed permission violations"
+  drift=1
+fi
 
 pass=0; fail=0; false_pass=0; false_block=0
 check() {
@@ -47,6 +51,23 @@ check "boundary-block-49"    49 true  false BLOCKED
 check "perfect-score"       100 false false RETRY
 check "zero-score"            0 true  false BLOCKED
 check "permissions-halt"     95 true  true  BLOCKED
+check "denied-attempt-alone" 95 true  false PASS
+
+# A denial in the controller audit must not deduct permission points in the
+# production scorer. Compare identical contracts with and without that event.
+D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
+mkdir "$D/denied" "$D/clean"
+template="$SCRIPT_DIR/../../contract/contract.template.json"
+rules="$SCRIPT_DIR/../../rules/rules.json"
+if cp "$template" "$D/denied/contract.json" && cp "$template" "$D/clean/contract.json"; then
+  printf '%s\n' '{"op":"pre_tool_action","status":"deny"}' > "$D/denied/workflow-audit.jsonl"
+  denied_score=$(bash "$AUTO_SCORE" --file "$D/denied/contract.json" --rules "$rules" --tier 1 --score-only 2>/dev/null)
+  clean_score=$(bash "$AUTO_SCORE" --file "$D/clean/contract.json" --rules "$rules" --tier 1 --score-only 2>/dev/null)
+  if [[ -n "$denied_score" && "$denied_score" == "$clean_score" ]]; then pass=$((pass+1));
+  else fail=$((fail+1)); echo "FAIL denied-but-unexecuted action changed score: $clean_score -> $denied_score"; fi
+else
+  fail=$((fail+1)); echo "FAIL unable to load production scoring fixtures"
+fi
 
 cat <<EOF
 T4 score calibration: $pass passed, $fail failed, false_pass=$false_pass, false_block=$false_block, drift_fail=$drift

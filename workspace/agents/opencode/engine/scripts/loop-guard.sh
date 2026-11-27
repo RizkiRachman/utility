@@ -28,10 +28,16 @@ if [[ -z "$MAX" ]]; then
   RULES="${RULES_PATH:-$(dirname "$SCRIPT_DIR")/../rules/rules.json}"
   MAX=$(jq -r ".enforcement.loop_guard.max_loop_iterations // 12" "$RULES" 2>/dev/null || echo 12)
 fi
-it=0; last_hash=""
+task_id="${TASK:-$(jq -r '.session.task_id // "unknown"' "$CONTRACT" 2>/dev/null || echo unknown)}"
+it=0; last_hash=""; previous_task=""
 if [[ -f "$STATE" ]]; then
   it=$(jq -r ".iterations_used // 0" "$STATE" 2>/dev/null || echo 0)
   last_hash=$(jq -r ".last_attempt_hash // \"\"" "$STATE" 2>/dev/null || echo "")
+  previous_task=$(jq -r '.task_id // ""' "$STATE" 2>/dev/null || echo "")
+fi
+if [[ -n "$previous_task" && "$previous_task" != "$task_id" ]]; then
+  it=0
+  last_hash=""
 fi
 if [[ -n "$HASH" && -n "$last_hash" && "$HASH" == "$last_hash" ]]; then
   echo "{\"action\":\"force-changed-approach\",\"reason\":\"identical attempt hash: retry must change the approach, not repeat it\",\"hash\":\"$HASH\",\"phase\":\"$PHASE\",\"task\":\"$TASK\"}"
@@ -39,7 +45,7 @@ if [[ -n "$HASH" && -n "$last_hash" && "$HASH" == "$last_hash" ]]; then
 fi
 it=$((it + 1))
 tmp=$(mktemp)
-jq -n --arg t "${TASK:-$(jq -r ".session.task_id // \"unknown\"" "$CONTRACT" 2>/dev/null || echo unknown)}" --arg p "$PHASE" --arg h "$HASH" --argjson it "$it" --argjson max "$MAX" "{task_id:\$t, last_phase:\$p, last_attempt_hash:\$h, iterations_used:\$it, max_iterations:\$max, updated_at:(now|todateiso8601)}" > "$tmp"
+jq -n --arg t "$task_id" --arg p "$PHASE" --arg h "$HASH" --argjson it "$it" --argjson max "$MAX" "{task_id:\$t, last_phase:\$p, last_attempt_hash:\$h, iterations_used:\$it, max_iterations:\$max, updated_at:(now|todateiso8601)}" > "$tmp"
 mkdir -p "$(dirname "$STATE")"
 mv "$tmp" "$STATE"
 if [[ "$it" -gt "$MAX" ]]; then
