@@ -264,7 +264,7 @@
     },
     "shell_policy": {
       "enabled": true,
-      "protected_patterns": ["contract.json", ".env", "opencode.json", ".session/", "workflow-audit.jsonl", "scores.jsonl"],
+      "protected_patterns": ["contract.json", ".env", "opencode.json", ".session/", "workflow-audit.jsonl", "tool-audit.jsonl", "scores.jsonl", "loop-state.json"],
       "write_operators": [">", ">>", "mv", "cp", "tee", "sed -i", "jq", "rm", "chmod", "chown"]
     },
     "retry_total_attempt_cap": 6,

@@ -21,7 +21,13 @@ expect deny "edit without target"      bash "$C" pre_tool_action --tool edit
 expect deny "write contract.json"      bash "$C" pre_tool_action --tool write --target "$D/contract.json"
 expect deny "write .env"               bash "$C" pre_tool_action --tool write --target "$D/.env"
 expect deny "write opencode.json"      bash "$C" pre_tool_action --tool write --target "$D/opencode.json"
+expect deny "write scores ledger"      bash "$C" pre_tool_action --tool write --target "$D/session/scores.jsonl"
+expect deny "write workflow audit"     bash "$C" pre_tool_action --tool edit --target "$D/session/workflow-audit.jsonl"
+expect deny "write tool audit"         bash "$C" pre_tool_action --tool patch --target "$D/session/tool-audit.jsonl"
+expect deny "write loop state"         bash "$C" pre_tool_action --tool write --target "$D/session/loop-state.json"
 expect allow "ordinary edit"           bash "$C" pre_tool_action --tool edit --target "$D/README.md"
+mkdir -p "$D/session" && : > "$D/session/scores.jsonl" && ln -s "$D/session/scores.jsonl" "$D/score-alias"
+expect deny "write ledger through symlink" bash "$C" pre_tool_action --tool write --target "$D/score-alias"
 expect deny "delegation without agent" bash "$C" pre_delegation
 expect deny "illegal agent"            bash "$C" pre_delegation --agent nonexistent-agent
 attempt_a=$(printf 'delegation A' | shasum -a 256 | cut -d' ' -f1)
@@ -89,14 +95,41 @@ p2=$!
 wait "$p1"; wait "$p2"
 jq -e . "$D/contract.json" >/dev/null 2>&1 && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL contract corrupt after concurrent writers"; }
 
-# Plugin routing is asserted statically so the task runs anywhere; the
-# controller cases above already prove pre_delegation is a real audited op.
+# Plugin routing is checked statically and the fallback is exercised with
+# the controller unavailable.
 grep -q 'DELEGATE.has(tool)' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
   grep -q 'pre_delegation' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
   pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL plugin delegation routing"; }
 grep -q 'SHELL.has(tool)' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
   grep -q 'contract.json' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
-  pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL plugin shell contract-write guard"; }
+  grep -Fq 'scores.jsonl' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
+  pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL plugin protected-artifact guard"; }
+if command -v node >/dev/null 2>&1; then
+  if node --input-type=module - "$ENGINE/plugins/opencode-workflow-guard/guard.js" "$D" <<'NODE'
+import { pathToFileURL } from "node:url";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+process.env.WORKFLOW_CONTROLLER = "/missing/workflow-controller.sh";
+const { guardTool } = await import(pathToFileURL(process.argv[2]));
+const base = process.argv[3];
+mkdirSync(`${base}/session`, { recursive: true });
+writeFileSync(`${base}/session/scores.jsonl`, "");
+symlinkSync(`${base}/session/scores.jsonl`, `${base}/score-alias-fallback`);
+for (const name of ["contract.json", ".env.local", "opencode.json", ".session/state", "scores.jsonl", "workflow-audit.jsonl", "tool-audit.jsonl", "loop-state.json"]) {
+  let denied = false;
+  try { await guardTool(base, "write", { filePath: `${base}/${name}` }); }
+  catch { denied = true; }
+  if (!denied) throw new Error(`fallback allowed protected target: ${name}`);
+}
+let aliasDenied = false;
+try { await guardTool(base, "write", { filePath: `${base}/score-alias-fallback` }); }
+catch { aliasDenied = true; }
+if (!aliasDenied) throw new Error("fallback allowed write through artifact symlink");
+await guardTool(base, "write", { filePath: `${base}/README.md` });
+NODE
+  then pass=$((pass+1)); else fail=$((fail+1)); echo "FAIL plugin fallback protected-target gate"; fi
+else
+  fail=$((fail+1)); echo "FAIL Node.js unavailable for plugin fallback test"
+fi
 grep -q 'execute.after' "$ENGINE/plugins/opencode-workflow-guard/index.js" && \
   pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL plugin post-action hook"; }
 

@@ -116,9 +116,12 @@ deny() {
 
 # Writes that must never bypass the sanctioned transition command.
 protected_target() {
-  local t="$1" b
-  b=$(basename "$t")
-  [[ "$b" == "contract.json" || "$b" == .env* || "$b" == "opencode.json" || "$t" == *"/.session/"* ]]
+  local t="$1" resolved b
+  resolved=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$t" 2>/dev/null) || return 0
+  b=$(basename "$resolved")
+  [[ "$b" == "contract.json" || "$b" == "scores.jsonl" || "$b" == "workflow-audit.jsonl" ||
+    "$b" == "tool-audit.jsonl" || "$b" == "loop-state.json" || "$b" == .env* ||
+    "$b" == "opencode.json" || "$resolved" == *"/.session/"* || "$resolved" == */.session ]]
 }
 
 # Evidence must resolve to an artifact, not just be a non-empty string.
