@@ -25,6 +25,13 @@ check "tokens in" ".tokens_in" "900"
 check "tokens out" ".tokens_out" "300"
 check "phase from start" ".by_phase.PLAN" "1"
 check "class from contract" '.by_class.standard' "1"
+if bash "$S" stop --run-id "$r" --tokens-in 1 >/dev/null 2>&1; then
+  fail=$((fail+1)); echo "FAIL duplicate stop accepted"
+else
+  rc=$?
+  if [[ "$rc" -eq 1 ]]; then pass=$((pass+1));
+  else fail=$((fail+1)); echo "FAIL duplicate stop returned $rc instead of 1"; fi
+fi
 if bash "$S" stop --run-id "$r" --tokens-in -1 >/dev/null 2>&1; then
   fail=$((fail+1)); echo "FAIL negative token count accepted"
 else pass=$((pass+1)); fi
