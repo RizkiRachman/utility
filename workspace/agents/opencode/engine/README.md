@@ -4,7 +4,7 @@
 
 Contract-driven state machine orchestration engine for AI agent workflows: 17 agents, 46 skills, gated scoring on every delegation.
 
-Inventory is pinned: 46 skills are the `SKILL.md` manifests under `engine/skills/` (vendored plugin skills under `engine/plugins/` are third-party content, not counted); 17 agents are the instruction files in `engine/agents/`; 6 MCP servers are the `.mcp.servers` keys in `config/opencode.json`. `T20-doc-hygiene.sh` keeps README, tree, and config in agreement.
+Inventory is pinned: 46 skills are the `SKILL.md` manifests under `engine/skills/` (vendored plugin skills under `engine/plugins/` are third-party content, not counted); 17 agents are the instruction files in `engine/agents/`; 7 MCP servers are the `.mcp.servers` keys in `config/opencode.json`. `T20-doc-hygiene.sh` keeps README, tree, and config in agreement.
 
 <p>
   <img alt="states: 8 + BLOCKED" src="https://img.shields.io/badge/states-8%20%2B%20BLOCKED-0969DA">
@@ -15,7 +15,7 @@ Inventory is pinned: 46 skills are the `SKILL.md` manifests under `engine/skills
 
 Agent work is easy to run and hard to trust: outputs drift, decisions vanish, and a confident answer ships unchecked. The engine routes every request through a contract state machine with hard gates, keeps reasoning persistent in one task-namespaced session envelope plus a knowledge store, and stays efficient through a lean baked surface with explicit token budgets.
 
-One container ships OpenCode, lean-ctx, six registered MCP servers (cocoindex-code, context7, fetch, lean-ctx, openui, rag), the vendored Firecrawl plugin, 46 skills, and deny-first workflow enforcement. There is no first-boot assembly step and no runtime package fetch, so the first boot is fully operational. The canonical instruction file is [`agent.md`](agent.md), loaded as `instructions[0]` by every agent.
+One container ships OpenCode, lean-ctx, seven registered MCP servers (cocoindex-code, context7, fetch, lean-ctx, openui, rag, falkordb), the vendored Firecrawl plugin, 46 skills, and deny-first workflow enforcement. There is no first-boot assembly step and no runtime package fetch, so the first boot is fully operational. The falkordb server is docker-backed and optional: `ai/mcp/falkordb/kg-up.sh` starts the FalkorDB graph container; until then the boot preflight warns only. The canonical instruction file is [`agent.md`](agent.md), loaded as `instructions[0]` by every agent.
 
 Storage and workflow are separate concerns. Git stores source, but the workflow assumes no VCS: services arrive with their own patterns, users prepare their own repositories, and they instruct the agent in plain terms. `sandbox/` is the user playground, and any forge works, or none. The state machine, scoring thresholds and script inventory below are the operating contract.
 
