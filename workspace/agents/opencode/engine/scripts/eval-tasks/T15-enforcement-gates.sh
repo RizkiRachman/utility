@@ -22,11 +22,22 @@ CONTRACT_FILE="$D/bad.json" bash "$C" pre_tool_action --tool edit --target "$D/R
   { fail=$((fail+1)); echo "FAIL incomplete contract accepted"; } || pass=$((pass+1))
 
 # 2. Scored edges require ledger evidence, not just a file.
+jq '.session.task_id="task-current"' "$D/contract.json" > "$D/c.new" && mv "$D/c.new" "$D/contract.json"
 trans PLAN "file:$D/state.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL INIT->PLAN"; }
 jq '.score.combined=70 | .score.verdict="PASS"' "$D/contract.json" > "$D/c.new" && mv "$D/c.new" "$D/contract.json"
 trans PLAN_SCORED "file:$D/state.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL PLAN->PLAN_SCORED"; }
 if trans EXECUTE "file:$D/state.md"; then fail=$((fail+1)); echo "FAIL scored edge accepted file"; else pass=$((pass+1)); fi
-printf '%s\n' '{"phase":"PLAN_SCORED","verdict":"PASS","tier1_only":false}' > "$D/scores.jsonl"
+printf '%s\n' '{malformed ledger row' '{"phase":"PLAN","task_id":"task-old","combined":100,"verdict":"PASS","tier1_only":false}' > "$D/scores.jsonl"
+if trans EXECUTE "ledger:PASS"; then fail=$((fail+1)); echo "FAIL stale task ledger evidence accepted"; else pass=$((pass+1)); fi
+printf '%s\n' '{"phase":"PLAN","task_id":"task-current","combined":100,"note":"PASS"}' >> "$D/scores.jsonl"
+if trans EXECUTE "ledger:PASS"; then fail=$((fail+1)); echo "FAIL substring-only ledger evidence accepted"; else pass=$((pass+1)); fi
+printf '%s\n' '{"phase":"EXECUTE","task_id":"task-current","combined":100,"verdict":"PASS"}' >> "$D/scores.jsonl"
+if trans EXECUTE "ledger:PASS"; then fail=$((fail+1)); echo "FAIL wrong-phase ledger evidence accepted"; else pass=$((pass+1)); fi
+printf '%s\n' '{"phase":"PLAN","task_id":"task-current","combined":60,"verdict":"PASS"}' >> "$D/scores.jsonl"
+if trans EXECUTE "ledger:PASS"; then fail=$((fail+1)); echo "FAIL below-threshold ledger evidence accepted"; else pass=$((pass+1)); fi
+printf '%s\n' '{"phase":"PLAN","task_id":"task-current","combined":85,"verdict":"RETRY"}' >> "$D/scores.jsonl"
+if trans EXECUTE "ledger:PASS"; then fail=$((fail+1)); echo "FAIL latest retry ledger row ignored"; else pass=$((pass+1)); fi
+printf '%s\n' '{"phase":"PLAN","task_id":"task-current","combined":85,"verdict":"PASS"}' >> "$D/scores.jsonl"
 trans EXECUTE "ledger:PASS" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL scored edge rejected ledger"; }
 
 # 3. Leaving BLOCKED requires manual evidence and user override.
