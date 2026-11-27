@@ -16,8 +16,19 @@ done
 [[ -n "$TO" && -n "$AGENT" && -n "$EVIDENCE" ]] || { echo "usage: transition.sh --to STATE --agent NAME --evidence ID" >&2; exit 2; }
 [[ -f "$CONTRACT" ]] || { echo "transition.sh: contract not found: $CONTRACT" >&2; exit 1; }
 
-exec 9>"${CONTRACT}.lock" || exit 1
-flock -x 9 || exit 1
+if command -v flock >/dev/null 2>&1; then
+  exec 9>"${CONTRACT}.lock" || exit 1
+  flock -x 9 || exit 1
+else
+  LOCKDIR="${CONTRACT}.lockdir"
+  LOCKED=false
+  for _ in $(seq 1 100); do
+    if mkdir "$LOCKDIR" 2>/dev/null; then LOCKED=true; break; fi
+    sleep 0.02
+  done
+  [[ "$LOCKED" == true ]] || { echo "transition.sh: lock timeout" >&2; exit 1; }
+  trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
+fi
 FROM=$(jq -r '.state // "INIT"' "$CONTRACT") || exit 1
 
 if [[ "$TO" == "COMPLETE" ]]; then

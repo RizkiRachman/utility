@@ -658,7 +658,44 @@
           "description": "Trace of escalation decisions made during retries.",
           "type": "array",
           "items": {
-            "type": "string"
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "phase",
+                  "blocked_at",
+                  "reason",
+                  "issues",
+                  "attempt"
+                ],
+                "properties": {
+                  "phase": {
+                    "type": "string"
+                  },
+                  "blocked_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "issues": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "attempt": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": true
+              }
+            ]
           }
         }
       }
@@ -944,7 +981,10 @@
           "description": "ADR identifier (e.g. 'ADR-001').",
           "type": "string"
         },
-        "title": "Short title of the decision.",
+        "title": {
+          "description": "Short title of the decision.",
+          "type": "string"
+        },
         "status": {
           "description": "Decision status (proposed, accepted, deprecated, superseded).",
           "type": "string"

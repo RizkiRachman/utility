@@ -40,7 +40,12 @@ case "$OP" in
     [[ "$UNVERIFIED" == true || -n "$VERIFIED_BY" ]] || { echo "learning-record: --verified-by required (or --unverified)" >&2; exit 2; }
     validate_evidence "$EVIDENCE" || exit 1
     mkdir -p "$(dirname "$LOG")" || exit 1
-    exp=$(date -u -d "+${TTL:-90} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
+    exp=$(python3 - "$TTL" <<'PY' 2>/dev/null
+import datetime, sys
+ttl = int(sys.argv[1])
+print((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=ttl)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+PY
+    ) || { echo "learning-record: invalid ttl-days" >&2; exit 2; }
     rec=$(jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg k "$KEY" --arg c "${CAT:-lessons}" \
       --arg cl "$CLAIM" --arg e "$EVIDENCE" --arg v "$VERIFIED_BY" --argjson ttl "${TTL:-90}" \
       --arg t "$TASK" --arg exp "$exp" \
