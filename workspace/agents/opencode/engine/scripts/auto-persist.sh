@@ -46,7 +46,11 @@ NC='\033[0m'
 # Helpers
 # ---------------------------------------------------------------------------
 log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
-log_verbose() { [[ "$VERBOSE" == true ]] && echo -e "${YELLOW}[VERBOSE]${NC} $*"; }
+log_verbose() {
+    if [[ "$VERBOSE" == true ]]; then
+        echo -e "${YELLOW}[VERBOSE]${NC} $*"
+    fi
+}
 
 # ---------------------------------------------------------------------------
 # Defaults
@@ -271,8 +275,15 @@ fi
 # Session lock (R3-18): same lock contract as persist-contract.sh. Acquired
 # after the audit-log child call (which locks itself) so no nested lock.
 # ---------------------------------------------------------------------------
+TEMP_FILE=""
+cleanup() {
+    if [[ -n "$TEMP_FILE" ]]; then
+        rm -f -- "$TEMP_FILE" || true
+    fi
+    release_file_lock
+}
 acquire_file_lock "$CONTRACT_FILE" || exit 1
-trap release_file_lock EXIT
+trap cleanup EXIT
 if ! CONTRACT_JSON="$(jq -c '.' "$CONTRACT_FILE" 2>/dev/null)"; then
     echo -e "${RED}[ERROR]${NC} Invalid JSON in contract file: $CONTRACT_FILE" >&2
     exit 1
@@ -307,26 +318,24 @@ fi
 if [[ "$SKIP_FILE" == false ]]; then
     echo -e "${GREEN}[INFO]${NC} Writing contract to: $CONTRACT_FILE"
 
-    # Write via temp file + atomic rename
-    TEMP_FILE="$(mktemp /tmp/auto-persist-XXXXXX.json)"
-    if [[ -z "$TEMP_FILE" ]]; then
-        echo -e "${RED}[ERROR]${NC} Failed to create temp file" >&2
+    # Stage beside the target so rename remains atomic across filesystems.
+    if ! TEMP_FILE="$(mktemp "${CONTRACT_FILE}.tmp.XXXXXX")"; then
+        echo -e "${RED}[ERROR]${NC} Failed to create staging file beside $CONTRACT_FILE" >&2
         exit 1
     fi
 
-    # Pretty-print JSON to temp file
-    if ! echo "$CONTRACT_JSON" | jq '.' > "$TEMP_FILE" 2>/dev/null; then
+    # Pretty-print and validate JSON before replacing the target.
+    if ! printf '%s\n' "$CONTRACT_JSON" | jq '.' > "$TEMP_FILE" 2>/dev/null; then
         echo -e "${RED}[ERROR]${NC} Failed to write temp file" >&2
-        rm -f "$TEMP_FILE"
         exit 1
     fi
 
     # Atomic rename
     if ! mv "$TEMP_FILE" "$CONTRACT_FILE"; then
         echo -e "${RED}[ERROR]${NC} Atomic rename failed: $TEMP_FILE → $CONTRACT_FILE" >&2
-        rm -f "$TEMP_FILE"
         exit 1
     fi
+    TEMP_FILE=""
 
     echo -e "${GREEN}[PASS]${NC} File write successful: $CONTRACT_FILE"
 

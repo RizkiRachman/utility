@@ -34,6 +34,7 @@ from the `auto-score.sh` JSONL ledger).
 | T21-contract-persistence.sh | Contract CLI values, lock cleanup, and validated atomic staging | `persist-contract.sh` |
 | T22-state-guard-cli.sh | Missing values, unknown flags, and conflicting state selectors fail clearly | `state-guard.sh` |
 | T23-portable-contract-locking.sh | Contract writers share an exclusive, bounded-wait directory lock | `common.sh` + persistence writers |
+| T24-auto-persist-atomic.sh | Same-directory staging and failed-stage rollback | `auto-persist.sh` |
 | T1-validate-contract.sh | Template contract passes the full validator incl. deadlock-config consistency | `validate-contract.sh` |
 
 ## Usage
