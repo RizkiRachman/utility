@@ -80,6 +80,53 @@ require_option_value() {
     fi
 }
 
+# acquire_file_lock PATH [TIMEOUT_SECONDS]
+# Use atomic directory creation so the same lock contract works without flock.
+_LCOMMON_FILE_LOCK_DIR=""
+acquire_file_lock() {
+    local path="${1:-}"
+    local timeout="${2:-30}"
+    local lock_dir parent_dir start
+    if [[ -z "$path" || ! "$timeout" =~ ^[0-9]+$ ]]; then
+        printf 'acquire_file_lock: expected a path and non-negative timeout\n' >&2
+        return 2
+    fi
+    if [[ -n "$_LCOMMON_FILE_LOCK_DIR" ]]; then
+        printf 'acquire_file_lock: a file lock is already held: %s\n' "$_LCOMMON_FILE_LOCK_DIR" >&2
+        return 1
+    fi
+    lock_dir="${path}.lockdir"
+    [[ "$lock_dir" == -* ]] && lock_dir="./$lock_dir"
+    parent_dir="$(dirname "$lock_dir")"
+    if [[ ! -d "$parent_dir" || ! -w "$parent_dir" || (-e "$lock_dir" && ! -d "$lock_dir") ]]; then
+        printf 'ERROR: Cannot create lock directory: %s\n' "$lock_dir" >&2
+        return 1
+    fi
+    start=$SECONDS
+    while ! mkdir "$lock_dir" 2>/dev/null; do
+        if [[ (-e "$lock_dir" && ! -d "$lock_dir") || ! -w "$parent_dir" ]]; then
+            printf 'ERROR: Cannot create lock directory: %s\n' "$lock_dir" >&2
+            return 1
+        fi
+        if (( SECONDS - start >= timeout )); then
+            printf 'ERROR: Timed out acquiring lock: %s\n' "$lock_dir" >&2
+            return 1
+        fi
+        sleep 0.02
+    done
+    _LCOMMON_FILE_LOCK_DIR="$lock_dir"
+}
+
+release_file_lock() {
+    [[ -n "$_LCOMMON_FILE_LOCK_DIR" ]] || return 0
+    local lock_dir="$_LCOMMON_FILE_LOCK_DIR"
+    if ! rmdir "$lock_dir"; then
+        printf 'ERROR: Cannot release lock directory: %s\n' "$lock_dir" >&2
+        return 1
+    fi
+    _LCOMMON_FILE_LOCK_DIR=""
+}
+
 # ── rules.json store_in resolution ─────────────────────────────────────────
 # store_in_path DOTTED_PATH [FALLBACK] [RULES_FILE]
 #

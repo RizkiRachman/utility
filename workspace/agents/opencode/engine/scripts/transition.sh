@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # transition.sh — the ONLY sanctioned way to mutate contract.state.
-# Serializes writers with flock, validates through the controller, checks the
-# completion policy on the COMPLETE edge, then writes atomically.
+# Serializes writers with the shared directory lock, validates through the
+# controller, checks the completion policy on the COMPLETE edge, then writes
+# atomically.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTRACT="${CONTRACT_FILE:-session/contract.json}"
@@ -16,19 +17,9 @@ done
 [[ -n "$TO" && -n "$AGENT" && -n "$EVIDENCE" ]] || { echo "usage: transition.sh --to STATE --agent NAME --evidence ID" >&2; exit 2; }
 [[ -f "$CONTRACT" ]] || { echo "transition.sh: contract not found: $CONTRACT" >&2; exit 1; }
 
-if command -v flock >/dev/null 2>&1; then
-  exec 9>"${CONTRACT}.lock" || exit 1
-  flock -x 9 || exit 1
-else
-  LOCKDIR="${CONTRACT}.lockdir"
-  LOCKED=false
-  for _ in $(seq 1 100); do
-    if mkdir "$LOCKDIR" 2>/dev/null; then LOCKED=true; break; fi
-    sleep 0.02
-  done
-  [[ "$LOCKED" == true ]] || { echo "transition.sh: lock timeout" >&2; exit 1; }
-  trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
-fi
+source "$SCRIPT_DIR/lib/common.sh"
+acquire_file_lock "$CONTRACT" || exit 1
+trap release_file_lock EXIT
 FROM=$(jq -r '.state // "INIT"' "$CONTRACT") || exit 1
 
 if [[ "$TO" == "COMPLETE" ]]; then

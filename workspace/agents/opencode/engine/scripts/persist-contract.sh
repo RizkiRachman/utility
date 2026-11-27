@@ -19,8 +19,7 @@
 #   1 = Validation failed before the target was replaced
 #   2 = Write failed (temp file error, rename failed)
 #
-# Lock: holds an exclusive flock on <contract>.lock (fd 9) for its whole
-# lifetime; every other envelope writer must take the same lock.
+# Lock: holds the shared exclusive directory lock for the selected contract.
 # =============================================================================
 
 set -euo pipefail
@@ -77,10 +76,17 @@ if [[ -n "$FROM_FILE" && -n "$SCORE" ]]; then
     exit 2
 fi
 
+TEMP_FILE=""
+cleanup() {
+    if [[ -n "$TEMP_FILE" ]]; then
+        rm -f -- "$TEMP_FILE" || true
+    fi
+    release_file_lock
+}
+
 # Lock the selected contract, not the default path established before parsing.
-# Group form keeps fd 2 alive when lock-file creation fails.
-{ exec 9>"${CONTRACT_FILE}.lock"; } 2>/dev/null || true
-flock 9 2>/dev/null || true
+acquire_file_lock "$CONTRACT_FILE" || exit 2
+trap cleanup EXIT
 
 if [[ "$VERBOSE" == true ]]; then
     echo -e "${YELLOW}[INFO]${NC} Persisting: $CONTRACT_FILE"
@@ -102,12 +108,6 @@ if ! TEMP_FILE=$(mktemp "${CONTRACT_FILE}.tmp.XXXXXX"); then
     echo "ERROR: Failed to create staging file beside $CONTRACT_FILE" >&2
     exit 2
 fi
-cleanup() {
-    if [[ -n "${TEMP_FILE:-}" ]]; then
-        rm -f -- "$TEMP_FILE"
-    fi
-}
-trap cleanup EXIT
 
 if [[ -n "$SCORE" ]]; then
     if [[ "$VERBOSE" == true ]]; then

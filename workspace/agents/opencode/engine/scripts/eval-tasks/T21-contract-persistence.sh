@@ -41,19 +41,27 @@ else
 fi
 
 if bash "$PERSIST" --file "$D/custom/contract.json" --from-file "$D/source.json" >/dev/null 2>&1; then
-  [[ -f "$D/custom/contract.json.lock" && ! -e "$D/session/contract.json.lock" ]] \
+  [[ ! -e "$D/custom/contract.json.lockdir" && ! -e "$D/session/contract.json.lockdir" ]] \
     && pass=$((pass+1)) \
-    || { fail=$((fail+1)); echo "FAIL custom contract did not use its own lock path"; }
+    || { fail=$((fail+1)); echo "FAIL custom contract lock was not released"; }
 else
   fail=$((fail+1)); echo "FAIL custom contract persistence failed"
 fi
 
 if bash "$PERSIST" --from-file "$D/source.json" >/dev/null 2>&1; then
-  [[ -f "$D/session/contract.json.lock" ]] \
+  [[ ! -e "$D/session/contract.json.lockdir" ]] \
     && pass=$((pass+1)) \
-    || { fail=$((fail+1)); echo "FAIL default contract lock was not created"; }
+    || { fail=$((fail+1)); echo "FAIL default contract lock was not released"; }
 else
   fail=$((fail+1)); echo "FAIL default contract persistence failed"
+fi
+
+if bash "$PERSIST" --file "$D/custom/failure.json" --from-file "$D/missing.json" >/dev/null 2>&1; then
+  fail=$((fail+1)); echo "FAIL missing source was accepted"
+elif [[ ! -e "$D/custom/failure.json.lockdir" ]]; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL lock remained after missing-source failure"
 fi
 
 if bash "$PERSIST" --file "$D/custom/contract.json" --from-file "$D/source.json" --validate >/dev/null 2>&1; then
