@@ -106,6 +106,57 @@ else
   fail=$((fail+1)); echo "FAIL tier1-only verdict/exit mismatch: score=$output rc=$rc"
 fi
 
+# Full output remains machine-readable JSON, without progress text on stdout.
+cp "$template" "$D/full-json-contract.json"
+if output=$(bash "$AUTO_SCORE" --file "$D/full-json-contract.json" --rules "$rules" --judge-file "$D/judge.json" 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$rc" -eq 0 ]] && printf '%s\n' "$output" | jq -e '.score.combined == 85 and .score.verdict == "PASS"' >/dev/null 2>&1; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL full output was not machine-readable score JSON (rc=$rc)"
+fi
+
+# A score is not reported as usable if its mandatory ledger cannot be persisted.
+mkdir "$D/ledger-failure" && cp "$template" "$D/ledger-failure/contract.json"
+mkdir "$D/ledger-failure/scores.jsonl"
+if output=$(bash "$AUTO_SCORE" --file "$D/ledger-failure/contract.json" --rules "$rules" --tier 1 --score-only 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ -z "$output" && "$rc" -eq 2 ]]; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL score emitted without ledger persistence: score=$output rc=$rc"
+fi
+cp "$template" "$D/ledger-failure/full-output-contract.json"
+if output=$(bash "$AUTO_SCORE" --file "$D/ledger-failure/full-output-contract.json" --rules "$rules" --tier 1 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ -z "$output" && "$rc" -eq 2 ]]; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL full score emitted without ledger persistence: output='$output' rc=$rc"
+fi
+
+# --score-only must keep diagnostics off stdout even when Tier 2 is skipped.
+jq '.governance.permissions_violated=true' "$template" > "$D/low-score-contract.json"
+if output=$(bash "$AUTO_SCORE" --file "$D/low-score-contract.json" --rules "$rules" --tier 1 --score-only 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$output" == "0" && "$rc" -eq 2 ]]; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL --score-only output contract: expected numeric score only, got '$output' rc=$rc"
+fi
+
 invalid_rules="$D/invalid-threshold-rules.json"
 jq '.scoring.thresholds.pass=40 | .scoring.thresholds.retry_min=50' "$rules" > "$invalid_rules"
 if bash "$AUTO_SCORE" --file "$template" --rules "$invalid_rules" --tier 1 --score-only >/dev/null 2>&1; then

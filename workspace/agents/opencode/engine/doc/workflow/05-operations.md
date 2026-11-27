@@ -149,7 +149,7 @@ bash scripts/auto-persist.sh --dry-run                    # Preview without writ
 bash scripts/auto-persist.sh --triggered-by developer     # Tag the source agent
 ```
 
-**`scripts/auto-score.sh`** - Three-tier automated scoring pipeline. Runs Tier 1 rule-based checks (schema, permissions, blast radius, writing order, required fields), Tier 2 LLM-as-judge (when available), and computes the combined PASS/RETRY/BLOCKED verdict. Mirrors the scoring logic from the orchestration contract.
+**`scripts/auto-score.sh`** - Three-tier automated scoring pipeline. Runs Tier 1 rule-based checks (schema, permissions, blast radius, writing order, required fields), Tier 2 LLM-as-judge (when available), and computes the combined PASS/RETRY/BLOCKED verdict. Mirrors the scoring logic from the orchestration contract. Full mode writes JSON to stdout; `--score-only` writes only the numeric score. Diagnostics go to stderr. A score is emitted only after its `scores.jsonl` ledger entry is persisted; a ledger write failure exits with status 2 and no score output.
 
 ```bash
 bash scripts/auto-score.sh --file session/contract.json --rules rules/rules.json

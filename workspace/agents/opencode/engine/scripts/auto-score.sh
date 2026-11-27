@@ -687,17 +687,17 @@ main() {
 
     # Banner
     if [[ "$SCORE_ONLY" == false && "$DRY_RUN" == false ]]; then
-        echo "=========================================="
-        echo " Auto-Score Pipeline"
-        echo " File: $CONTRACT_FILE"
-        echo " Rules: ${RULES_FILE:-$(echo -e "${YELLOW}not found${NC}")}"
-        echo " Tier: ${TIER_FILTER}"
-        echo "=========================================="
+        >&2 echo "=========================================="
+        >&2 echo " Auto-Score Pipeline"
+        >&2 echo " File: $CONTRACT_FILE"
+        >&2 echo " Rules: ${RULES_FILE:-$(echo -e "${YELLOW}not found${NC}")}"
+        >&2 echo " Tier: ${TIER_FILTER}"
+        >&2 echo "=========================================="
     fi
 
     if [[ "$DRY_RUN" == true ]]; then
-        echo ""
-        echo -e "${YELLOW}══ DRY RUN MODE — no scoring applied ══${NC}"
+        >&2 echo ""
+        >&2 echo -e "${YELLOW}══ DRY RUN MODE — no scoring applied ══${NC}"
     fi
 
     # ── Tier 1 ──
@@ -738,8 +738,8 @@ main() {
             judge_missing="[]"
             judge_model=""
             tier1_only=true
-            echo ""
-            echo -e "${YELLOW}[INFO]${NC} Tier 1 subtotal ($tier1_subtotal) < ${PASS_THRESHOLD} — skipping Tier 2"
+            >&2 echo ""
+            >&2 echo -e "${YELLOW}[INFO]${NC} Tier 1 subtotal ($tier1_subtotal) < ${PASS_THRESHOLD} — skipping Tier 2"
         else
             local tier2_result
             tier2_result=$(run_tier2 "$CONTRACT_FILE" "${RULES_FILE:-not_found}" "$tier1_subtotal")
@@ -788,8 +788,9 @@ main() {
         exit 0
     fi
 
+    local score_output
     if [[ "$SCORE_ONLY" == true ]]; then
-        echo "$combined_score"
+        score_output="$combined_score"
     else
         # Build tier1 output
         local rules_pass rules_fail rules_deduct rules_subtotal
@@ -802,8 +803,7 @@ main() {
         local judge_rationale_escaped
         judge_rationale_escaped=$(printf '%s' "$judge_rationale" | jq -Rs .)
 
-        echo ""
-        jq -n \
+        score_output=$(jq -n \
             --argjson rp "$rules_pass" \
             --argjson rf "$rules_fail" \
             --argjson rd "$rules_deduct" \
@@ -833,7 +833,7 @@ main() {
                     verdict: $v,
                     tier1_only: $t1only
                 }
-            }'
+            }') || exit 2
     fi
 
     # Scores ledger: append one JSONL line per scoring run (R2-08, R3-17 provenance)
@@ -851,8 +851,11 @@ main() {
         ledger_commit="unknown"
     fi
     if ! jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg phase "${SCORE_PHASE:-}" --argjson combined "$combined_score" --arg verdict "$verdict" --argjson tier1_only "$tier1_only" --arg task_id "$ledger_task_id" --arg agent "$ledger_agent" --arg model "$ledger_model" --arg commit "$ledger_commit" 'if $phase == "" then {timestamp: $ts, phase: null, combined: $combined, verdict: $verdict, tier1_only: $tier1_only, task_id: $task_id, agent: $agent, model: $model, commit: $commit} else {timestamp: $ts, phase: $phase, combined: $combined, verdict: $verdict, tier1_only: $tier1_only, task_id: $task_id, agent: $agent, model: $model, commit: $commit} end' >> "$scores_file" 2>/dev/null; then
-        echo "WARN: failed to append scores ledger: $scores_file" >&2
+        echo "ERROR: failed to append scores ledger: $scores_file; score was not emitted" >&2
+        exit 2
     fi
+
+    printf '%s\n' "$score_output"
 
     # Exit status must reflect the final verdict, including judge and policy caps.
     case "$verdict" in
