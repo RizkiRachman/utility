@@ -1,17 +1,17 @@
 <!-- omit from toc -->
 # opencode
 
-Self-hosted OpenCode v2 stack in Docker: workflow-state-engine, lean-ctx, six MCP servers, offline-ready.
+Self-hosted OpenCode v2 stack in Docker: workflow-state-engine, lean-ctx, seven MCP servers, offline-ready.
 
 <p>
   <img alt="opencode: 2.2.5" src="https://img.shields.io/badge/opencode-2.2.5-111111">
   <img alt="lean-ctx: 3.12.0" src="https://img.shields.io/badge/lean--ctx-3.12.0-8B5CF6">
-  <img alt="MCP servers: six" src="https://img.shields.io/badge/MCP%20servers-6-2d3142">
+  <img alt="MCP servers: seven" src="https://img.shields.io/badge/MCP%20servers-7-2d3142">
   <img alt="status: beta" src="https://img.shields.io/badge/status-beta-orange">
   <img alt="validate workflow" src="https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg">
 </p>
 
-This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (17 agents, 46 skills, contract-driven scoring; counts pinned to `engine/agents/`, `engine/skills/`, and `config/opencode.json`), lean-ctx as the mandatory access layer, and six MCP servers: lean-ctx, Context7, fetch, rag, OpenUI, and CocoIndex Code. The image is pre-populated from an offline package store, so builds need no network after the first pull. Versions are resolved once at populate time and recorded in `agents/opencode/pre-install/versions.lock`; that manifest is the lockfile, and an env var such as `OPENCODE_VERSION` is the deliberate pin. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md).
+This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (17 agents, 46 skills, contract-driven scoring; counts pinned to `engine/agents/`, `engine/skills/`, and `config/opencode.json`), lean-ctx as the mandatory access layer, and seven MCP servers: lean-ctx, Context7, fetch, rag, OpenUI, CocoIndex Code, and FalkorDB (docker-backed, optional). The image is pre-populated from an offline package store, so builds need no network after the first pull. Versions are resolved once at populate time and recorded in `agents/opencode/pre-install/versions.lock`; that manifest is the lockfile, and an env var such as `OPENCODE_VERSION` is the deliberate pin. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md).
 
 ## Table of Contents
 
@@ -159,7 +159,7 @@ Compose v2.24+ is required for the `!override` volumes tag that drops the direct
 
 ## MCP Servers
 
-Six servers are defined in `config/opencode.json`; every baked server must answer the boot preflight or the container fails to start.
+Seven servers are defined in `config/opencode.json`; every baked server must answer the boot preflight or the container fails to start.
 
 | Server | Command | Purpose |
 |---|---|---|
@@ -169,8 +169,9 @@ Six servers are defined in `config/opencode.json`; every baked server must answe
 | `rag` | `node /opt/rag/server.js` | Workspace retrieval over SQLite FTS5 + vectors: `rag_search`, `rag_index`, `rag_status`, `rag_get`; java-aware method-boundary chunking with `package > class > method` headings; offline hashed-vector embeddings, optional remote endpoint via `RAG_EMBEDDINGS_*`; agents get usage rules from the `opencode/config/rag-usage.md` instructions entry |
 | `cocoindex-code` | `ccc mcp` | AST-semantic code search across the workspace (`ccc` CLI, cocoindex-code MCP); complements lean-ctx, and is not a symbol/callgraph replacement. The wheel is baked into the image and the Dockerfile fails the build without it |
 | `openui` | `node /home/node/workspace/agents/openui/mcp-bridge.mjs` | Stdio bridge to the openui container (`OPENUI_URL=http://openui:3000`): `generate_ui`, `preview_url` |
+| `falkordb` | `docker run -i --rm --network kg-net ... falkordb/mcpserver:latest` | Governance fact graph over FalkorDB (OpenCypher): `query_graph`, graph create/delete, schema listing. Setup in [ai/mcp/falkordb/](ai/mcp/falkordb/README.md) (`kg-up.sh` pulls images, starts the DB, data under `/home/node/workspace/kg-data`); warn-only at boot until the DB runs |
 
-`@firecrawl/opencode` is the seventh integration but ships as a **plugin**, not an MCP server: vendored at `engine/plugins/opencode-firecrawl`, keyless `firecrawl_developer_search`, ask-gated `firecrawl_alexandria`, keyed scrape/crawl through `firecrawl-cli`.
+`@firecrawl/opencode` ships as a **plugin**, not an MCP server (FalkorDB holds the seventh MCP seat): vendored at `engine/plugins/opencode-firecrawl`, keyless `firecrawl_developer_search`, ask-gated `firecrawl_alexandria`, keyed scrape/crawl through `firecrawl-cli`.
 
 The image ships no demo MCP servers: everything installed is registered in `config/opencode.json`; to add a server, install it, register it there, and restart.
 

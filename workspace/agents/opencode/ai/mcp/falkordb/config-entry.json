@@ -1,0 +1,21 @@
+{
+  "falkordb": {
+    "type": "local",
+    "command": [
+      "docker",
+      "run",
+      "-i",
+      "--rm",
+      "--network",
+      "kg-net",
+      "-e",
+      "FALKORDB_HOST=kg-falkordb",
+      "-e",
+      "FALKORDB_PORT=6379",
+      "-e",
+      "MCP_TRANSPORT=stdio",
+      "falkordb/mcpserver:latest"
+    ],
+    "enabled": true
+  }
+}

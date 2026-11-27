@@ -21,8 +21,8 @@ claimed_agents=$(grep -oE '[0-9]+ agents' "$ENGINE/README.md" 2>/dev/null | head
 claimed_skills=$(grep -oE '[0-9]+ skills' "$ENGINE/README.md" 2>/dev/null | head -1 | grep -oE '[0-9]+')
 ok "agents advertised" "${claimed_agents:-unset}" "$agents"
 ok "skills advertised" "${claimed_skills:-unset}" "$skills"
-ok "mcp servers configured" "$mcps" "6"
-for srv in cocoindex-code context7 fetch lean-ctx openui rag; do
+ok "mcp servers configured" "$mcps" "7"
+for srv in cocoindex-code context7 fetch lean-ctx openui rag falkordb; do
   grep -q "$srv" "$ROOT/README.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL mcp name in root README: $srv"; }
 done
 
@@ -49,6 +49,8 @@ bad=$(grep -rhoE '[0-9]+ MCP servers' "$ENGINE" --include='*.md' 2>/dev/null | g
 ok "mcp count claims match config" "$bad" "0"
 
 grep -q 'Inventory is pinned' "$ENGINE/README.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL inventory boundary note"; }
+
+[[ -x "$ROOT/ai/mcp/falkordb/kg-up.sh" && -x "$ROOT/ai/mcp/falkordb/kg-down.sh" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL kg lifecycle scripts missing"; }
 
 echo "T20 doc hygiene: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]

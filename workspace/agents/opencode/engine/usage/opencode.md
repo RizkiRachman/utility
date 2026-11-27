@@ -494,7 +494,7 @@ Per-agent overrides:
 
 ### 9.1 MCP Servers
 
-This project has 6 MCP servers configured in `opencode.json`:
+This project has 7 MCP servers configured in `opencode.json`:
 
 | Server | Type | Command | Notes |
 |--------|------|---------|-------|
@@ -504,6 +504,7 @@ This project has 6 MCP servers configured in `opencode.json`:
 | **rag** | local | `node /opt/rag/server.js` | enabled |
 | **openui** | local | `node /home/node/workspace/agents/openui/mcp-bridge.mjs` | `OPENUI_URL` set |
 | **cocoindex-code** | local | `ccc mcp` | AST-aware code search |
+| **falkordb** | local | `docker run -i --rm --network kg-net ... falkordb/mcpserver:latest` | Governance fact graph (OpenCypher); setup in `ai/mcp/falkordb/`; warn-only at boot until the DB runs |
 
 ### 9.2 Compaction
 
