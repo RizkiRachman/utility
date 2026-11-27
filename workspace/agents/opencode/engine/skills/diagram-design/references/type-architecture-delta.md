@@ -136,8 +136,8 @@ It is **not** a browser renderer or a proof of the source system. Authors remain
 
 ## Examples
 
-- `assets/example-architecture-delta.html` — minimal light order-fulfilment migration; all five change kinds.
-- `assets/example-architecture-delta-dark.html` — minimal dark, identical IDs, signatures, topology, and coordinates.
-- `assets/example-architecture-delta-full.html` — full editorial treatment of the same migration.
+- `assets/example-architecture-delta.html` - minimal light order-fulfilment migration; all five change kinds.
+- `assets/example-architecture-delta-dark.html` - minimal dark, identical IDs, signatures, topology, and coordinates.
+- `assets/example-architecture-delta-full.html` - full editorial treatment of the same migration.
 
 The example retains the storefront and order store, changes the order API to enqueue work, removes the legacy dispatcher, adds a durable order queue, moves the fulfilment worker, and rewires order submission. Stable relationships follow the worker's new location while preserving their IDs and endpoint semantics.

@@ -138,6 +138,12 @@ while IFS=$'\t' read -r name dir file; do
   mv "$sd/files/$file" "$TARGET/$file" 2>/dev/null || exit 1
   jq -cn --arg f "$file" '{event:"applied",file:$f}' >> "$journal" || exit 1
   APPLIED_FILES+=("$file"); applied=$((applied+1))
+  # Deterministic interruption hook: after N applies, drop the traps and exit
+  # 137, leaving the state dir and journal exactly as a SIGKILL would.
+  if [[ -n "${MERGE_SHARDS_KILL_AFTER:-}" && "$applied" -eq "$MERGE_SHARDS_KILL_AFTER" ]]; then
+    trap - EXIT INT TERM
+    exit 137
+  fi
 done <<< "$rows"
 
 CLEAN=true

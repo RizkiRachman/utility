@@ -129,7 +129,7 @@ These are synonyms. They are the explicit “change my skin” flow.
 1. If no slug was supplied, run `list` and ask which exact slug to load. Validate it before constructing a path; never guess.
 2. Ensure `default.md`, then **Read** the canonical profile file. If missing, report it and offer `list`.
 3. Run the current-schema structural check.
-4. If a syntactically valid project marker exists—even one naming a missing profile—explain that marker-first projects do not use the shared working copy and ask permission to replace the marker with exactly `profile: <slug>`. On approval, **Write** the marker and do not touch the installed `style-guide.md`.
+4. If a syntactically valid project marker exists-even one naming a missing profile-explain that marker-first projects do not use the shared working copy and ask permission to replace the marker with exactly `profile: <slug>`. On approval, **Write** the marker and do not touch the installed `style-guide.md`.
 5. Without a marker, **Write** the checked full profile (one header plus body) over the installed working copy. This copy-over is allowed only because the user explicitly invoked load/switch.
 6. Re-read the destination and verify its slug/header and body. If the install directory is unwritable, report it and offer the marker-based flow instead; never redirect the copy to another install.
 7. Report the active profile. After a successful markerless copy, offer to write the project marker with explicit consent.

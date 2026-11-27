@@ -1,4 +1,4 @@
-# Critique — judging the render
+# Critique - judging the render
 
 `inspect.mjs` passing means nothing banned or broken was measured. It says nothing about whether the
 page is good. This file is how you find out. Use it on the screenshots, never on the code: you wrote
@@ -79,26 +79,26 @@ page did not lose its substance with them.
 Score like an Awwwards juror: four criteria, 1–10 each, weighted **design 40%, usability 30%,
 creativity 20%, content 10%**.
 
-**Design (40%)** — composition, typography, colour, imagery, craft.
+**Design (40%)** - composition, typography, colour, imagery, craft.
 - 9–10: every screen holds as a poster. Nothing could be removed or moved.
 - 8: confident and coherent; one or two soft spots a designer would notice.
 - 7: clean and professional, a clear system, little tension.
 - 6: tidy but anonymous. Reads as a kit.
 - 5 or less: weak hierarchy, accidental spacing, default type, mismatched images.
 
-**Usability (30%)** — orientation in three seconds, readable text, obvious actions, honest mobile.
+**Usability (30%)** - orientation in three seconds, readable text, obvious actions, honest mobile.
 - 9–10: you know what it is, who it is for and what to do without scrolling; flawless on a phone.
 - 8: clear and comfortable; minor friction (a long section, a small target).
 - 7: works, with one real problem (weak contrast somewhere, a cramped phone layout).
 - 6 or less: you have to hunt, or something breaks.
 
-**Creativity (20%)** — an idea you can state in a sentence, carried through.
+**Creativity (20%)** - an idea you can state in a sentence, carried through.
 - 9–10: a concept specific to this subject that you have not seen applied this way.
 - 8: a clear idea with one memorable move.
 - 7: a tasteful execution of a known approach.
 - 6 or less: the category default.
 
-**Content (10%)** — words and pictures that are specific, true-sounding and edited.
+**Content (10%)** - words and pictures that are specific, true-sounding and edited.
 - 9–10: every line could only be about this subject; imagery is the subject.
 - 7–8: clear and concrete, some generic lines.
 - 6 or less: slogans, filler, stock.

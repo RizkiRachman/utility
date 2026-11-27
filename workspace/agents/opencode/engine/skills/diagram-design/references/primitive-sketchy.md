@@ -1,6 +1,6 @@
 # Sketchy Filter (hand-drawn variant)
 
-Optional displacement filter that wobbles every stroke and edge slightly — turns any minimal variant into a hand-drawn "editorial" register without changing layout. Use when the diagram accompanies an essay rather than technical docs.
+Optional displacement filter that wobbles every stroke and edge slightly - turns any minimal variant into a hand-drawn "editorial" register without changing layout. Use when the diagram accompanies an essay rather than technical docs.
 
 ## Grammar
 
@@ -12,12 +12,12 @@ Optional displacement filter that wobbles every stroke and edge slightly — tur
   </filter>
 </defs>
 
-<!-- Apply to a group wrapping shapes — NOT text -->
+<!-- Apply to a group wrapping shapes - NOT text -->
 <g filter="url(#sketchy)">
   <!-- rects, paths, circles, lines go here -->
 </g>
 
-<!-- Text sits OUTSIDE the filtered group — legibility stays crisp -->
+<!-- Text sits OUTSIDE the filtered group - legibility stays crisp -->
 <text ...>Labels go here</text>
 ```
 
@@ -35,9 +35,9 @@ Filter shapes, NOT text. Displacement-mapped text becomes illegible. Structure y
 
 ## When to use
 - Essay / blog post / newsletter where the diagram is the hero of a narrative page.
-- "Working sketch" register — showing something is mid-thought, not final architecture.
+- "Working sketch" register - showing something is mid-thought, not final architecture.
 
 ## When not to use
 - Technical documentation (precision matters).
 - Diagrams with dense labels or tight alignments (filter reads as noise).
-- Dark variants — wobble reads as artifact on dark backgrounds. Test first.
+- Dark variants - wobble reads as artifact on dark backgrounds. Test first.

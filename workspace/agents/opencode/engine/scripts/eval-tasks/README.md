@@ -19,7 +19,7 @@ from the `auto-score.sh` JSONL ledger).
 | T6-judge-coverage.sh | Malformed ledger rows never count as judge evidence | `judge-coverage.sh` |
 | T7-telemetry.sh | Per-phase timing/token aggregation excludes orphaned runs | `phase-telemetry.sh` |
 | T8-context-provenance.sh | Context records carry source, commit, timestamp, evidence status | `context-provenance.sh` |
-| T9-judge-agreement.sh | Labeled verdict corpus: agreement, false-pass/block, jitter flips | `fixtures/judge-labels.jsonl` |
+| T9-judge-agreement.sh | Labeled aggregation corpus: verdict math, false-pass/block, jitter stability (fixtures only, not real-judge agreement) | `fixtures/judge-labels.jsonl` |
 | T10-blocked-sla.sh | BLOCKED TTL stamped on transition and enforced against rules | `blocked-sla.sh` + `transition.sh` |
 | T11-merge-shards.sh | Parallel shard merge: conflict abort, path safety, rollback | `merge-shards.sh` |
 | T12-shell-policy.sh | Shell writes to policy artifacts denied; reads/ordinary writes audited | `workflow-controller.sh` |
@@ -29,6 +29,8 @@ from the `auto-score.sh` JSONL ledger).
 | T16-shard-recovery.sh | Interruption rollback and journal-based recovery of shard merges | `merge-shards.sh` |
 | T17-telemetry-coverage.sh | Required phases instrumented per task class | `phase-telemetry.sh` |
 | T18-learning-impact.sh | Learning reuse recorded and reported across tasks | `learning-record.sh` |
+| T19-failure-loop.sh | Typed failure-loop strategy matrix exercised end to end | `failure-loop.sh` |
+| T20-doc-hygiene.sh | No em dashes in engine markdown; advertised counts match tree/config | `grep` + `jq` |
 
 ## Usage
 

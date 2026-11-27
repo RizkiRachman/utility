@@ -9,15 +9,15 @@
 - **Activation bar**: narrow rectangle (`w=8`, muted fill, 0.8 hairline stroke) on a lifeline spanning the interval that actor holds control. Stack for nested calls.
 - Self-messages: short U-shaped loop returning to the same lifeline; label right of the loop.
 - Return messages: **dashed** stroke + **filled** marker (never open). Prefer muted; optionally match the originating call color when pairing multi-hop stacks. Headline success may use solid coral (see Message kinds).
-- Coral on the primary success response or headline message — one, maybe two. Actor focal strokes do not count toward the coral message budget.
-- When the flow **branches** (valid vs invalid token, retry, optional step), draw a **combined fragment** frame — do not invent free-floating if/else arrow clusters.
+- Coral on the primary success response or headline message - one, maybe two. Actor focal strokes do not count toward the coral message budget.
+- When the flow **branches** (valid vs invalid token, retry, optional step), draw a **combined fragment** frame - do not invent free-floating if/else arrow clusters.
 
 ## Message kinds
 
 | Kind | Stroke | Marker | When |
 |---|---|---|---|
 | Call (sync) | solid muted or link-blue | filled | Request that expects a reply |
-| Return | **dashed** muted (or match call color) | filled | Reply to a sync call — never solid |
+| Return | **dashed** muted (or match call color) | filled | Reply to a sync call - never solid |
 | Async / fire-and-forget | dashed muted | **open** arrowhead | Beacons, events, one-way notify |
 | Headline success | solid accent (≤1–2 messages) | accent filled | Primary happy-path response only |
 
@@ -31,7 +31,7 @@ Define once in `<defs>` and use for fire-and-forget only:
 </marker>
 ```
 
-Dark mode: `muted` inverts with the skin, so the stroke needs no change. Do not fill the open marker — the hollow head is the async signal. Return messages keep the **filled** marker even when dashed.
+Dark mode: `muted` inverts with the skin, so the stroke needs no change. Do not fill the open marker - the hollow head is the async signal. Return messages keep the **filled** marker even when dashed.
 
 ## Combined fragments (`alt` / `opt` / `loop`)
 
@@ -83,7 +83,7 @@ Dark mode: the roles invert with the skin, so only the frame fill changes, to `i
 - Coral stays on **one** headline success message across the whole diagram (usually the happy-path return inside the first `alt` region, or the final success outside a loop). Do not coral both `alt` branches.
 
 ### Out of scope (do not invent)
-- `par`, `critical`, `break`, `ref`, and other UML operators — second PR if needed.
+- `par`, `critical`, `break`, `ref`, and other UML operators - second PR if needed.
 - Participant create/destroy, found/lost messages, duration timing bars.
 
 ## Complexity budget (sequence-specific)
@@ -109,22 +109,22 @@ If you exceed, split: overview (happy path) + detail (failure / refresh path).
 ```
 
 ## Anti-patterns
-- Message arrow pointing *upward* (reverses time — never).
+- Message arrow pointing *upward* (reverses time - never).
 - Activation bars that never close.
-- Labels sitting over another lifeline — shorten or shift y into a gap.
+- Labels sitting over another lifeline - shorten or shift y into a gap.
 - Swimlane-style lanes instead of lifelines (different grammar).
 - Drawing `if/else` as two free-floating arrow clusters with **no** fragment frame.
 - Nested `alt` inside `alt` (split into two diagrams).
-- Fragment operator label in the `node-name` sans family — must be mono (`eyebrow`): `ALT` / `OPT` / `LOOP`.
+- Fragment operator label in the `node-name` sans family - must be mono (`eyebrow`): `ALT` / `OPT` / `LOOP`.
 - Coral on both `alt` branches.
 - Frame that covers actors with no messages inside the fragment.
 - Filled arrowhead on async fire-and-forget (use open marker).
 - Open arrowhead on return messages (returns stay filled + dashed).
 
 ## Examples
-- `assets/example-sequence.html` — minimal light (cold-cache happy path)
-- `assets/example-sequence-dark.html` — minimal dark
-- `assets/example-sequence-full.html` — full editorial
-- `assets/example-sequence-oauth.html` — special: bearer call + `alt` refresh (light)
-- `assets/example-sequence-oauth-dark.html` — same special, dark
-- `assets/example-sequence-oauth-full.html` — same special, full editorial
+- `assets/example-sequence.html` - minimal light (cold-cache happy path)
+- `assets/example-sequence-dark.html` - minimal dark
+- `assets/example-sequence-full.html` - full editorial
+- `assets/example-sequence-oauth.html` - special: bearer call + `alt` refresh (light)
+- `assets/example-sequence-oauth-dark.html` - same special, dark
+- `assets/example-sequence-oauth-full.html` - same special, full editorial

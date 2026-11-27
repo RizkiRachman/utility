@@ -1,6 +1,6 @@
 # Loop
 
-**Best for:** reinforcing cycles, flywheels, feedback loops, and operating loops — anything where the last step feeds the first and a shared hub accumulates state. Use Loop when the reader must see both motions at once: work advances clockwise around the ring, while each pass writes durable state back to one common center.
+**Best for:** reinforcing cycles, flywheels, feedback loops, and operating loops - anything where the last step feeds the first and a shared hub accumulates state. Use Loop when the reader must see both motions at once: work advances clockwise around the ring, while each pass writes durable state back to one common center.
 
 Prefer **Flowchart** when the path ends, branches toward an outcome, or never truly returns to its first step. Prefer **Cycle** when the center does not accumulate shared state. The dashed write-back spokes are the defining signal here: remove them and the figure is only a circular process.
 
@@ -8,7 +8,7 @@ This type is **parametric**. The inputs in §1 determine station count, angles, 
 
 ---
 
-## 1. Inputs — the parameter contract
+## 1. Inputs - the parameter contract
 
 ```yaml
 title: "The self-improving loop"
@@ -35,13 +35,13 @@ margin: 64
 dark: false
 ```
 
-**Budget (hard):** **5–8 stations plus exactly one hub.** Above 8 stations, split the subject into an overview Loop and one or more detail diagrams. Exactly one hub — a loop with two hubs is two diagrams. At most one station may set `focal: true`; zero is allowed when no editorial gate deserves emphasis.
+**Budget (hard):** **5–8 stations plus exactly one hub.** Above 8 stations, split the subject into an overview Loop and one or more detail diagrams. Exactly one hub - a loop with two hubs is two diagrams. At most one station may set `focal: true`; zero is allowed when no editorial gate deserves emphasis.
 
 Station order is semantic. `stations[0]` is the top station, then entries proceed clockwise. The last station always connects back to station 0; if that return would be false, use a Flowchart instead.
 
 ---
 
-## 2. Layout math — deterministic geometry
+## 2. Layout math - deterministic geometry
 
 Use SVG coordinates, where positive y points downward. Let the hub center be `C = (cx, cy)`, station count be `N`, station ring radius be `R`, station half-size be `a = station_w/2`, `b = station_h/2`, and hub half-size be `A = hub_w/2`, `B = hub_h/2`.
 
@@ -169,7 +169,7 @@ SKILL.md §6 applies in full except for the two Loop-specific connector primitiv
 
 ---
 
-## 5. Dark variant — token swap
+## 5. Dark variant - token swap
 
 Apply the style-guide inversion rule; do not invent a second palette.
 
@@ -218,6 +218,6 @@ The semantic relationship stays unchanged in dark mode: one `ink`-filled hub, on
 
 ## 8. Examples
 
-- `assets/example-loop.html` — minimal light: six-station self-improving operating loop.
-- `assets/example-loop-dark.html` — the same geometry under the dark token inversion.
-- `assets/example-loop-full.html` — editorial page with the flagship loop, three summary cards, and colophon.
+- `assets/example-loop.html` - minimal light: six-station self-improving operating loop.
+- `assets/example-loop-dark.html` - the same geometry under the dark token inversion.
+- `assets/example-loop-full.html` - editorial page with the flagship loop, three summary cards, and colophon.

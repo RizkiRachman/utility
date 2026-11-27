@@ -47,7 +47,19 @@ ok "recover restored backup" "$(cat "$D/target/ok.md")" "FROM-BACKUP"
 ok "recover removed absent file" "$([[ -f "$D/target/gone.md" ]] && echo present || echo absent)" "absent"
 ok "recover state cleaned" "$([[ -d "$D/target/.merge-state" ]] && echo present || echo absent)" "absent"
 
-# 4. Recover with no state dir is a no-op.
+# 4. Real interrupted merge: the deterministic kill hook drops the traps and
+#    exits 137 after the first apply, leaving state exactly as SIGKILL would.
+printf 'ORIGINAL4' > "$D/target/ok.md"
+rm -rf "$D/target/sub"
+MERGE_SHARDS_KILL_AFTER=1 bash "$S" --manifest "$D/m.json" --target "$D/target" --report "$D/r4.json" >/dev/null 2>&1; rc=$?
+ok "killed mid-apply exit" "$rc" "137"
+ok "killed left state" "$([[ -d "$D/target/.merge-state" ]] && echo present || echo absent)" "present"
+ok "killed applied one" "$(cat "$D/target/ok.md")" "NEW-A"
+bash "$S" --target "$D/target" --recover --report "$D/r5.json" >/dev/null 2>&1
+ok "recover after kill" "$(cat "$D/target/ok.md")" "ORIGINAL4"
+ok "recover cleaned state" "$([[ -d "$D/target/.merge-state" ]] && echo present || echo absent)" "absent"
+
+# 5. Recover with no state dir is a no-op.
 bash "$S" --target "$D/target" --recover --report "$D/r3.json" >/dev/null 2>&1
 ok "no-state status" "$(jq -r .status "$D/r3.json")" "no_state"
 

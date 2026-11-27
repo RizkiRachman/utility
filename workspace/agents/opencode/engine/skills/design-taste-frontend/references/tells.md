@@ -1,4 +1,4 @@
-# Tells — the dated registry
+# Tells - the dated registry
 
 A tell is a device that makes a page read as generated. Tells are not bad design in themselves; most
 began as good ideas on good sites. They became tells by being produced by default, everywhere, without
@@ -75,7 +75,7 @@ and a page built without them has to find real structure.
 | Index numbering: 01 / 02 / 03, (001), "Step 02", numbered section markers | banned | Order by position, scale, or the words; `<ol>` when it is truly a list |
 | Thin rules: hairline dividers, ruled grids, 1px outlined boxes and tiles | banned (boxes: 3 or more) | Space, tone steps, filled shapes, a thick bar if a bar is the idea |
 | Design-tool chrome as ornament: crosshairs, crop marks, selection handles, dashed guides, rulers | banned via hairline, dashed | Remove |
-| Agency micro-meta: local time, coordinates, weather, version stamps, "©2026 — Scroll", middle-dot strings | lint: copy; micro-label | Remove |
+| Agency micro-meta: local time, coordinates, weather, version stamps, "©2026 - Scroll", middle-dot strings | lint: copy; micro-label | Remove |
 | Tiny uppercase letter-spaced captions scattered around the viewport | banned (3 or more) | Sentence case at readable size, placed with the content it describes |
 
 Tiny tracked capitals are the one item in this group the data condemns as well: 16% of top sites
