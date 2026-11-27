@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# T9-judge-agreement.sh — labeled verdict corpus with jitter stability check.
+# T9-judge-agreement.sh - labeled aggregation corpus with jitter stability
+# check. Verifies verdict aggregation math and jitter stability over fixture
+# labels; it does not measure agreement between real model judges.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIX="$SCRIPT_DIR/fixtures/judge-labels.jsonl"

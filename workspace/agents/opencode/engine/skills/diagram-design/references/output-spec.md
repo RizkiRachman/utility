@@ -1,6 +1,6 @@
-# Draw.io import output spec — format × size × detail × audience
+# Draw.io import output spec - format × size × detail × audience
 
-Four dials decide what an imported diagram becomes. Set them **before** redrawing — they change the deliverable, layout, type ramp, node count, and wording, so retrofitting them afterwards means redrawing.
+Four dials decide what an imported diagram becomes. Set them **before** redrawing - they change the deliverable, layout, type ramp, node count, and wording, so retrofitting them afterwards means redrawing.
 
 | Dial | Question it answers | Default |
 |---|---|---|
@@ -20,9 +20,9 @@ Infer choices that are clear from the request (for example, "for my deck" implie
 | `html` | self-contained `.html` (default) | header, diagram, summary cards, footer, live fonts | nothing |
 | `svg` | `.svg` next to the source | the `<svg>` node, vector text | editorial wrapper; fonts substitute in offline tools |
 | `png` | `.png` at `device_scale_factor` | pixels exactly as the browser renders them | vector editability |
-| `html+png` | both | — | — |
+| `html+png` | both | - | - |
 
-Always generate the HTML first — `svg` and `png` are produced *from* it via [`export.md`](export.md). Never hand-author an SVG file directly; the HTML is the source of truth and the only artifact the taste gate (SKILL.md §9) is written against.
+Always generate the HTML first - `svg` and `png` are produced *from* it via [`export.md`](export.md). Never hand-author an SVG file directly; the HTML is the source of truth and the only artifact the taste gate (SKILL.md §9) is written against.
 
 Pick by destination:
 
@@ -57,7 +57,7 @@ The preset sets the SVG `viewBox`. Every value below is divisible by 4, so the g
 ### Holding the canvas on a narrow screen
 
 The SVG keeps its readable width on a phone instead of shrinking into it, so
-`min-width` is **the viewBox width of the preset in use** — not a fixed number.
+`min-width` is **the viewBox width of the preset in use** - not a fixed number.
 Pin it lower and the whole drawing scales down and takes the type ramp with it:
 a 12px node name on a `doc-wide` 1280 viewBox pinned at 900 draws at 8.4px,
 under every floor this spec sets, and nothing on screen says so.
@@ -79,14 +79,14 @@ svg { width: 100%; min-width: 960px; display: block; }
 
 Two shapes need extra care. A centred grid or flex item sizes itself to the
 SVG's max-content width, so the wrapper's `width: 100%` resolves against the
-wide item and never scrolls — give that item `max-width: 100%; min-width: 0`.
+wide item and never scrolls - give that item `max-width: 100%; min-width: 0`.
 And when an ancestor is `overflow: hidden` (window chrome, a clipped card), the
 SVG is cut off instead of scrolled: no scrollbar, no page overflow, and a
 page-overflow check reports the file clean because the content was destroyed
 rather than spilled. The wrapper has to sit **inside** that ancestor.
 
 Paper has no scrollbar, so on a sheet the same wrapper clips instead of
-scrolls. Release both in print and let the drawing scale to fit — smaller but
+scrolls. Release both in print and let the drawing scale to fit - smaller but
 whole beats sharp but cut off. The rule has to come **after** the `svg` rule,
 because a media query adds no specificity and a later plain rule would win:
 
@@ -99,7 +99,7 @@ because a media query adds no specificity and a later plain rule would win:
 
 `scripts/lint-render.py --all` renders every template at 390px and fails on
 page overflow, an unreachable clipped SVG, a missing local scroller, or a
-`min-width` that disagrees with the viewBox — including an absent one, which
+`min-width` that disagrees with the viewBox - including an absent one, which
 lets the SVG shrink into the phone and takes the type ramp with it.
 
 ### Deriving `fit`
@@ -108,7 +108,7 @@ Round the content bounding box **up** to the next multiple of 4, then add the fi
 
 ### Type ramp per size class
 
-Node names shrink relative to the canvas as it grows — resist that. Scale the ramp with the preset so a projected slide stays readable from the back row.
+Node names shrink relative to the canvas as it grows - resist that. Scale the ramp with the preset so a projected slide stays readable from the back row.
 
 | Role | standard | presentation | print |
 |---|---|---|---|
@@ -162,19 +162,19 @@ Each is registered against the font carrying it, because that is what the sweep 
 
 New diagrams get no rows here. Bringing one of these onto the ramp is a visual change to a shipped example and belongs in its own PR.
 
-Presentation ramp implies fewer nodes — 16px names in 64px boxes eat the canvas. If a `slide-16x9` layout won't fit, that's the size dial telling you the detail dial is set too high; drop a level rather than shrinking the type.
+Presentation ramp implies fewer nodes - 16px names in 64px boxes eat the canvas. If a `slide-16x9` layout won't fit, that's the size dial telling you the detail dial is set too high; drop a level rather than shrinking the type.
 
 ### Safe areas
 
 - **All presets:** 40px outer margin; legend strip is the bottom 60px and nothing else lives there.
-- **`social-og`:** keep the outer 64px clear on every side — link-card crops are unpredictable across platforms.
+- **`social-og`:** keep the outer 64px clear on every side - link-card crops are unpredictable across platforms.
 - **`slide-*`:** keep the bottom 80px clear if the deck template has a footer bar; ask if unsure.
 
 ---
 
 ## 3. Detail level
 
-How much of the source survives. This is a *count* dial — it governs how many elements make it through, not how they're worded (that's §4).
+How much of the source survives. This is a *count* dial - it governs how many elements make it through, not how they're worded (that's §4).
 
 | Level | Nodes | Edges | Sublabels | What survives |
 |---|---|---|---|---|
@@ -182,10 +182,10 @@ How much of the source survives. This is a *count* dial — it governs how many 
 | `balanced` (default) | ≤12 | ≤16 | technical sublabel on ≤4 nodes | Components that carry the story; leaf clusters collapse to one node each. |
 | `simplified` (簡略) | ≤7 | ≤9 | none | Capabilities and their sequence. Infrastructure disappears. |
 
-`balanced` and `simplified` sit inside the standard complexity budget (SKILL.md §7). **`faithful` deliberately exceeds it** — that's the trade, and it comes with conditions:
+`balanced` and `simplified` sit inside the standard complexity budget (SKILL.md §7). **`faithful` deliberately exceeds it** - that's the trade, and it comes with conditions:
 
 1. **Zoning is mandatory.** Above 9 nodes, every node belongs to a labeled zone (2–4 zones, hairline-bordered, `paper-2` fill, mono uppercase zone label at top-left). An unzoned 20-node diagram is a wiring diagram, not a schematic.
-2. **Connector rules don't relax.** SKILL.md §6 rules 1–5 still apply at 24 nodes. If you can't route it without overlaps, you're over the real ceiling — split.
+2. **Connector rules don't relax.** SKILL.md §6 rules 1–5 still apply at 24 nodes. If you can't route it without overlaps, you're over the real ceiling - split.
 3. **Above 24 nodes, split.** Produce an overview (zones as nodes, `balanced` grammar) plus one detail diagram per zone. Name them `<base>-overview.html`, `<base>-<zone>.html`. Never ship a 40-node single canvas.
 4. **Accent stays at 2.** More nodes never buys more focal elements.
 
@@ -193,11 +193,11 @@ How much of the source survives. This is a *count* dial — it governs how many 
 
 When the source has more than the level allows, cut in this order and stop as soon as you're under budget. Never cut ad hoc.
 
-1. **Decorative cells** — sticky notes, free-floating text, title blocks, watermarks, the source's own legend. (Notes worth keeping become annotation callouts — max 2, see [primitive-annotation.md](primitive-annotation.md).)
-2. **Exact duplicates** — N identical workers/replicas/shards become one node labeled `Worker ×N`.
-3. **Leaf clusters** — a container whose children are all leaves collapses to the container: `Core Services` replaces its three boxes. The extractor lists these under *collapsible groups*.
-4. **Degree-1 sinks that don't change the story** — a monitoring hook, a log bucket, an archive tier.
-5. **Cross-cutting infrastructure** — logging, metrics, secrets, CI. At `simplified` these go without asking; at `balanced` keep at most one, and only if the diagram is about it.
+1. **Decorative cells** - sticky notes, free-floating text, title blocks, watermarks, the source's own legend. (Notes worth keeping become annotation callouts - max 2, see [primitive-annotation.md](primitive-annotation.md).)
+2. **Exact duplicates** - N identical workers/replicas/shards become one node labeled `Worker ×N`.
+3. **Leaf clusters** - a container whose children are all leaves collapses to the container: `Core Services` replaces its three boxes. The extractor lists these under *collapsible groups*.
+4. **Degree-1 sinks that don't change the story** - a monitoring hook, a log bucket, an archive tier.
+5. **Cross-cutting infrastructure** - logging, metrics, secrets, CI. At `simplified` these go without asking; at `balanced` keep at most one, and only if the diagram is about it.
 6. **Still over?** Split into overview + detail. Splitting beats shrinking.
 
 Anything cut in steps 2–6 goes in the fidelity ledger (§5). Step 1 doesn't need reporting.
@@ -211,16 +211,16 @@ Independent of the detail dial: the same 12 nodes get named differently for a pl
 | Audience | Node names | Sublabels | Edge labels | Never |
 |---|---|---|---|---|
 | `engineer` | exact service / component names | protocol, port, version, image tag | `POST /v2/orders`, `SQL`, `gRPC` | Vague verbs like "connects to" |
-| `mixed` (default) | component names, expanded acronyms | technology only where it changes a decision | plain verbs — `verifies`, `writes`, `notifies` | Ports, versions, internal codenames |
-| `executive` | capabilities and outcomes | none | business verbs — `approves`, `pays out` | Vendor names, infrastructure, protocols |
+| `mixed` (default) | component names, expanded acronyms | technology only where it changes a decision | plain verbs - `verifies`, `writes`, `notifies` | Ports, versions, internal codenames |
+| `executive` | capabilities and outcomes | none | business verbs - `approves`, `pays out` | Vendor names, infrastructure, protocols |
 
-Worked example — the same node through all three:
+Worked example - the same node through all three:
 
 | Audience | Node name | Sublabel |
 |---|---|---|
 | `engineer` | `Auth Service` | `JWT · RS256 · :8443` |
 | `mixed` | `Auth Service` | `token check` |
-| `executive` | `Sign-in` | — |
+| `executive` | `Sign-in` | - |
 
 Two rules that hold at every audience level:
 
@@ -229,7 +229,7 @@ Two rules that hold at every audience level:
 
 ### Non-Latin labels
 
-Geist has no CJK coverage. When labels contain Japanese, Chinese, or Korean text, extend the family on those `<text>` elements — don't swap the whole skin:
+Geist has no CJK coverage. When labels contain Japanese, Chinese, or Korean text, extend the family on those `<text>` elements - don't swap the whole skin:
 
 ```svg
 <text font-family="'Geist', 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', sans-serif">認証サービス</text>
@@ -238,13 +238,13 @@ Geist has no CJK coverage. When labels contain Japanese, Chinese, or Korean text
 <text font-family="'Geist', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif">認證服務</text>
 ```
 
-These stacks lead with the default skin's sans. Under a custom skin, lead with the `node-name` family instead and keep the CJK fallbacks after it. The Hiragino/Yu Gothic stack carries no Hangul glyphs, so Korean labels need the Korean stack — don't reuse the Japanese one. Noto Sans KR ships in the skin's font link, so it leads that stack and the local families follow it; the register, floor, and title rules Korean needs beyond the font live in [`style-guide.md`](style-guide.md#korean-labels). Japanese fonts also cover only a subset of the Chinese character set and render Simplified forms with Japanese glyph variants, so Chinese labels need a Chinese stack; Simplified and Traditional are separate stacks for the same reason. Noto Sans TC now ships in the link too, so it leads the Traditional stack and the local families follow; the register, floor, and title rules Traditional Chinese needs beyond the font live in [`style-guide.md`](style-guide.md#traditional-chinese-labels). For mono sublabels use `'Geist Mono', 'Noto Sans Mono CJK JP', monospace` (Japanese), `'Geist Mono', 'Noto Sans Mono CJK KR', monospace` (Korean), or `'Geist Mono', 'Noto Sans Mono CJK SC', monospace` / `'Geist Mono', 'Noto Sans Mono CJK TC', monospace` (Chinese). Budget **1em per full-width CJK glyph**, not a small percentage over the average Latin glyph; `verify-treemap.py` uses that conservative contract for Unicode wide/full-width characters and treats combining marks as non-advancing. Prefer 12px names over 8px sublabels for CJK; Hangul and Han go muddy below 12px, so treat 12px as the floor rather than 10px. Actual width still varies by fallback font, so run the relevant geometry verifier after translating labels.
+These stacks lead with the default skin's sans. Under a custom skin, lead with the `node-name` family instead and keep the CJK fallbacks after it. The Hiragino/Yu Gothic stack carries no Hangul glyphs, so Korean labels need the Korean stack - don't reuse the Japanese one. Noto Sans KR ships in the skin's font link, so it leads that stack and the local families follow it; the register, floor, and title rules Korean needs beyond the font live in [`style-guide.md`](style-guide.md#korean-labels). Japanese fonts also cover only a subset of the Chinese character set and render Simplified forms with Japanese glyph variants, so Chinese labels need a Chinese stack; Simplified and Traditional are separate stacks for the same reason. Noto Sans TC now ships in the link too, so it leads the Traditional stack and the local families follow; the register, floor, and title rules Traditional Chinese needs beyond the font live in [`style-guide.md`](style-guide.md#traditional-chinese-labels). For mono sublabels use `'Geist Mono', 'Noto Sans Mono CJK JP', monospace` (Japanese), `'Geist Mono', 'Noto Sans Mono CJK KR', monospace` (Korean), or `'Geist Mono', 'Noto Sans Mono CJK SC', monospace` / `'Geist Mono', 'Noto Sans Mono CJK TC', monospace` (Chinese). Budget **1em per full-width CJK glyph**, not a small percentage over the average Latin glyph; `verify-treemap.py` uses that conservative contract for Unicode wide/full-width characters and treats combining marks as non-advancing. Prefer 12px names over 8px sublabels for CJK; Hangul and Han go muddy below 12px, so treat 12px as the floor rather than 10px. Actual width still varies by fallback font, so run the relevant geometry verifier after translating labels.
 
 ---
 
 ## 5. Fidelity ledger
 
-Any time output is smaller than input — every `balanced` and `simplified` run, and most `faithful` ones — report what you cut, in chat, after the file path. Short and specific:
+Any time output is smaller than input - every `balanced` and `simplified` run, and most `faithful` ones - report what you cut, in chat, after the file path. Short and specific:
 
 ```
 Detail: balanced · 18 source nodes → 9 drawn
@@ -262,11 +262,11 @@ The reader of the diagram can't see what's missing. The person who asked for it 
 
 Run alongside the SKILL.md §9 taste gate.
 
-- [ ] All four dials set — explicitly requested, inferred from the destination, or defaulted and stated?
+- [ ] All four dials set - explicitly requested, inferred from the destination, or defaulted and stated?
 - [ ] `viewBox` matches the size preset exactly, values divisible by 4?
 - [ ] `min-width` equals the preset's viewBox width, and the SVG sits in a local `overflow-x: auto` wrapper (inside any `overflow: hidden` ancestor)?
 - [ ] `@media print` releases `min-width` and `overflow-x`, placed after the `svg` rule?
-- [ ] Type ramp matches the size class — not the standard ramp on a slide?
+- [ ] Type ramp matches the size class - not the standard ramp on a slide?
 - [ ] 40px outer margin honoured (64px for `social-og`)?
 - [ ] Node count inside the detail level's ceiling?
 - [ ] `faithful` above 9 nodes → zoned, and split above 24?

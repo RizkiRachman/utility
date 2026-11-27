@@ -50,5 +50,10 @@ checkable proxy for a proven outcome.
    interruption, not machine loss after the journal is removed on clean
    completion.
 
+7. **Provenance validation is record-level.** `context-provenance.sh validate
+   --source` confirms a verified record exists for a path; it does not verify
+   that the file content or revision still matches what was reviewed, and
+   capture is agent-invoked rather than attached to every retrieval.
+
 These limits are deliberate: the engine enforces what it can observe and
 labels what it cannot, rather than presenting a proxy as a measured result.

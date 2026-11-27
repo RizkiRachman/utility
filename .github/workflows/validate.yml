@@ -176,3 +176,11 @@ jobs:
       - name: Learning impact (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T18-learning-impact.sh
+
+      - name: Failure loop (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T19-failure-loop.sh
+
+      - name: Doc hygiene (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T20-doc-hygiene.sh

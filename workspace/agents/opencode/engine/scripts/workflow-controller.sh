@@ -26,13 +26,23 @@ done
 # Full schema gate: parseable JSON plus every top-level and nested required
 # key declared in contract.schema.json. A valid state in a partial contract is
 # not enough to pass the controller.
+# Schema gate: parseable JSON, every top-level and nested required key, and the
+# declared top-level type for each required property. A missing or unparseable
+# schema fails closed. Not full JSON Schema: enums, formats, and patterns are
+# unchecked; see doc/efficiency-limits.md.
 contract_schema_valid() {
-  local section key
+  local key want section
+  [[ -f "$SCHEMA" ]] || return 1
+  jq -e . "$SCHEMA" >/dev/null 2>&1 || return 1
   jq -e . "$CONTRACT" >/dev/null 2>&1 || return 1
   while IFS= read -r key; do
     [[ -n "$key" ]] && jq -e --arg k "$key" 'has($k)' "$CONTRACT" >/dev/null 2>&1 || return 1
   done < <(jq -r '.required[]?' "$SCHEMA" 2>/dev/null)
-  while IFS=$'	' read -r section key; do
+  while IFS=$'\t' read -r key want; do
+    [[ -n "$key" && -n "$want" ]] || continue
+    jq -e --arg k "$key" --arg t "$want" '.[$k] | type == $t or ($t == "number" and type == "integer")' "$CONTRACT" >/dev/null 2>&1 || return 1
+  done < <(jq -r '.properties | to_entries[] | select(.value.required and .value.type) | "\(.key)\t\(.value.type)"' "$SCHEMA" 2>/dev/null)
+  while IFS=$'\t' read -r section key; do
     [[ -n "$section" && -n "$key" ]] || continue
     jq -e --arg s "$section" --arg k "$key" '.[$s] | type == "object" and has($k)' "$CONTRACT" >/dev/null 2>&1 || return 1
   done < <(jq -r '.properties | to_entries[] | select(.value.required) | .key as $s | .value.required[] | [$s, .] | @tsv' "$SCHEMA" 2>/dev/null)

@@ -20,8 +20,8 @@ Use two diagnostic modes:
 
 Optional flags:
 
-- `--strict` — treat warnings as failures in the final summary.
-- `--json` — print a machine-readable JSON report in addition to human summary.
+- `--strict` - treat warnings as failures in the final summary.
+- `--json` - print a machine-readable JSON report in addition to human summary.
 
 If no flags are provided, run in standard mode.
 

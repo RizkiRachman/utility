@@ -11,7 +11,7 @@ UTF-8 source files with or without a byte-order mark are accepted.
 
 ---
 
-## Step 1 — Extract the IR
+## Step 1 - Extract the IR
 
 Locate the installed skill directory, then run:
 
@@ -33,13 +33,13 @@ Labels decode Mermaid base-10 entity codes (such as `#35;` and `#9829;`) and HTM
 
 If the extractor exits 2, report its message verbatim and stop. Do not render the source or paste it into an online editor as a fallback.
 
-## Step 2 — Set the four dials
+## Step 2 - Set the four dials
 
 Set `--format`, `--size`, `--detail`, and `--audience` from [`output-spec.md`](output-spec.md) before drawing. Infer what the destination makes obvious, and ask once if a choice changes the result materially. The digest's `budget:` line determines whether the requested combination fits.
 
 Command-level flags are `--format`, `--size`, `--detail`, `--audience`, optional `--type`, `--diagram`, `--variant`, and `--output`.
 
-## Step 3 — Pick the target type
+## Step 3 - Pick the target type
 
 Grammar is a strong content signal, but not an order to mimic Mermaid's renderer.
 
@@ -54,7 +54,7 @@ Grammar is a strong content signal, but not an order to mimic Mermaid's renderer
 
 Load the selected `type-*.md`. Override the grammar only when the content disagrees, and state the override in one line.
 
-## Step 4 — Build the semantic model
+## Step 4 - Build the semantic model
 
 1. Name the story in one sentence.
 2. Apply the requested detail level using `output-spec.md`'s degrade ladder. Start with unconnected nodes and the digest's collapsible groups.
@@ -63,7 +63,7 @@ Load the selected `type-*.md`. Override the grammar only when the content disagr
 5. Preserve meaningful edge labels, state guards, sequence order/fragments, ER cardinality/fields, and container membership.
 6. Treat direction (`TD`, `LR`, `RL`, `BT`) as a hint. A chosen type's layout conventions may override it.
 
-## Step 5 — Redraw
+## Step 5 - Redraw
 
 - Start from a blank `viewBox` selected by the size preset. Mermaid positions do not exist in the source, and a renderer's positions must not be recreated.
 - Use semantic treatments from the chosen type. A Mermaid cylinder becomes Store/State; a rhombus stays a decision only in a flowchart; subgraphs become zones or collapsible groups.
@@ -71,7 +71,7 @@ Load the selected `type-*.md`. Override the grammar only when the content disagr
 - Reroute all connections with the SKILL.md §6 connector rules. Mermaid edge length markers are ranking hints, not content. Invisible `~~~` links are layout hints: their endpoints still become nodes, no edge is drawn, and the digest notes how many were ignored.
 - Do not add a component merely to fill space. Imports remain bounded by source meaning.
 
-## Step 6 — Deliver
+## Step 6 - Deliver
 
 1. Write the self-contained HTML.
 2. Run the SKILL.md §9 taste gate and [`output-spec.md` §6](output-spec.md) checklist.
@@ -91,7 +91,7 @@ Load the selected `type-*.md`. Override the grammar only when the content disagr
 | `Token valid?` rhombus | One decision diamond | Its yes/no branches are content |
 | `Postgres` cylinder | Flat Store/State box | Semantic store treatment, not a 3-D barrel |
 | Gateway self-loop | Labeled retry loop | A cycle is meaningful in this flow |
-| `Legacy note — unconnected` | Dropped | First step of the degrade ladder |
+| `Legacy note - unconnected` | Dropped | First step of the degrade ladder |
 
 The extractor reports 9 IR nodes (7 drawable plus 2 containers) and 7 edges; the redraw shows 6 nodes and 7 transitions, within the balanced budget.
 
@@ -121,7 +121,7 @@ Markdown is the Mermaid analogue of multi-page draw.io. The header lists every f
 
 | Anti-pattern | Why it fails |
 |---|---|
-| Reproducing Mermaid's renderer layout | Reimports automatic spacing and routing — the aesthetic this redraw replaces |
+| Reproducing Mermaid's renderer layout | Reimports automatic spacing and routing - the aesthetic this redraw replaces |
 | Rendering Mermaid to SVG first | Turns source style into a false constraint and crosses an unnecessary execution boundary |
 | Carrying over init themes/classes | Source styling is deliberately outside the semantic IR |
 | Following `click` URLs | Click data is untrusted and outside the extractor's trust boundary |

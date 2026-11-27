@@ -1,6 +1,6 @@
 # Service Blueprint
 
-**Best for:** showing how a service actually runs across a few stages — what the customer does, what they can see, and what stays hidden. The **line of visibility** is the load-bearing element: customer and frontstage actions sit above it, backstage and support sit below it, on one shared stage grid. Use it when the reader needs to see that a failure is a billing job, a queue, or a fraud check even though the customer row still looks like a simple retry.
+**Best for:** showing how a service actually runs across a few stages - what the customer does, what they can see, and what stays hidden. The **line of visibility** is the load-bearing element: customer and frontstage actions sit above it, backstage and support sit below it, on one shared stage grid. Use it when the reader needs to see that a failure is a billing job, a queue, or a fraud check even though the customer row still looks like a simple retry.
 
 **Not this type:**
 
@@ -14,24 +14,24 @@
 
 ## Layout conventions
 
-- **Orientation:** stages as equal columns (left → right in narrative order), layers as labeled rows (top → bottom). No connector arrows in this version — that is swimlane territory.
+- **Orientation:** stages as equal columns (left → right in narrative order), layers as labeled rows (top → bottom). No connector arrows in this version - that is swimlane territory.
 - **ViewBox:** `0 0 1280 720` for the minimal examples. Full editorial keeps the same SVG and adds cards.
 - **Left margin:** 96px for layer labels. Geist Mono 8px, uppercase, horizontal, `text-anchor="end"` at x=88. **Never** `writing-mode: vertical`.
 - **Stage grid:** 4–6 columns. The worked example is 5 × 208px with 16px gutters (`col_x = 96 + i·224`). Each header carries `data-stage` on a rect at the column origin; every cell in that column uses the same `x`.
 - **Layer order, top to bottom:**
-  1. Physical evidence (optional) — 48px
-  2. Customer actions (required) — 64px
+  1. Physical evidence (optional) - 48px
+  2. Customer actions (required) - 64px
   3. Line of interaction (hairline)
-  4. Frontstage actions — onstage staff or the visible product (required) — 64px
+  4. Frontstage actions - onstage staff or the visible product (required) - 64px
   5. **Line of visibility** (load-bearing; heavier than the other lines)
-  6. Backstage actions (required) — 64px
+  6. Backstage actions (required) - 64px
   7. Line of internal interaction (hairline)
-  8. Support processes (optional) — 48px
-- **Hairlines:** 8px band including stroke. Interaction and internal-interaction are 1px `rule` (`data-role="interaction"` / `data-role="internal-interaction"`). Visibility is 2px `ink` at 0.55 opacity (`data-role="visibility"`), which must clear 3:1 on paper — 0.45 fails that bar on light paper, so do not go thinner.
-- **Cells:** one action per stage per layer. Geist 12px, one line, centered on the column. A second muted mono line is allowed for a system or wait (`dunning-job · 4h`). Empty required cells are allowed only with an explicit `—` or `Not applicable` as `data-name` and as the printed text.
+  8. Support processes (optional) - 48px
+- **Hairlines:** 8px band including stroke. Interaction and internal-interaction are 1px `rule` (`data-role="interaction"` / `data-role="internal-interaction"`). Visibility is 2px `ink` at 0.55 opacity (`data-role="visibility"`), which must clear 3:1 on paper - 0.45 fails that bar on light paper, so do not go thinner.
+- **Cells:** one action per stage per layer. Geist 12px, one line, centered on the column. A second muted mono line is allowed for a system or wait (`dunning-job · 4h`). Empty required cells are allowed only with an explicit `-` or `Not applicable` as `data-name` and as the printed text.
 - **Fills:** customer and frontstage are paper/white with `ink` stroke. Backstage and support take a light `ink` tint so the below-the-line band reads as hidden work, not another onstage row.
-- **Focal cell (≤1, optional):** the failure, wait, or handoff the figure exists to show — usually on or below the visibility line. Accent fill `rgba(191,69,32,0.12)` (dark: `rgba(240,138,89,0.18)`), accent stroke, `data-focal="true"`.
-- **Legend:** horizontal strip after a hairline rule, three keys in this order — visibility line, backstage layer, focal cell.
+- **Focal cell (≤1, optional):** the failure, wait, or handoff the figure exists to show - usually on or below the visibility line. Accent fill `rgba(191,69,32,0.12)` (dark: `rgba(240,138,89,0.18)`), accent stroke, `data-focal="true"`.
+- **Legend:** horizontal strip after a hairline rule, three keys in this order - visibility line, backstage layer, focal cell.
 
 ### Machine-readable data contract
 
@@ -83,7 +83,7 @@ No `transform`, geometry `style`, or `<style>` rules that move marks.
 - **Sentiment curve on a blueprint.** That is a journey; split the figures.
 - **Arrows crossing layers.** That is a swimlane.
 - **Accent on every failing cell.** One focal cell; the rest of the grid is census.
-- **Empty required layers** with no `—` / `Not applicable` mark.
+- **Empty required layers** with no `-` / `Not applicable` mark.
 - **More than 6 stages**; more than two lines of cell text.
 - **`writing-mode` vertical layer labels.** Horizontal only, in the left margin.
 
@@ -94,10 +94,10 @@ No `transform`, geometry `style`, or `<style>` rules that move marks.
 - **The visibility line is checkable.** It spans the plot, sits in the frontstage/backstage gap, and its stroke clears 3:1 against paper.
 - **Printed text matches `data-name`.** A cell that draws "Retry payment" and declares another action is two stories.
 
-These rules are executable: `scripts/verify-service-blueprint.py` reads the declarations and fails on layer order, visibility, grid, census, focal, budget, printed-label, contrast, or CSS-moved marks. `scripts/test-verify-service-blueprint.py` proves both polarities — the shipped examples pass, and each mutation class above fails with a named finding.
+These rules are executable: `scripts/verify-service-blueprint.py` reads the declarations and fails on layer order, visibility, grid, census, focal, budget, printed-label, contrast, or CSS-moved marks. `scripts/test-verify-service-blueprint.py` proves both polarities - the shipped examples pass, and each mutation class above fails with a named finding.
 
 ## Examples
 
-- `assets/example-service-blueprint.html` — minimal light. *Trial to paid — what the customer never sees*, 5 stages, focal backstage `dunning-job timeout` under "Hit the limit".
-- `assets/example-service-blueprint-dark.html` — minimal dark, same data.
-- `assets/example-service-blueprint-full.html` — full editorial: container framing + 3 varied-width summary cards + footer.
+- `assets/example-service-blueprint.html` - minimal light. *Trial to paid - what the customer never sees*, 5 stages, focal backstage `dunning-job timeout` under "Hit the limit".
+- `assets/example-service-blueprint-dark.html` - minimal dark, same data.
+- `assets/example-service-blueprint-full.html` - full editorial: container framing + 3 varied-width summary cards + footer.

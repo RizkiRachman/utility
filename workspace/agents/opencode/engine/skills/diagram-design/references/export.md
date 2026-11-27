@@ -1,12 +1,12 @@
 # Export to PNG / SVG
 
-Convert a generated diagram HTML file into a portable `.svg` and/or `.png` next to it. **Manual only — never run unprompted.**
+Convert a generated diagram HTML file into a portable `.svg` and/or `.png` next to it. **Manual only - never run unprompted.**
 
 ## Trigger
 
 Load this file when:
 
-- The user invokes `/diagram-design:export-diagram <html-file>` (the plugin's slash command — defined in `commands/export-diagram.md` at the repo root).
+- The user invokes `/diagram-design:export-diagram <html-file>` (the plugin's slash command - defined in `commands/export-diagram.md` at the repo root).
 - The user asks in natural language to export, save, rasterize, convert, or download a diagram in `.svg` or `.png` form. Typical phrasings:
   - "export this as PNG"
   - "save as SVG"
@@ -14,17 +14,17 @@ Load this file when:
   - "rasterize it"
   - "convert to png and svg"
 
-The slash command is a thin wrapper that delegates here — both paths run the same procedure below.
+The slash command is a thin wrapper that delegates here - both paths run the same procedure below.
 
 ## Scope
 
-Both formats are **diagram-only** — just the `<svg>` node. Editorial wrappers (header, summary cards, footer in `-full` variants) are intentionally dropped: the export deliverable is the diagram itself, suitable for Figma, slides, social cards, or blog images.
+Both formats are **diagram-only** - just the `<svg>` node. Editorial wrappers (header, summary cards, footer in `-full` variants) are intentionally dropped: the export deliverable is the diagram itself, suitable for Figma, slides, social cards, or blog images.
 
 The SVG-only export keeps the source `<title>` and `<desc>` with the diagram. Their per-diagram and per-variant prefixed IDs keep accessible names unique when several figures share a page.
 
 Inlining several exported SVGs in one host document also requires namespaced `<defs>` IDs (markers, patterns, gradients, filters, clip paths, masks, symbols). The export procedure prefixes those IDs with the source file slug and rewrites matching `url(#…)` / `href="#…"` references, so a light figure next to its `-dark` twin does not silently share arrowheads. The accessible-name guarantee alone is not enough.
 
-If the user explicitly asks for "a screenshot of the whole page including the cards", that's a different request — fall back to a normal full-page screenshot via the user's OS or browser.
+If the user explicitly asks for "a screenshot of the whole page including the cards", that's a different request - fall back to a normal full-page screenshot via the user's OS or browser.
 
 ## SVG export procedure
 
@@ -41,7 +41,7 @@ Source read and output write failures return exit 2 with an error diagnostic. Th
 ### Manual algorithm (what the helper does)
 
 1. Read the source HTML file.
-2. Extract the **first** top-level `<svg ...>...</svg>` element. Skip HTML comments, `<script>` and `<style>` content, then count `<svg` openings and `</svg>` closings (a self-closing `<svg .../>` does not open one) and stop when the count returns to zero. Read quoted attribute values whole so a `>` or `/>` inside one does not end the tag. A non-greedy regex stops at a nested icon's `</svg>` and truncates the diagram. Most generated diagrams have only one top-level SVG; if there are multiple, the first is the diagram (gallery files are an exception — see *Edge cases*).
+2. Extract the **first** top-level `<svg ...>...</svg>` element. Skip HTML comments, `<script>` and `<style>` content, then count `<svg` openings and `</svg>` closings (a self-closing `<svg .../>` does not open one) and stop when the count returns to zero. Read quoted attribute values whole so a `>` or `/>` inside one does not end the tag. A non-greedy regex stops at a nested icon's `</svg>` and truncates the diagram. Most generated diagrams have only one top-level SVG; if there are multiple, the first is the diagram (gallery files are an exception - see *Edge cases*).
 3. Make it standalone:
    - Ensure the opening tag has `xmlns="http://www.w3.org/2000/svg"`. Add it if missing. The SVG namespace must belong to the root SVG element; a namespace on a descendant does not satisfy it. An explicit incompatible root namespace is refused.
    - Ensure a `viewBox` is present. The skill's templates always include one; warn the user if absent rather than guessing.
@@ -49,7 +49,7 @@ Source read and output write failures return exit 2 with an error diagnostic. Th
    - Rewrite HTML-only attribute syntax as XML: a valueless attribute (`<g data-motion-item>`) becomes `data-motion-item=""`, and an unquoted value gets double quotes. Known named HTML character references in labels and attributes become equivalent XML-safe text (for example, `&nbsp;` becomes a nonbreaking space). HTML's legacy names such as `&copy` and `&nbsp` also decode without the semicolon, except inside an attribute value when the next character is a letter, digit, or `=`, as browsers do. Decode once and escape XML delimiters; already escaped references remain escaped. Comments, CDATA and raw style/script content stay as written; style/script opening-tag attributes follow the same reference conversion as other attributes.
    - Make comments valid XML. Inside each `<!-- ... -->` outside CDATA, turn every `--` into `- -` and add a space after a body that ends in `-`. Refuse a comment that a browser closes before the next `-->` (`<!-->`, `<!--->`, or one containing `--!>`): the markup after it is live, and rewriting the comment would hide it.
    - Set `id="<slug>-root"` on the opening `<svg>` tag, where `<slug>` is the source basename without extension (e.g. `example-loop.html` → `example-loop`). This ID scopes carried CSS so several inlined figures do not leak rules into each other. When replacing an existing SVG root ID, retarget whole CSS ID tokens for that root in the carried CSS, including escaped identifier spellings; compound selectors such as `.diagram#original` remain bound to the root without adding another ancestor. Descendant IDs and quoted selector values remain unchanged; an unescaped dot belongs to a class selector, not to the ID token.
-4. **Carry page CSS into the SVG.** Class-styled diagrams (the loop family, process, medallion, data-flow, and others) declare fills and type in the page `<style>` block — `.station`, `.hub`, `.node-name`, and so on. Extracting the bare `<svg>` without those rules yields black boxes. Copy the page's diagram rules into a `<style>` inside `<defs>`, then:
+4. **Carry page CSS into the SVG.** Class-styled diagrams (the loop family, process, medallion, data-flow, and others) declare fills and type in the page `<style>` block - `.station`, `.hub`, `.node-name`, and so on. Extracting the bare `<svg>` without those rules yields black boxes. Copy the page's diagram rules into a `<style>` inside `<defs>`, then:
    - Unwrap CDATA sections in SVG stylesheet text before parsing rules, then strip real CSS comments, so neither XML delimiters nor a comment becomes part of a selector. Preserve comment-looking text inside quoted strings and escapes: `[data-label="net/*retained*/revenue"]` must still match the original attribute value. Keep CDATA content as raw text rather than XML-decoding it; the carried copy is XML-escaped below. The original embedded stylesheet stays in the SVG. CDATA-looking text in an HTML stylesheet remains literal, including inside SVG `foreignObject`, `desc`, or `title` elements. A nested `<svg>` inside HTML switches back to SVG stylesheet handling.
    - Keep diagram rules inside their original `@media` conditions, including nested conditions; print-only paint must not become screen paint. Keyframe bodies remain intact; ordinary identifier names (also quoted) and matching stylesheet/inline `animation` or `animation-name` bindings are prefixed with the SVG root ID so inlined figures cannot share an animation name. Inline style character references are decoded once before inspecting CSS names and escaped once when written as XML; declaration comments are preserved. A custom property's `{ … }` value is token data and stays literal, including any `animation` text inside it. Duration variables with a literal animation name remain supported. Escaped/complex names, unresolved variable animation names, ambiguous shorthand keyword names, SVG-local animation stylesheets, and nested ordinary-rule animation declarations bound to renamed keyframes are refused explicitly rather than silently retargeted. These unsupported animation cases return exit 2 without writing an SVG. Block at-rules containing ordinary rules, including `@layer` and `@container`, retain their grouping and scoped paint. Unsupported declaration-only blocks are dropped with a warning; stray closing braces between rules are ignored, matching browser CSS recovery.
    - Re-scope `:root { … }` custom properties onto `#<slug>-root` so the figure keeps its own tokens.
@@ -59,7 +59,7 @@ Source read and output write failures return exit 2 with an error diagnostic. Th
    - **Drop** page chrome: `*`, `html`, `body`, `main`, `h1`/`h2`/`h3`, `p`, `.frame`, `.eyebrow`, `.summary`, `.card(s)`, `.footer`, `.header`, and the bare `svg { min-width: … }` layout rule. Only the bare `svg` selector is layout; `svg .zone` and `svg text` are diagram rules (see above). Those must not follow a fragment.
    - Carry `color` and `font-family` from the dropped `body` rule onto `#<slug>-root`. SVG content inherits both: `stroke="currentColor"` reads `color`, and text without its own font rule reads `font-family`.
    - **XML-escape** the carried CSS text (`&` → `&amp;`, `<` → `&lt;`) before inserting it into the SVG. Rule bodies can contain XML-sensitive characters (e.g. `content: "R&D"`); a bare `&` makes the standalone file fail to parse.
-5. Inject Google Fonts `@import` so the SVG renders with correct typography in a browser. **XML-escape the `&` separators as `&amp;`** — a standalone `.svg` is parsed as strict XML, where a bare `&` starts an entity reference and makes the whole file fail to parse. (Don't copy the raw URL from the HTML `<link href>`; that ampersand form is only valid in HTML.) Merge into the same `<defs>` `<style>` as the carried rules (don't add a second `<defs>`). If a new `<defs>` is needed, insert it after the existing leading `<title>` and `<desc>` so the first-child accessible-title contract is preserved:
+5. Inject Google Fonts `@import` so the SVG renders with correct typography in a browser. **XML-escape the `&` separators as `&amp;`** - a standalone `.svg` is parsed as strict XML, where a bare `&` starts an entity reference and makes the whole file fail to parse. (Don't copy the raw URL from the HTML `<link href>`; that ampersand form is only valid in HTML.) Merge into the same `<defs>` `<style>` as the carried rules (don't add a second `<defs>`). If a new `<defs>` is needed, insert it after the existing leading `<title>` and `<desc>` so the first-child accessible-title contract is preserved:
      ```svg
      <defs>
        <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;family=Noto+Serif:ital@0;1&amp;family=Noto+Sans+KR:wght@400;500;600&amp;family=Noto+Serif+KR:wght@400&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap');
@@ -68,8 +68,8 @@ Source read and output write failures return exit 2 with an error diagnostic. Th
        <!-- existing markers / patterns stay here -->
      </defs>
      ```
-6. **Namespace `<defs>` IDs.** Prefix every referenceable defs ID — on `marker`, `pattern`, `linearGradient`, `radialGradient`, `filter`, `clipPath`, `mask`, `symbol`, and reusable graphics (`g`, `path`, `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, `text`, `image`, and `use`) — with `<slug>-`, and rewrite matching `url(#…)` and `href="#…"` / `xlink:href="#…"` references. Compare ID and fragment values after XML character-reference decoding, so equivalent named and numeric references stay connected. For recognized local CSS URL forms (literal `url(...)`, case-insensitive) in paint/reference attributes, inline styles, and stylesheets, decode hex escapes before comparing fragment identity, and preserve the original escape spelling when adding the prefix; `url(#\70 aint)` must stay connected to the namespaced `paint` definition. URL-looking metadata and quoted CSS string contents remain literal. Retarget ID selectors in embedded style rules while leaving declaration colors and unrelated IDs unchanged. Preserve URL quotes and match fragment IDs case-sensitively (the CSS `url` keyword remains case-insensitive). Rewrite **longest-id-first** so `arrow-accent` is not clipped by a shorter `arrow` rule. Quoted local URLs (`url("#arrow")`, `url('#arrow')`, including XML-escaped quotes in attributes) follow the same rewrite as unquoted URLs. Unrelated fragment IDs and non-local URLs remain unchanged. Example: `id="arrow"` in `example-loop.html` becomes `id="example-loop-arrow"` with `marker-end="url(#example-loop-arrow)"`.
-7. Normalize colors for strict SVG 1.1 consumers. This design system's tokens are authored as `rgba(...)` (see `style-guide.md`) and render correctly wherever colors are read as CSS — browsers, Figma, Illustrator. PowerPoint's SVG importer does not: it treats `rgba(...)` and `transparent` as unrecognized and paints them **opaque black**, turning a barely-there tint into a solid block that swallows the label inside it. Normalize presentation paint only when its alpha can be preserved: combine a local presentation opacity, but retain RGBA when a CSS or inherited opacity, or a paint override on the element or its children, makes splitting unsafe. An unrelated simple CSS rule does not prevent normalization. Apply this full recipe before writing the file:
+6. **Namespace `<defs>` IDs.** Prefix every referenceable defs ID - on `marker`, `pattern`, `linearGradient`, `radialGradient`, `filter`, `clipPath`, `mask`, `symbol`, and reusable graphics (`g`, `path`, `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, `text`, `image`, and `use`) - with `<slug>-`, and rewrite matching `url(#…)` and `href="#…"` / `xlink:href="#…"` references. Compare ID and fragment values after XML character-reference decoding, so equivalent named and numeric references stay connected. For recognized local CSS URL forms (literal `url(...)`, case-insensitive) in paint/reference attributes, inline styles, and stylesheets, decode hex escapes before comparing fragment identity, and preserve the original escape spelling when adding the prefix; `url(#\70 aint)` must stay connected to the namespaced `paint` definition. URL-looking metadata and quoted CSS string contents remain literal. Retarget ID selectors in embedded style rules while leaving declaration colors and unrelated IDs unchanged. Preserve URL quotes and match fragment IDs case-sensitively (the CSS `url` keyword remains case-insensitive). Rewrite **longest-id-first** so `arrow-accent` is not clipped by a shorter `arrow` rule. Quoted local URLs (`url("#arrow")`, `url('#arrow')`, including XML-escaped quotes in attributes) follow the same rewrite as unquoted URLs. Unrelated fragment IDs and non-local URLs remain unchanged. Example: `id="arrow"` in `example-loop.html` becomes `id="example-loop-arrow"` with `marker-end="url(#example-loop-arrow)"`.
+7. Normalize colors for strict SVG 1.1 consumers. This design system's tokens are authored as `rgba(...)` (see `style-guide.md`) and render correctly wherever colors are read as CSS - browsers, Figma, Illustrator. PowerPoint's SVG importer does not: it treats `rgba(...)` and `transparent` as unrecognized and paints them **opaque black**, turning a barely-there tint into a solid block that swallows the label inside it. Normalize presentation paint only when its alpha can be preserved: combine a local presentation opacity, but retain RGBA when a CSS or inherited opacity, or a paint override on the element or its children, makes splitting unsafe. An unrelated simple CSS rule does not prevent normalization. Apply this full recipe before writing the file:
 
    ```python
    import re
@@ -274,8 +274,8 @@ Source read and output write failures return exit 2 with an error diagnostic. Th
    svg = normalize_rgba_presentation_attrs(svg)
    ```
 
-   Channels and alpha are clamped to the CSS ranges 0–255 and 0–1 so out-of-range rgba values retain their browser paint when converted. The `\s*` around each channel tolerates a spaced `rgba(45, 49, 66, 0.03)` as well as the compact `rgba(45,49,66,0.03)` the templates normally use; `\d*\.?\d+` accepts an alpha value with or without a leading zero (both `0.03` and `.03` appear in shipped tokens). Matching is scoped to the `fill="..."` / `stroke="..."` presentation attribute. Class-styled diagrams may still carry `rgba(...)` inside the embedded `<style>` block via custom properties (e.g. `--accent-tint`); that form is correct in browsers and in Figma/Illustrator, and is out of scope for this presentation-attribute pass. (A brand's onboarded palette in `style-guide.md` could in principle add a third notation such as `hsl()`; none exists in any shipped token today, so this pass doesn't handle it — extend the regex if one is ever introduced.)
-8. **Gate:** if the exported SVG still contains `class=` but no diagram CSS rules, stop and fix the CSS carry step — that fragment will render as black boxes. A fonts-only `<style>` (Google Fonts `@import` with no rules) does **not** satisfy the gate.
+   Channels and alpha are clamped to the CSS ranges 0–255 and 0–1 so out-of-range rgba values retain their browser paint when converted. The `\s*` around each channel tolerates a spaced `rgba(45, 49, 66, 0.03)` as well as the compact `rgba(45,49,66,0.03)` the templates normally use; `\d*\.?\d+` accepts an alpha value with or without a leading zero (both `0.03` and `.03` appear in shipped tokens). Matching is scoped to the `fill="..."` / `stroke="..."` presentation attribute. Class-styled diagrams may still carry `rgba(...)` inside the embedded `<style>` block via custom properties (e.g. `--accent-tint`); that form is correct in browsers and in Figma/Illustrator, and is out of scope for this presentation-attribute pass. (A brand's onboarded palette in `style-guide.md` could in principle add a third notation such as `hsl()`; none exists in any shipped token today, so this pass doesn't handle it - extend the regex if one is ever introduced.)
+8. **Gate:** if the exported SVG still contains `class=` but no diagram CSS rules, stop and fix the CSS carry step - that fragment will render as black boxes. A fonts-only `<style>` (Google Fonts `@import` with no rules) does **not** satisfy the gate.
 9. Prepend `<?xml version="1.0" encoding="UTF-8"?>\n` so the file is well-formed XML.
 10. Write to `<basename>.svg` next to the source (e.g. `example-architecture.html` → `example-architecture.svg`). Honour an explicit output path if the user provides one.
 
@@ -316,7 +316,7 @@ path under the resolved skill directory with the interpreter that passed
 detection: `python3 <skill-dir>/scripts/export_png.py <src.html> <out.png> [scale]`
 or `python <skill-dir>/scripts/export_png.py <src.html> <out.png> [scale]`.
 
-If the `networkidle` wait times out (a stalled font or stylesheet behind a proxy), the helper cancels the outstanding load with `window.stop()` and captures with fallback typography, printing a warning to stderr — pass that warning on to the user. Any other error propagates and fails the export normally. The helper requests the complete static motion frame, waits for font readiness, and rejects a motion root that has not reached `data-frame="static"`; ordinary script-free diagrams need no motion root.
+If the `networkidle` wait times out (a stalled font or stylesheet behind a proxy), the helper cancels the outstanding load with `window.stop()` and captures with fallback typography, printing a warning to stderr - pass that warning on to the user. Any other error propagates and fails the export normally. The helper requests the complete static motion frame, waits for font readiness, and rejects a motion root that has not reached `data-frame="static"`; ordinary script-free diagrams need no motion root.
 
 Default `device_scale_factor=2` for crisp output. Accept `1` for compact assets or `3` for print/retina hero use, passed as a third CLI arg. Fractional scales such as `1.25` are also accepted within the documented 1–4 range for exact pixel sizes.
 
@@ -328,7 +328,7 @@ The helper's overflow release matters for the wide presets. `min-width` equals t
 
 ## Sizing the export
 
-The PNG's pixel dimensions are the SVG's `viewBox` × `device_scale_factor`. The rasterizer establishes the capture viewport from the finite, nonzero viewBox dimensions so page CSS cannot enlarge or shrink the promised output. So the size decision was already made when the diagram was drawn — see [`output-spec.md` §2](output-spec.md) for the presets. Export only picks the multiplier.
+The PNG's pixel dimensions are the SVG's `viewBox` × `device_scale_factor`. The rasterizer establishes the capture viewport from the finite, nonzero viewBox dimensions so page CSS cannot enlarge or shrink the promised output. So the size decision was already made when the diagram was drawn - see [`output-spec.md` §2](output-spec.md) for the presets. Export only picks the multiplier.
 
 | Destination | Scale | Result from a 1280×720 `viewBox` |
 |---|---|---|
@@ -339,7 +339,7 @@ The PNG's pixel dimensions are the SVG's `viewBox` × `device_scale_factor`. The
 
 ### Hitting an exact pixel size
 
-When the user needs specific dimensions (an OG card at exactly 1200×630, a slide image at 1920×1080), compute the scale factor instead of guessing — Playwright accepts fractional values:
+When the user needs specific dimensions (an OG card at exactly 1200×630, a slide image at 1920×1080), compute the scale factor instead of guessing - Playwright accepts fractional values:
 
 ```
 scale = target_width / viewBox_width
@@ -347,17 +347,17 @@ scale = target_width / viewBox_width
 
 A 960-wide `viewBox` at a 1200px target is `scale=1.25`. Two rules:
 
-- **Never scale below 1** to hit a small target — that soft-focuses the type. Redraw at a smaller preset instead.
-- **Never scale past 4** — beyond that you're upscaling a layout that was designed for a smaller canvas; redraw at `slide-16x9` or a print preset.
+- **Never scale below 1** to hit a small target - that soft-focuses the type. Redraw at a smaller preset instead.
+- **Never scale past 4** - beyond that you're upscaling a layout that was designed for a smaller canvas; redraw at `slide-16x9` or a print preset.
 
-If the target aspect ratio doesn't match the `viewBox` aspect ratio, say so and offer to redraw at the matching preset. Padding or cropping a finished diagram to fit a frame is not an export operation — it breaks the 40px safe margin.
+If the target aspect ratio doesn't match the `viewBox` aspect ratio, say so and offer to redraw at the matching preset. Padding or cropping a finished diagram to fit a frame is not an export operation - it breaks the 40px safe margin.
 
 ## Edge cases
 
 - **Source is `assets/index.html`** (the gallery, multiple SVGs in one file): refuse the export and ask the user which specific diagram file they meant. Don't guess.
 - **No `<svg>` block found**: the source isn't a diagram file. Tell the user; don't write anything.
 - **Surrounding HTML matters to the user**: they want cards/header in the image. Tell them this skill exports diagrams only, and recommend a browser-based full-page screenshot (or a separate PDF print).
-- **Source is missing fonts at runtime**: Playwright will substitute, the screenshot will look off. Check that the source HTML has the `<link href="...fonts.googleapis.com...">` tag in `<head>`. If absent, the file isn't from a current template — fix the source rather than working around it in export.
+- **Source is missing fonts at runtime**: Playwright will substitute, the screenshot will look off. Check that the source HTML has the `<link href="...fonts.googleapis.com...">` tag in `<head>`. If absent, the file isn't from a current template - fix the source rather than working around it in export.
 
 ## What this command never does
 

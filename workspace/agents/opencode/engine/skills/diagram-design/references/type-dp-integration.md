@@ -1,14 +1,14 @@
 # DP integration
 
-**Best for:** the integration topology of a data platform — which source systems plug in, which consumer surfaces plug out, and which protocol each one speaks. Hub-and-spoke layout wrapped in an explicit **Data platform** layer; no time/phase axis.
+**Best for:** the integration topology of a data platform - which source systems plug in, which consumer surfaces plug out, and which protocol each one speaks. Hub-and-spoke layout wrapped in an explicit **Data platform** layer; no time/phase axis.
 
 Use when the question is *"what surfaces does this platform expose, and over what wire?"* rather than *"how does data move through phases?"*.
 
-This type is **parametric** — like `type-high-level.md`, every coord is derived from a small inputs schema. Two generations from the same inputs must produce visually identical SVG.
+This type is **parametric** - like `type-high-level.md`, every coord is derived from a small inputs schema. Two generations from the same inputs must produce visually identical SVG.
 
 ---
 
-## 1. Inputs — the parameter contract
+## 1. Inputs - the parameter contract
 
 ```yaml
 sources:                            # left column, 0..6 nodes
@@ -63,8 +63,8 @@ dark: false
 ```
 
 **Reserved `kind` values for `platform.rows`:**
-- `bar` — full-zone-width strip. Default height 44 px (focal bars get 56 px). Required fields: `name`, `icon`. Optional: `subtitle`, `role`, `color`, `focal`.
-- `row` — N nodes evenly spaced across zone width. Required: `nodes` list. Each node has `name`, `icon`, optional `role`, `subtitle`, `color`, `focal`.
+- `bar` - full-zone-width strip. Default height 44 px (focal bars get 56 px). Required fields: `name`, `icon`. Optional: `subtitle`, `role`, `color`, `focal`.
+- `row` - N nodes evenly spaced across zone width. Required: `nodes` list. Each node has `name`, `icon`, optional `role`, `subtitle`, `color`, `focal`.
 
 **Source/consumer `type` values** → icon mapping (extends `references/primitive-icons.md`):
 - `db` → cylinder, `sftp` → folder-with-arrow, `mail` → envelope, `mainframe` → server-with-vents
@@ -76,7 +76,7 @@ dark: false
 
 ---
 
-## 2. Layout formulas — deterministic geometry
+## 2. Layout formulas - deterministic geometry
 
 ```
 # Canvas
@@ -107,11 +107,11 @@ zone_cx          = zone_x + zone_w/2                # 608
 zone_pad_x       = 16                               # inside left/right padding for bars
 zone_label_y     = zone_y + 3                       # paper-masked label across top border
 
-# Footer bars (below zone — each cross-cutting concern is a full-width bar)
+# Footer bars (below zone - each cross-cutting concern is a full-width bar)
 footer_top       = zone_y + zone_h + 52             # 52-px gap below zone
 footer_bar_h     = 56
 footer_bar_x     = 40                               # aligned with source column left edge
-footer_bar_w     = viewBox_w - 80                   # = 1120 — spans from source col left to consumer col right
+footer_bar_w     = viewBox_w - 80                   # = 1120 - spans from source col left to consumer col right
 footer_gap       = 8
 footer_y(k)      = footer_top + k * (footer_bar_h + footer_gap)
 footer_bottom    = footer_top + n_footer * (footer_bar_h + footer_gap) - footer_gap
@@ -157,7 +157,7 @@ for entry in platform.rows[primary_row_idx+1:]:
 # Constraint: y <= zone_y + zone_h
 ```
 
-This produces the canonical layout for the standard shape (top bar / 3-node row / bottom bar): Trino at `y=104 h=56`, primary row at `y=176 h=72`, Airflow at `y=324 h=44`. Bottom anchor of Airflow at y=368 (40-px clear from zone bottom at y=408). **Note**: with the canonical layout there's a 76-px gap between the primary row's bottom (y=248) and Airflow's top (y=324). That gap is intentional — Airflow visually sits at the same y-band as source/consumer row 4 (cy=388), so it reads as a sibling of the bottom side-column row.
+This produces the canonical layout for the standard shape (top bar / 3-node row / bottom bar): Trino at `y=104 h=56`, primary row at `y=176 h=72`, Airflow at `y=324 h=44`. Bottom anchor of Airflow at y=368 (40-px clear from zone bottom at y=408). **Note**: with the canonical layout there's a 76-px gap between the primary row's bottom (y=248) and Airflow's top (y=324). That gap is intentional - Airflow visually sits at the same y-band as source/consumer row 4 (cy=388), so it reads as a sibling of the bottom side-column row.
 
 ### 2.2 Node placement inside a `row` entry
 
@@ -195,17 +195,17 @@ All side-column nodes use fixed `w=160 h=64`. Same fill / stroke pattern: fill `
 
 ## 3. Connector rules (mandatory)
 
-Five styles, bound to topology. Don't let user override style on focal-touching, bar-originating, or Trino → consumer edges — those are fixed by rule.
+Five styles, bound to topology. Don't let user override style on focal-touching, bar-originating, or Trino → consumer edges - those are fixed by rule.
 
 | `style` | Stroke | Width | Dash | Marker | When required |
 |---|---|---|---|---|---|
-| `primary` | `focal_accent` (default `accent`) | 1.4 | — | `arrow-focal` | Every edge whose endpoint is a `focal: true` component. Also every Trino → consumer edge (serve-flow rule). |
-| `secondary` | `muted` | 1.2 | — | `arrow` | Default for internal platform-component edges and source → platform edges that don't touch focal. |
+| `primary` | `focal_accent` (default `accent`) | 1.4 | - | `arrow-focal` | Every edge whose endpoint is a `focal: true` component. Also every Trino → consumer edge (serve-flow rule). |
+| `secondary` | `muted` | 1.2 | - | `arrow` | Default for internal platform-component edges and source → platform edges that don't touch focal. |
 | `federated` | `link` | 1.0 | `4,3` | `arrow-link` | Federation queries (e.g., source DB → Trino). |
 | `trigger` | `muted` | 1.0 | `4,3` | `arrow` | Every edge originating from a `kind: bar` component (Airflow drops). Unlabelled. |
 | `auth` | `accent` | 1.2 | `5,4` | `arrow-accent` | Every edge from a footer node up to the zone bottom edge. **Never to a specific component.** |
 
-**Defs block** (required, six markers — exactly):
+**Defs block** (required, six markers - exactly):
 
 ```svg
 <defs>
@@ -275,21 +275,21 @@ Any source, consumer, platform component (node or bar), or footer node accepts a
 | Icon stroke / fill | `C` | `C_light` |
 | Name text | `C` | `C_light` |
 | Subtitle text | **unchanged** (muted) | **unchanged** (muted) |
-| Connectors touching this component | **unchanged** — topology-driven | **unchanged** |
+| Connectors touching this component | **unchanged** - topology-driven | **unchanged** |
 
 `C_light` = the same hex lightened ~15% for dark-mode contrast (e.g., `#b85450` → `#d97a78`).
 
 **Rules:**
 
-- **Never on focal components.** `focal_accent` always wins — a `color` on a focal component is ignored.
+- **Never on focal components.** `focal_accent` always wins - a `color` on a focal component is ignored.
 - **Never on connectors.** If you want a colored edge, pick a different `style` from §3, not a color override.
 - **Cap at 2 custom-colored components** per diagram (in addition to the focal pair).
 
 **Semantic palette** (use these unless brand demands otherwise):
-- `#b85450` rust-red — Security / Identity (AD, Keycloak, Vault)
-- `#5a7d9a` slate-blue — Observability (Prometheus, Datadog, OpenTelemetry)
-- `#7a8c47` olive-green — Governance / Lineage (OpenMetadata, DataHub)
-- `#8c6d3f` warm-brown — Backup / DR (Velero, Restic)
+- `#b85450` rust-red - Security / Identity (AD, Keycloak, Vault)
+- `#5a7d9a` slate-blue - Observability (Prometheus, Datadog, OpenTelemetry)
+- `#7a8c47` olive-green - Governance / Lineage (OpenMetadata, DataHub)
+- `#8c6d3f` warm-brown - Backup / DR (Velero, Restic)
 
 ---
 
@@ -300,7 +300,7 @@ Any source, consumer, platform component (node or bar), or footer node accepts a
 - Mark with `focal: true` on the component entry.
 - A focal `kind: bar` uses `bar_h_focal=56` (taller) and accent styling.
 - A focal `kind: row` node keeps `row_h=72` but uses accent styling.
-- The **Trino → all consumers** edges are always `primary` (accent), regardless of focal flag on each consumer — this is the serve-flow rule.
+- The **Trino → all consumers** edges are always `primary` (accent), regardless of focal flag on each consumer - this is the serve-flow rule.
 - If fewer than 2 or more than 2 components are marked `focal: true`, halt and ask the user.
 
 ---
@@ -329,7 +329,7 @@ Before emitting SVG, verify **every** item:
 
 1. `viewBox = "0 0 1200 {viewBox_h}"` where `viewBox_h = max(600, footer_bottom + 84)`.
 2. Platform zone at `x=260 y=72 w=696 h=col_h`. Zone label paper-masked across top border at `y=zone_y+3`.
-3. Left column at `x=40..200`, right column at `x=1000..1160` — both 160 wide.
+3. Left column at `x=40..200`, right column at `x=1000..1160` - both 160 wide.
 4. Source / consumer rows top at `y=92`, stride 88 px.
 5. `platform.rows` entries stack inside zone via the §2.1 cursor algorithm; total y-span ≤ `zone_h`.
 6. Inside each `kind: row`, node x-centers are evenly spaced across zone width (§2.2).
@@ -342,20 +342,20 @@ Before emitting SVG, verify **every** item:
 
 ---
 
-## 8. Sources and consumers — icon library
+## 8. Sources and consumers - icon library
 
 Define each icon as `<g id="ico-…">` in `<defs>`, drawn at translate(cx, cy) with `stroke="currentColor"` so it inherits the surrounding text color. Common icons:
 
-- `ico-db` (cylinder) — relational sources
-- `ico-sftp` (folder with down arrow) — file drops
-- `ico-mail` (envelope) — email pulls
-- `ico-mainframe` (server with vents) — legacy systems
-- `ico-monitor` — desktop analytics tools
-- `ico-chart` (bars) — BI / report tools
-- `ico-globe` — public websites
-- `ico-api` (brackets `{}`) — gateways and 3rd-party clients
-- `ico-key` — identity / IDP
-- `ico-monitoring` (chart-line) — observability stack
+- `ico-db` (cylinder) - relational sources
+- `ico-sftp` (folder with down arrow) - file drops
+- `ico-mail` (envelope) - email pulls
+- `ico-mainframe` (server with vents) - legacy systems
+- `ico-monitor` - desktop analytics tools
+- `ico-chart` (bars) - BI / report tools
+- `ico-globe` - public websites
+- `ico-api` (brackets `{}`) - gateways and 3rd-party clients
+- `ico-key` - identity / IDP
+- `ico-monitoring` (chart-line) - observability stack
 
 If you need more icons, browse `assets/icons.html` and define matching `<symbol>` blocks.
 
@@ -369,7 +369,7 @@ The same rule applies to any other layer-wide service: centralized logging, secr
 
 ---
 
-## 10. Budget — this type exceeds the default
+## 10. Budget - this type exceeds the default
 
 This is the one type where the default 9-node / 12-arrow budget is intentionally exceeded. A realistic platform integration shows:
 
@@ -378,7 +378,7 @@ This is the one type where the default 9-node / 12-arrow budget is intentionally
 - 4–6 consumer nodes
 - 1–3 footer nodes (identity, observability, backup, …)
 
-That's **14–20 nodes**. The complexity is the point — the diagram is making a claim about the *number of distinct integration surfaces*. Compressing them collapses the claim.
+That's **14–20 nodes**. The complexity is the point - the diagram is making a claim about the *number of distinct integration surfaces*. Compressing them collapses the claim.
 
 When this gets unwieldy:
 - Combine clearly-identical source rows (e.g., four MariaDB databases → one `Databases` node with sublabel `4 × MariaDB`)
@@ -388,20 +388,20 @@ When this gets unwieldy:
 
 ## 11. Anti-patterns
 
-- **Sources or consumers as a single collapsed node** when ≥3 distinct items exist — defeats the whole point of this type. Use Architecture or High-level if you want collapsing.
-- **One bus arrow from "sources" to "the platform"** — every wire is labeled with its protocol; this is how integration teams read the diagram.
-- **Per-tool color coding** (teal-NiFi, magenta-MinIO, yellow-Jupyter) inside the zone — collapses hierarchy; only the two focal accents earn coral, plus up to 2 custom colors on cross-cutting components (§4 cap).
-- **More than 2 focal components** — focal exists to distinguish "platform" from "pile of tools"; >2 erases the signal (same rule as SKILL.md §1).
-- **`color` override on a focal component** — ignored. Focal_accent always wins.
-- **Footer wired to one specific tool** (e.g., AD → Airflow only) — wrong unless that service truly only protects one tool. The default is the layer-wide connection.
-- **Footer or identity inside the zone** — identity gates the layer from outside. Drawing it inside misrepresents the trust model.
-- **Phase chevrons across the top** — those belong on `high-level`.
-- **Custom-colored connectors** — connectors are topology-driven. Style picks the color; `color` on a component never spreads to its edges.
+- **Sources or consumers as a single collapsed node** when ≥3 distinct items exist - defeats the whole point of this type. Use Architecture or High-level if you want collapsing.
+- **One bus arrow from "sources" to "the platform"** - every wire is labeled with its protocol; this is how integration teams read the diagram.
+- **Per-tool color coding** (teal-NiFi, magenta-MinIO, yellow-Jupyter) inside the zone - collapses hierarchy; only the two focal accents earn coral, plus up to 2 custom colors on cross-cutting components (§4 cap).
+- **More than 2 focal components** - focal exists to distinguish "platform" from "pile of tools"; >2 erases the signal (same rule as SKILL.md §1).
+- **`color` override on a focal component** - ignored. Focal_accent always wins.
+- **Footer wired to one specific tool** (e.g., AD → Airflow only) - wrong unless that service truly only protects one tool. The default is the layer-wide connection.
+- **Footer or identity inside the zone** - identity gates the layer from outside. Drawing it inside misrepresents the trust model.
+- **Phase chevrons across the top** - those belong on `high-level`.
+- **Custom-colored connectors** - connectors are topology-driven. Style picks the color; `color` on a component never spreads to its edges.
 
 ---
 
 ## 12. Examples
 
-- `assets/example-dp-integration.html` — minimal light (1 footer = AD). Gallery default.
-- `assets/example-dp-integration-dark.html` — same, dark skin.
-- `assets/example-dp-integration-full.html` — same, editorial-card frame.
+- `assets/example-dp-integration.html` - minimal light (1 footer = AD). Gallery default.
+- `assets/example-dp-integration-dark.html` - same, dark skin.
+- `assets/example-dp-integration-full.html` - same, editorial-card frame.
