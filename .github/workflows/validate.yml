@@ -195,3 +195,7 @@ jobs:
       - name: Contract validator (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T1-validate-contract.sh
+
+      - name: Contract persistence (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T21-contract-persistence.sh
