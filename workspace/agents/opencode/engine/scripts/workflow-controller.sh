@@ -109,10 +109,30 @@ protected_target() {
 # Evidence must resolve to an artifact, not just be a non-empty string.
 resolve_evidence() {
   local ev="$1" kind="${1%%:*}" val="${1#*:}" ledger="$SESSION_DIR/scores.jsonl"
+  local task_id phase
+  task_id=$(jq -r '.session.task_id // empty' "$CONTRACT" 2>/dev/null || echo "")
   case "$kind" in
     file)   [[ -f "$val" ]] ;;
-    phase)  [[ -f "$ledger" ]] && grep -q -- "\"phase\":\"$val\"" "$ledger" 2>/dev/null ;;
-    ledger) [[ -f "$ledger" ]] && grep -q -- "$val" "$ledger" 2>/dev/null ;;
+    phase)
+      [[ -f "$ledger" && -n "$task_id" ]] || return 1
+      jq -e -R -s --arg t "$task_id" --arg p "$val" '
+        split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+        | any(.[]; type == "object" and .task_id == $t and .phase == $p)
+      ' "$ledger" >/dev/null 2>&1
+      ;;
+    ledger)
+      [[ -f "$ledger" && -n "$task_id" && "$val" == "PASS" ]] || return 1
+      phase="${FROM%_SCORED}"
+      jq -e -R -s --arg t "$task_id" --arg p "$phase" --arg v "$val" '
+        split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+        | map(select(type == "object" and .task_id == $t and .phase == $p))
+        | last // null
+        | . as $row
+        | ($row | type == "object")
+          and $row.verdict == $v
+          and ($row.combined | type == "number" and . >= 70)
+      ' "$ledger" >/dev/null 2>&1
+      ;;
     manual) [[ -n "$val" && ( "$FROM" == "BLOCKED" || "$TO" == "BLOCKED" ) ]] ;;
     *)      [[ -f "$ev" ]] ;;
   esac
