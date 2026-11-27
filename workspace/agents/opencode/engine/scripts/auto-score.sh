@@ -484,7 +484,7 @@ tier2_generate_prompt() {
 JUDGE_EOF
 }
 
-# ── Tier 2: LLM-as-Judge (returns score|rationale|missing to stdout) ─────
+# ── Tier 2: LLM-as-Judge (returns a structured JSON result on stdout) ─────
 run_tier2_judge() {
     local file="$1"
     local rules_file="$2"
@@ -497,11 +497,12 @@ run_tier2_judge() {
     # R3-05: external judge artifact — real Tier 2 score when supplied
     if [[ -n "$JUDGE_FILE" ]]; then
         # Input shape is validated before scoring; downstream uses integer scores.
-        judge_score=$(jq -r '.score | round' "$JUDGE_FILE")
-        judge_rationale=$(jq -r '.rationale // "external judge artifact"' "$JUDGE_FILE" | tr '\n' ' ')
-        judge_missing=$(jq -c '.missing_items // []' "$JUDGE_FILE")
-        judge_model=$(jq -r '.model // ""' "$JUDGE_FILE")
-        echo "${judge_score}|${judge_rationale}|${judge_missing}|${judge_model}"
+        jq -c '{
+            score: (.score | round),
+            rationale: (.rationale // "external judge artifact"),
+            missing_items: (.missing_items // []),
+            model: (.model // "")
+        }' "$JUDGE_FILE"
         return
     fi
 
@@ -529,7 +530,12 @@ run_tier2_judge() {
         judge_rationale="LLM judge unavailable (lean-ctx not found) — fell back to Tier 1 subtotal"
     fi
 
-    echo "${judge_score}|${judge_rationale}|${judge_missing}"
+    jq -cn \
+        --argjson score "$judge_score" \
+        --arg rationale "$judge_rationale" \
+        --argjson missing_items "$judge_missing" \
+        --arg model "$judge_model" \
+        '{score:$score, rationale:$rationale, missing_items:$missing_items, model:$model}'
 }
 
 # ── Tier 2: Display wrapper (display → stderr, result → stdout) ───────────
@@ -560,14 +566,12 @@ run_tier2() {
         >&2 log_info "Judge score would be determined by LLM response"
     fi
 
-    local result
+    local result judge_score judge_rationale judge_missing judge_model
     result=$(run_tier2_judge "$file" "$rules_file")
-
-    local judge_score judge_rationale judge_missing judge_model
-    judge_score=$(echo "$result" | cut -d'|' -f1)
-    judge_rationale=$(echo "$result" | cut -d'|' -f2)
-    judge_missing=$(echo "$result" | cut -d'|' -f3)
-    judge_model=$(echo "$result" | cut -d'|' -f4)
+    judge_score=$(jq -r '.score' <<< "$result")
+    judge_rationale=$(jq -r '.rationale' <<< "$result")
+    judge_missing=$(jq -c '.missing_items' <<< "$result")
+    judge_model=$(jq -r '.model' <<< "$result")
 
     # Fallback: if LLM judge unavailable (score=0), use Tier 1 subtotal as per spec
     if [[ "$judge_score" == "0" && "$judge_rationale" == *"unavailable"* ]]; then
@@ -581,7 +585,12 @@ run_tier2() {
     >&2 echo -e "${CYAN}── Tier 2 Result: score=${judge_score} ──${NC}"
 
     # Only the result line goes to stdout for capture by caller
-    echo "${judge_score}|${judge_rationale}|${judge_missing}|${judge_model}"
+    jq -cn \
+        --argjson score "$judge_score" \
+        --arg rationale "$judge_rationale" \
+        --argjson missing_items "$judge_missing" \
+        --arg model "$judge_model" \
+        '{score:$score, rationale:$rationale, missing_items:$missing_items, model:$model}'
 }
 
 # ── Tier 3: Combined Verdict ───────────────────────────────────────────────
@@ -757,11 +766,10 @@ main() {
             local tier2_result
             tier2_result=$(run_tier2 "$CONTRACT_FILE" "${RULES_FILE:-not_found}" "$tier1_subtotal")
 
-            # Parse result: score|rationale|missing_items JSON array|judge model
-            judge_score=$(echo "$tier2_result" | cut -d'|' -f1)
-            judge_rationale=$(echo "$tier2_result" | cut -d'|' -f2)
-            judge_missing=$(echo "$tier2_result" | cut -d'|' -f3)
-            judge_model=$(echo "$tier2_result" | cut -d'|' -f4)
+            judge_score=$(jq -r '.score' <<< "$tier2_result")
+            judge_rationale=$(jq -r '.rationale' <<< "$tier2_result")
+            judge_missing=$(jq -c '.missing_items' <<< "$tier2_result")
+            judge_model=$(jq -r '.model' <<< "$tier2_result")
         fi
     fi
 

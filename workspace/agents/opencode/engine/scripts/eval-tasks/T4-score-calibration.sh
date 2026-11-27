@@ -89,7 +89,7 @@ configured_case() {
     echo "FAIL $label: expected score=85 rc=$expected_rc, got score=$output rc=$rc"
   fi
 }
-printf '%s\n' '{"score":85,"rationale":"fixture judge","missing_items":[],"model":"fixture"}' > "$D/judge.json"
+printf '%s\n' '{"score":85,"rationale":"fixture|judge\nsecond line","missing_items":["edge case"],"model":"fixture"}' > "$D/judge.json"
 configured_case "custom-retry-minimum" 95 90 2
 configured_case "custom-pass-threshold" 80 60 0
 
@@ -113,10 +113,34 @@ if output=$(bash "$AUTO_SCORE" --file "$D/full-json-contract.json" --rules "$rul
 else
   rc=$?
 fi
-if [[ "$rc" -eq 0 ]] && printf '%s\n' "$output" | jq -e '.score.combined == 85 and .score.verdict == "PASS"' >/dev/null 2>&1; then
+if [[ "$rc" -eq 0 ]] && printf '%s\n' "$output" | jq -e '
+  .score.combined == 85
+  and .score.verdict == "PASS"
+  and .score.judge.rationale == "fixture|judge\nsecond line"
+  and .score.judge.missing_items == ["edge case"]
+' >/dev/null 2>&1; then
   pass=$((pass+1))
 else
   fail=$((fail+1)); echo "FAIL full output was not machine-readable score JSON (rc=$rc)"
+fi
+
+# Judge-unavailable fallback also crosses the internal boundary as structured JSON.
+cp "$template" "$D/unavailable-judge-contract.json"
+if output=$(bash "$AUTO_SCORE" --file "$D/unavailable-judge-contract.json" --rules "$rules" 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$rc" -eq 1 ]] && printf '%s\n' "$output" | jq -e '
+  .score.combined == 85
+  and .score.judge.score == 85
+  and .score.tier1_only == true
+  and .score.verdict == "RETRY"
+  and (.score.judge.rationale | contains("unavailable"))
+' >/dev/null 2>&1; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL judge-unavailable fallback output contract (rc=$rc)"
 fi
 
 # Optional judge fields may be omitted and receive their documented defaults.
