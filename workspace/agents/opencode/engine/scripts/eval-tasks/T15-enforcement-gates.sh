@@ -79,6 +79,9 @@ else pass=$((pass+1)); fi
 if PATH="$D/no-python:$PATH" bash "$ENGINE/scripts/validate-contract.sh" --file "$ENGINE/contract/contract.template.json" --score >/dev/null 2>&1; then
   fail=$((fail+1)); echo "FAIL contract validator skipped missing jsonschema"
 else pass=$((pass+1)); fi
+if SCHEMA_FILE="$D/no-schema.json" bash "$ENGINE/scripts/validate-contract.sh" --file "$ENGINE/contract/contract.template.json" --score >/dev/null 2>&1; then
+  fail=$((fail+1)); echo "FAIL contract validator skipped missing schema"
+else pass=$((pass+1)); fi
 
 echo "T15 enforcement gates: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]

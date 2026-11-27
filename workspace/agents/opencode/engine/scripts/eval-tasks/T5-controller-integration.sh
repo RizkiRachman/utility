@@ -45,6 +45,26 @@ bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state 
 bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state "$D/task-loop.json" --task task-two --phase PLAN --hash "$attempt_a" --max 3 >/dev/null
 [[ "$(jq -r .iterations_used "$D/task-loop.json")" == "1" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL loop budget not reset for new task"; }
 
+# Concurrent distinct attempts must each increment the serialized budget.
+concurrent_state="$D/concurrent-loop.json"
+pids=()
+for n in $(seq 1 24); do
+  hash=$(printf 'concurrent attempt %s' "$n" | shasum -a 256 | cut -d' ' -f1)
+  bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state "$concurrent_state" --task parallel-task --phase EXECUTE --hash "$hash" --max 30 >/dev/null &
+  pids+=("$!")
+done
+concurrent_failed=0
+for pid in "${pids[@]}"; do wait "$pid" || concurrent_failed=1; done
+if [[ "$concurrent_failed" == 0 && "$(jq -r .iterations_used "$concurrent_state")" == "24" ]]; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL concurrent loop increments were lost"
+fi
+printf '%s\n' '{"iterations_used":"invalid","last_attempt_hash":"","task_id":"parallel-task"}' > "$D/corrupt-loop.json"
+if bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state "$D/corrupt-loop.json" --task parallel-task --phase EXECUTE --hash "$attempt_a" --max 30 >/dev/null 2>&1; then
+  fail=$((fail+1)); echo "FAIL malformed loop state was overwritten"
+else pass=$((pass+1)); fi
+
 # Live session with state.md but no contract must fail closed.
 mv "$D/contract.json" "$D/contract.bak"
 expect deny "missing contract in live session" bash "$C" pre_tool_action --tool edit --target "$D/x.md"
@@ -56,6 +76,9 @@ printf '#!/bin/sh\nexit 1\n' > "$D/no-python/python3"
 chmod +x "$D/no-python/python3"
 if PATH="$D/no-python:$PATH" CONTRACT_FILE="$D/contract.json" bash "$C" pre_tool_action --tool edit --target "$D/README.md" >/dev/null 2>&1; then
   fail=$((fail+1)); echo "FAIL missing jsonschema validator accepted contract"
+else pass=$((pass+1)); fi
+if SCHEMA_FILE="$D/no-schema.json" CONTRACT_FILE="$D/contract.json" bash "$C" pre_tool_action --tool edit --target "$D/README.md" >/dev/null 2>&1; then
+  fail=$((fail+1)); echo "FAIL controller accepted missing schema"
 else pass=$((pass+1)); fi
 
 # Concurrent transition writers: one wins, contract stays valid JSON.

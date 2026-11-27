@@ -26,6 +26,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/paths.sh"  # N1: session state lives with the project
 PROJECT_DIR="$(resolve_project_root "${SCRIPT_DIR}/..")"
+SCHEMA_FILE="${SCHEMA_FILE:-$SCRIPT_DIR/../contract/contract.schema.json}"
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 CONTRACT_FILE=""
@@ -99,10 +100,10 @@ detect_contract_file() {
 # --- Step 0: JSON Schema validation (requires python3-jsonschema) -----------
 check_jsonschema() {
     local file="$1"
-    local schema="$PROJECT_DIR/contract/contract.schema.json"
+    local schema="$SCHEMA_FILE"
     if [[ ! -f "$schema" ]]; then
-        log_verbose "contract.schema.json not found at $schema — skipping schema validation"
-        return 0
+        log_fail "contract schema not found at $schema; refusing to skip schema validation"
+        return 1
     fi
     if ! python3 -c "import jsonschema" 2>/dev/null; then
         log_fail "python3-jsonschema is required; refusing to skip schema validation"
@@ -116,6 +117,7 @@ with open('$schema') as f:
 with open('$file') as f:
     data = json.load(f)
 cls = validators.validator_for(schema)
+cls.check_schema(schema)
 errors = sorted(cls(schema).iter_errors(data), key=lambda e: list(e.path))
 if errors:
     for e in errors[:10]:
@@ -884,7 +886,11 @@ main() {
         exit 2
     fi
 
-    if [[ -f "$PROJECT_DIR/contract/contract.schema.json" ]] && ! python3 -c "import jsonschema" 2>/dev/null; then
+    if [[ ! -f "$SCHEMA_FILE" ]]; then
+        echo "ERROR: contract schema not found at $SCHEMA_FILE; refusing to skip schema validation" >&2
+        exit 2
+    fi
+    if ! python3 -c "import jsonschema" 2>/dev/null; then
         echo "ERROR: python3-jsonschema is required; refusing to skip schema validation" >&2
         exit 2
     fi

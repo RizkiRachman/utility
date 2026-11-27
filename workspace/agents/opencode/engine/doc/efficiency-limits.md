@@ -57,14 +57,20 @@ checkable proxy for a proven outcome.
 
 8. **Schema validation is a required runtime dependency.** The controller and
    contract validator run full Draft 2020-12 validation and fail closed if
-   `python3-jsonschema` is unavailable. The opencode image installs it through
-   the apt package manifest; CI installs the Python package before validation.
+   `python3-jsonschema` or the schema file is unavailable. The opencode image
+   installs the validator through the apt package manifest; CI installs the
+   Python package before validation. The controller uses the full validator
+   directly rather than repeating partial jq checks.
 9. **Permission scoring is not mutation forensics.** `auto-score.sh` no longer
    treats a denied policy action as a completed breach; it uses the explicit
    `governance.permissions_violated` signal. The engine does not yet compare
    protected data against a trusted execution baseline, so a mutation that
    bypasses all controller gates and omits that signal is not detected by this
    score.
+10. **Loop state updates are serialized.** `loop-guard.sh` holds an exclusive
+    lock across duplicate checking and counter updates, using `flock` when
+    available and a bounded directory-lock fallback otherwise. Lock timeout
+    denies the attempt rather than allowing an uncounted delegation.
 
 These limits are deliberate: the engine enforces what it can observe and
 labels what it cannot, rather than presenting a proxy as a measured result.
