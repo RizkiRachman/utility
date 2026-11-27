@@ -30,6 +30,11 @@ done
 # declared top-level type for each required property. A missing or unparseable
 # schema fails closed. Not full JSON Schema: enums, formats, and patterns are
 # unchecked; see doc/efficiency-limits.md.
+# Schema gate: parseable JSON, every top-level and nested required key, the
+# declared top-level type for each required property, and the enum and pattern
+# constraints the schema declares (absent values are skipped). A missing or
+# unparseable schema fails closed. Not full JSON Schema: formats and numeric
+# ranges are unchecked; see doc/efficiency-limits.md.
 contract_schema_valid() {
   local key want section
   [[ -f "$SCHEMA" ]] || return 1
@@ -46,6 +51,22 @@ contract_schema_valid() {
     [[ -n "$section" && -n "$key" ]] || continue
     jq -e --arg s "$section" --arg k "$key" '.[$s] | type == "object" and has($k)' "$CONTRACT" >/dev/null 2>&1 || return 1
   done < <(jq -r '.properties | to_entries[] | select(.value.required) | .key as $s | .value.required[] | [$s, .] | @tsv' "$SCHEMA" 2>/dev/null)
+  while IFS=$'\t' read -r key want; do
+    [[ -n "$key" && -n "$want" ]] || continue
+    jq -e --arg k "$key" --argjson a "$want" '.[$k] as $v | ($v | type) == "null" or ($a | index($v) != null)' "$CONTRACT" >/dev/null 2>&1 || return 1
+  done < <(jq -r '.properties | to_entries[] | select(.value.enum) | "\(.key)\t\(.value.enum | tojson)"' "$SCHEMA" 2>/dev/null)
+  while IFS=$'\t' read -r key want; do
+    [[ -n "$key" && -n "$want" ]] || continue
+    jq -e --arg k "$key" --arg p "$want" '.[$k] as $v | ($v | type) == "null" or (($v | type) == "string" and ($v | test($p)))' "$CONTRACT" >/dev/null 2>&1 || return 1
+  done < <(jq -r '.properties | to_entries[] | select(.value.pattern) | "\(.key)\t\(.value.pattern)"' "$SCHEMA" 2>/dev/null)
+  while IFS=$'\t' read -r section key want; do
+    [[ -n "$section" && -n "$key" && -n "$want" ]] || continue
+    jq -e --arg s "$section" --arg k "$key" --argjson a "$want" '.[$s][$k] as $v | ($v | type) == "null" or ($a | index($v) != null)' "$CONTRACT" >/dev/null 2>&1 || return 1
+  done < <(jq -r '.properties | to_entries[] | .key as $s | (.value.properties // {}) | to_entries[] | select(.value.enum) | "\($s)\t\(.key)\t\(.value.enum | tojson)"' "$SCHEMA" 2>/dev/null)
+  while IFS=$'\t' read -r section key want; do
+    [[ -n "$section" && -n "$key" && -n "$want" ]] || continue
+    jq -e --arg s "$section" --arg k "$key" --arg p "$want" '.[$s][$k] as $v | ($v | type) == "null" or (($v | type) == "string" and ($v | test($p)))' "$CONTRACT" >/dev/null 2>&1 || return 1
+  done < <(jq -r '.properties | to_entries[] | .key as $s | (.value.properties // {}) | to_entries[] | select(.value.pattern) | "\($s)\t\(.key)\t\(.value.pattern)"' "$SCHEMA" 2>/dev/null)
   return 0
 }
 

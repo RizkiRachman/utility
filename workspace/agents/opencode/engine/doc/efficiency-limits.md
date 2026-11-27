@@ -55,5 +55,7 @@ checkable proxy for a proven outcome.
    that the file content or revision still matches what was reviewed, and
    capture is agent-invoked rather than attached to every retrieval.
 
+8. **Schema gate is structural plus declared enums/patterns.** The controller checks parseability, required keys, declared top-level types, and the enum/pattern constraints present in `contract.schema.json` (for example the state-machine `state` enum and `score.verdict` verdicts). It does not check `format` (date-time) or numeric min/max constraints; JSON Schema combinators (`allOf`, `oneOf`, conditional `if/then`) are unenforced.
+
 These limits are deliberate: the engine enforces what it can observe and
 labels what it cannot, rather than presenting a proxy as a measured result.

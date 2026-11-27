@@ -592,8 +592,8 @@ check_deadlock_config() {
     local deadlock_enabled parallel_eligible issues=0 max_cycles script
     deadlock_enabled=$(jq -r '.agent_watchdog.parallel_deadlock_detection.enabled // false' "$rules_file")
     parallel_eligible=$(jq -r '.scope.parallel_eligible // false' "$file")
-    if [[ "$deadlock_enabled" == "true" && "$parallel_eligible" == "false" ]]; then
-        log_fail "parallel_deadlock_detection enabled in rules but scope.parallel_eligible=false in contract"
+    if [[ "$parallel_eligible" == "true" && "$deadlock_enabled" != "true" ]]; then
+        log_fail "scope.parallel_eligible=true but agent_watchdog.parallel_deadlock_detection disabled in rules"
         issues=$((issues + 1))
     fi
     if [[ "$deadlock_enabled" == "true" ]]; then
