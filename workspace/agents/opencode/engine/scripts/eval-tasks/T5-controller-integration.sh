@@ -80,6 +80,24 @@ if bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --sta
   fail=$((fail+1)); echo "FAIL malformed loop state was overwritten"
 else pass=$((pass+1)); fi
 
+locked_state="$D/locked-loop.json"
+mkdir "${locked_state}.lockdir"
+if output=$(bash "$ENGINE/scripts/loop-guard.sh" \
+  --contract "$D/loop-contract.json" --state "$locked_state" \
+  --task parallel-task --phase EXECUTE --hash "$attempt_a" --max 3 2>/dev/null); then
+  fail=$((fail+1)); echo "FAIL loop guard wrote while the state lock was held"
+else
+  rc=$?
+  if [[ "$rc" -eq 1 ]] \
+    && printf '%s\n' "$output" | jq -e '.action == "error" and .reason == "loop state lock unavailable"' >/dev/null 2>&1 \
+    && [[ ! -e "$locked_state" ]]; then
+    pass=$((pass+1))
+  else
+    fail=$((fail+1)); echo "FAIL loop guard lock failure was not structured: exit $rc: $output"
+  fi
+fi
+rmdir "${locked_state}.lockdir"
+
 # Live session with state.md but no contract must fail closed.
 mv "$D/contract.json" "$D/contract.bak"
 expect deny "missing contract in live session" bash "$C" pre_tool_action --tool edit --target "$D/x.md"
