@@ -207,3 +207,7 @@ jobs:
       - name: Portable contract locking (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T23-portable-contract-locking.sh
+
+      - name: Auto-persist atomic staging (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T24-auto-persist-atomic.sh
