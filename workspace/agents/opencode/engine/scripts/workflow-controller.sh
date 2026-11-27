@@ -65,6 +65,21 @@ phase_evidence_ok() {
   [[ ",$req," == *",$kind,"* ]]
 }
 
+ledger_phase_pass() {
+  local ledger="$1" task_id="$2" phase="$3" judge_backed="${4:-false}"
+  [[ -f "$ledger" && -n "$task_id" ]] || return 1
+  jq -e -R -s --arg t "$task_id" --arg p "$phase" --argjson judge "$judge_backed" '
+    split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+    | map(select(type == "object" and .task_id == $t and .phase == $p))
+    | last // null
+    | . as $row
+    | ($row | type == "object")
+      and $row.verdict == "PASS"
+      and ($row.combined | type == "number" and . >= 70)
+      and ($judge == false or $row.tier1_only == false)
+  ' "$ledger" >/dev/null 2>&1
+}
+
 CONTRACT_EXISTS=false
 STATE="INIT"
 if [[ -f "$CONTRACT" ]]; then
@@ -123,15 +138,7 @@ resolve_evidence() {
     ledger)
       [[ -f "$ledger" && -n "$task_id" && "$val" == "PASS" ]] || return 1
       phase="${FROM%_SCORED}"
-      jq -e -R -s --arg t "$task_id" --arg p "$phase" --arg v "$val" '
-        split("\n") | map(select(length > 0)) | map(try fromjson catch null)
-        | map(select(type == "object" and .task_id == $t and .phase == $p))
-        | last // null
-        | . as $row
-        | ($row | type == "object")
-          and $row.verdict == $v
-          and ($row.combined | type == "number" and . >= 70)
-      ' "$ledger" >/dev/null 2>&1
+      ledger_phase_pass "$ledger" "$task_id" "$phase"
       ;;
     manual) [[ -n "$val" && ( "$FROM" == "BLOCKED" || "$TO" == "BLOCKED" ) ]] ;;
     *)      [[ -f "$ev" ]] ;;
@@ -245,11 +252,9 @@ case "$OP" in
     [[ -n "$task_id" ]] || missing="$missing task_id"
     for phase in PLAN EXECUTE REVIEW; do
       if [[ -n "$task_id" ]]; then
-        jq -e -R -s --arg p "$phase" --arg t "$task_id" --argjson judge "$([[ "$phase" == "REVIEW" ]] && echo true || echo false)" '
-          split("\n") | map(select(length > 0)) | map(try fromjson catch null)
-          | any(.[]; type == "object" and (.phase // "") == $p and (.task_id // "") == $t
-            and ($judge == false or .tier1_only == false))
-        ' "$ledger" >/dev/null 2>&1 || {
+        judge_backed=false
+        [[ "$phase" != "REVIEW" ]] || judge_backed=true
+        ledger_phase_pass "$ledger" "$task_id" "$phase" "$judge_backed" || {
           if [[ "$phase" == "REVIEW" ]]; then missing="$missing judge_backed_REVIEW"
           else missing="$missing ledger_${phase}"; fi
         }

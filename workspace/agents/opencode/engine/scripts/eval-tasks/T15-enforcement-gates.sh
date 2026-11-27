@@ -67,7 +67,13 @@ printf '%s\n' '{"key":"k","claim":"lesson","verified_by":"qa","expires_at":"2099
 if bash "$C" pre_completion >/dev/null 2>&1; then fail=$((fail+1)); echo "FAIL completion with missing phases"; else pass=$((pass+1)); fi
 printf '%s\n' '{"phase":"PLAN","task_id":"task-current","verdict":"PASS","tier1_only":false}' '{"phase":"EXECUTE","task_id":"task-current","verdict":"PASS","tier1_only":false}' '{"phase":"REVIEW","task_id":"task-current","verdict":"PASS","tier1_only":true}' >> "$D/scores.jsonl"
 if bash "$C" pre_completion >/dev/null 2>&1; then fail=$((fail+1)); echo "FAIL stale judge-backed REVIEW evidence satisfied completion"; else pass=$((pass+1)); fi
-printf '%s\n' '{"phase":"REVIEW","task_id":"task-current","verdict":"PASS","tier1_only":false}' >> "$D/scores.jsonl"
+printf '%s\n' '{"phase":"PLAN","task_id":"task-current","combined":85,"verdict":"PASS","tier1_only":false}' \
+  '{"phase":"EXECUTE","task_id":"task-current","combined":85,"verdict":"RETRY","tier1_only":false}' \
+  '{"phase":"REVIEW","task_id":"task-current","combined":85,"verdict":"PASS","tier1_only":false}' >> "$D/scores.jsonl"
+if bash "$C" pre_completion >/dev/null 2>&1; then fail=$((fail+1)); echo "FAIL completion accepted latest EXECUTE RETRY"; else pass=$((pass+1)); fi
+printf '%s\n' '{"phase":"EXECUTE","task_id":"task-current","combined":60,"verdict":"PASS","tier1_only":false}' >> "$D/scores.jsonl"
+if bash "$C" pre_completion >/dev/null 2>&1; then fail=$((fail+1)); echo "FAIL completion accepted below-threshold EXECUTE"; else pass=$((pass+1)); fi
+printf '%s\n' '{"phase":"EXECUTE","task_id":"task-current","combined":85,"verdict":"PASS","tier1_only":false}' >> "$D/scores.jsonl"
 if bash "$C" pre_completion >/dev/null 2>&1; then pass=$((pass+1)); else fail=$((fail+1)); echo "FAIL complete evidence denied"; fi
 
 # 5. Declared enum and pattern constraints are enforced at controller entry.
