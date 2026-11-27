@@ -283,7 +283,7 @@ fi
 
 # Tier 2 is prompt export only, not a score; it must not create a ledger row.
 mkdir "$D/judge-prompt"
-jq '.requirements.goal="preserve goal | with separators" | .requirements.acceptance_criteria=["first; criterion", "second\ncriterion"]' \
+jq '.requirements.goal="preserve goal | with separators" | .requirements.acceptance_criteria=["first; criterion", "second\ncriterion"] | .requirements.constraints=["no external network; preserve API", "constraint\nwith newline"]' \
   "$template" > "$D/judge-prompt/contract.json"
 if output=$(bash "$AUTO_SCORE" --file "$D/judge-prompt/contract.json" --rules "$rules" --tier 2 2>/dev/null); then
   rc=0
@@ -294,6 +294,7 @@ if [[ "$rc" -eq 0 ]] && printf '%s\n' "$output" | jq -e '
   (.judge_prompt | type == "string")
   and .contract.requirements.goal == "preserve goal | with separators"
   and .contract.requirements.acceptance_criteria == ["first; criterion", "second\ncriterion"]
+  and .contract.requirements.constraints == ["no external network; preserve API", "constraint\nwith newline"]
 ' >/dev/null 2>&1 &&
   [[ ! -e "$D/judge-prompt/scores.jsonl" ]]; then
   pass=$((pass+1))
