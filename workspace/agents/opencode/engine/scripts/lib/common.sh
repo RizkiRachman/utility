@@ -98,16 +98,12 @@ acquire_file_lock() {
     lock_dir="${path}.lockdir"
     [[ "$lock_dir" == -* ]] && lock_dir="./$lock_dir"
     parent_dir="$(dirname "$lock_dir")"
-    if [[ ! -d "$parent_dir" || ! -w "$parent_dir" || (-e "$lock_dir" && ! -d "$lock_dir") ]]; then
+    if [[ ! -d "$parent_dir" || ! -w "$parent_dir" ]]; then
         printf 'ERROR: Cannot create lock directory: %s\n' "$lock_dir" >&2
         return 1
     fi
     start=$SECONDS
     while ! mkdir "$lock_dir" 2>/dev/null; do
-        if [[ (-e "$lock_dir" && ! -d "$lock_dir") || ! -w "$parent_dir" ]]; then
-            printf 'ERROR: Cannot create lock directory: %s\n' "$lock_dir" >&2
-            return 1
-        fi
         if (( SECONDS - start >= timeout )); then
             printf 'ERROR: Timed out acquiring lock: %s\n' "$lock_dir" >&2
             return 1

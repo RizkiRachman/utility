@@ -56,6 +56,26 @@ else
   fail=$((fail+1)); echo "FAIL waiting process did not acquire and release the lock"
 fi
 
+burst_pids=()
+for n in {1..12}; do
+  bash -c '
+    source "$1"
+    acquire_file_lock "$2" 5 || exit 1
+    printf "held\n" >> "$3/acquisitions"
+    sleep 0.01
+    release_file_lock
+  ' bash "$COMMON" "$D/burst-contract" "$D" >"$D/burst-$n.log" 2>&1 &
+  burst_pids+=("$!")
+done
+burst_failed=0
+for pid in "${burst_pids[@]}"; do wait "$pid" || burst_failed=1; done
+if [[ "$burst_failed" -eq 0 && "$(wc -l < "$D/acquisitions")" -eq 12 && ! -e "$D/burst-contract.lockdir" ]]; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL concurrent lock handoffs lost or invalidated ownership"
+  cat "$D"/burst-*.log
+fi
+
 bash "$PERSIST" --file "$D/custom/contract.json" --from-file "$D/source.json" \
   >"$D/writer.log" 2>&1 &
 writer_pid=$!
