@@ -50,11 +50,13 @@ else pass=$((pass+1)); fi
 
 # 4. Completion requires a ledger entry for every scored phase.
 ok "no bootstrap" "$(bash "$C" pre_completion >/dev/null 2>&1; echo $?)" "1"
-jq --arg t "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '.governance.memory_bootstrap.at=$t | .governance.judge_coverage.judge_backed=1' "$D/contract.json" > "$D/c.new" && mv "$D/c.new" "$D/contract.json"
-printf '%s\n' '{"phase":"REVIEW","verdict":"PASS","tier1_only":false}' '{bad json' >> "$D/scores.jsonl"
+jq --arg t "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '.session.task_id="task-current" | .governance.memory_bootstrap.at=$t | .governance.judge_coverage.judge_backed=1' "$D/contract.json" > "$D/c.new" && mv "$D/c.new" "$D/contract.json"
+printf '%s\n' '{"phase":"REVIEW","task_id":"task-old","verdict":"PASS","tier1_only":false}' '{bad json' >> "$D/scores.jsonl"
 printf '%s\n' '{"key":"k","claim":"lesson","verified_by":"qa","expires_at":"2099-01-01T00:00:00Z"}' > "$D/learning-records.jsonl"
 if bash "$C" pre_completion >/dev/null 2>&1; then fail=$((fail+1)); echo "FAIL completion with missing phases"; else pass=$((pass+1)); fi
-printf '%s\n' '{"phase":"PLAN","verdict":"PASS","tier1_only":false}' '{"phase":"EXECUTE","verdict":"PASS","tier1_only":false}' >> "$D/scores.jsonl"
+printf '%s\n' '{"phase":"PLAN","task_id":"task-current","verdict":"PASS","tier1_only":false}' '{"phase":"EXECUTE","task_id":"task-current","verdict":"PASS","tier1_only":false}' '{"phase":"REVIEW","task_id":"task-current","verdict":"PASS","tier1_only":true}' >> "$D/scores.jsonl"
+if bash "$C" pre_completion >/dev/null 2>&1; then fail=$((fail+1)); echo "FAIL stale judge-backed REVIEW evidence satisfied completion"; else pass=$((pass+1)); fi
+printf '%s\n' '{"phase":"REVIEW","task_id":"task-current","verdict":"PASS","tier1_only":false}' >> "$D/scores.jsonl"
 if bash "$C" pre_completion >/dev/null 2>&1; then pass=$((pass+1)); else fail=$((fail+1)); echo "FAIL complete evidence denied"; fi
 
 # 5. Declared enum and pattern constraints are enforced at controller entry.

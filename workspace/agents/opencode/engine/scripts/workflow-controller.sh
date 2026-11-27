@@ -219,21 +219,20 @@ case "$OP" in
       [[ "$(jq -r '.governance.memory_bootstrap.at // empty' "$CONTRACT" 2>/dev/null)" != "" ]] || missing="$missing memory_bootstrap"
       [[ "$(jq -r '.governance.judge_coverage.judge_backed // 0' "$CONTRACT" 2>/dev/null)" -ge 1 ]] 2>/dev/null || missing="$missing judge_backed_coverage"
     fi
-    # A malformed row must not block or falsely satisfy any ledger check.
-    if [[ -f "$ledger" ]]; then
-      jq -e -R -s 'split("\n") | map(select(length > 0)) | map(try fromjson catch null)
-        | any(.[]; type == "object" and .tier1_only == false and (.phase // "") == "REVIEW")' "$ledger" >/dev/null 2>&1 || missing="$missing judge_backed_REVIEW"
-    fi
-    # Every scored phase must have run and written a ledger entry.
-    task_id=""
-    [[ -f "$CONTRACT" ]] && task_id=$(jq -r '.session.task_id // empty' "$CONTRACT" 2>/dev/null || echo "")
+    # Completion evidence must belong to this task; stale ledger rows from a
+    # prior task cannot satisfy the current task's gates.
+    task_id=$(jq -r '.session.task_id // empty' "$CONTRACT" 2>/dev/null || echo "")
+    [[ -n "$task_id" ]] || missing="$missing task_id"
     for phase in PLAN EXECUTE REVIEW; do
       if [[ -n "$task_id" ]]; then
-        jq -e -R -s --arg p "$phase" --arg t "$task_id" 'split("\n") | map(select(length > 0)) | map(try fromjson catch null)
-          | any(.[]; type == "object" and (.phase // "") == $p and (.task_id // "") == $t)' "$ledger" >/dev/null 2>&1 || missing="$missing ledger_${phase}"
-      else
-        jq -e -R -s --arg p "$phase" 'split("\n") | map(select(length > 0)) | map(try fromjson catch null)
-          | any(.[]; type == "object" and (.phase // "") == $p)' "$ledger" >/dev/null 2>&1 || missing="$missing ledger_${phase}"
+        jq -e -R -s --arg p "$phase" --arg t "$task_id" --argjson judge "$([[ "$phase" == "REVIEW" ]] && echo true || echo false)" '
+          split("\n") | map(select(length > 0)) | map(try fromjson catch null)
+          | any(.[]; type == "object" and (.phase // "") == $p and (.task_id // "") == $t
+            and ($judge == false or .tier1_only == false))
+        ' "$ledger" >/dev/null 2>&1 || {
+          if [[ "$phase" == "REVIEW" ]]; then missing="$missing judge_backed_REVIEW"
+          else missing="$missing ledger_${phase}"; fi
+        }
       fi
     done
     # A verified, unexpired learning record must exist.

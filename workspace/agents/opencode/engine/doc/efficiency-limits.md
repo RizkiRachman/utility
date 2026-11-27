@@ -16,7 +16,7 @@ checkable proxy for a proven outcome.
 | Learning record validity | `learning-record.sh` requires evidence, verifier, and expiry; stable keys update in place | T8 |
 | Learning reuse | `learning-record.sh hit` / `impact` count reuse of a record across tasks | T18 |
 | Judge aggregation behavior | `T9` checks verdict math and jitter on labelled fixtures | T9 |
-| Completion evidence | `pre_completion` requires the ledger, bootstrap receipt, judge coverage, per-phase entries, and an active learning record | T15 |
+| Completion evidence | `pre_completion` requires the ledger, bootstrap receipt, judge-backed REVIEW, current-task PLAN/EXECUTE/REVIEW rows, and an active learning record | T15 |
 
 ## Explicit limits
 
@@ -71,6 +71,10 @@ checkable proxy for a proven outcome.
     lock across duplicate checking and counter updates, using `flock` when
     available and a bounded directory-lock fallback otherwise. Lock timeout
     denies the attempt rather than allowing an uncounted delegation.
+11. **Completion evidence is task-scoped.** `pre_completion` requires a
+    non-empty task id and checks every phase row against it. The judge-backed
+    REVIEW row must also belong to the current task; a previous task's score
+    cannot satisfy the current completion gate.
 
 These limits are deliberate: the engine enforces what it can observe and
 labels what it cannot, rather than presenting a proxy as a measured result.
