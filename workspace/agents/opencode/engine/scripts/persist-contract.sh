@@ -30,9 +30,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/paths.sh"
 PROJECT_DIR="$(resolve_project_root "${SCRIPT_DIR}/..")"
 CONTRACT_FILE="${PROJECT_DIR}/session/contract.json"
-# Group form: keeps fd 2 alive (bare `exec 9>f 2>/dev/null` silences all later stderr).
-{ exec 9>"${CONTRACT_FILE}.lock"; } 2>/dev/null || true
-flock 9 2>/dev/null || true
 SCORE=""
 FROM_FILE=""
 RUN_VALIDATE=false
@@ -78,6 +75,11 @@ if [[ -n "$FROM_FILE" && -n "$SCORE" ]]; then
     echo "ERROR: --from-file and --score are mutually exclusive" >&2
     exit 2
 fi
+
+# Lock the selected contract, not the default path established before parsing.
+# Group form keeps fd 2 alive when lock-file creation fails.
+{ exec 9>"${CONTRACT_FILE}.lock"; } 2>/dev/null || true
+flock 9 2>/dev/null || true
 
 if [[ "$VERBOSE" == true ]]; then
     echo -e "${YELLOW}[INFO]${NC} Persisting: $CONTRACT_FILE"
