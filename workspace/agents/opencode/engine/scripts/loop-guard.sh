@@ -25,12 +25,21 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 [[ -f "$CONTRACT" ]] || { echo "{\"action\":\"error\",\"reason\":\"contract not found: $CONTRACT\"}"; exit 64; }
-if [[ -z "$MAX" ]]; then
-  RULES="${RULES_PATH:-$(dirname "$SCRIPT_DIR")/../rules/rules.json}"
-  MAX=$(jq -r ".enforcement.loop_guard.max_loop_iterations // 12" "$RULES" 2>/dev/null || echo 12)
-fi
+RULES="${RULES_PATH:-$SCRIPT_DIR/../rules/rules.json}"
+configured_max=$(jq -er '
+  .enforcement.loop_guard.max_loop_iterations // 12
+  | select(type == "number" and floor == . and . > 0)
+' "$RULES" 2>/dev/null) || {
+  echo "{\"action\":\"error\",\"reason\":\"invalid configured max_loop_iterations\"}"
+  exit 64
+}
+MAX="${MAX:-$configured_max}"
 task_id="${TASK:-$(jq -r '.session.task_id // "unknown"' "$CONTRACT" 2>/dev/null || echo unknown)}"
 [[ "$MAX" =~ ^[1-9][0-9]*$ ]] || { echo "{\"action\":\"error\",\"reason\":\"invalid max_loop_iterations: $MAX\"}"; exit 64; }
+(( MAX <= configured_max )) || {
+  echo "{\"action\":\"error\",\"reason\":\"max_loop_iterations override exceeds configured limit\",\"configured_max\":$configured_max,\"requested_max\":$MAX}"
+  exit 64
+}
 state_dir=$(dirname "$STATE")
 mkdir -p "$state_dir"
 lock_file="${STATE}.lock"
