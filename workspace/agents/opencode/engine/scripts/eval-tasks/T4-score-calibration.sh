@@ -145,6 +145,32 @@ else
   fail=$((fail+1)); echo "FAIL tier1-only verdict/exit mismatch: score=$output rc=$rc"
 fi
 
+# Explicit score phases must exist in the configured scored-state transitions.
+mkdir "$D/valid-phase" "$D/invalid-phase"
+cp "$template" "$D/valid-phase/contract.json"
+if output=$(bash "$AUTO_SCORE" --file "$D/valid-phase/contract.json" --rules "$rules" --tier 1 --phase PLAN --score-only 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$output" == "85" && "$rc" -eq 1 ]] &&
+  jq -se 'length == 1 and .[0].phase == "PLAN"' "$D/valid-phase/scores.jsonl" >/dev/null 2>&1; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL configured score phase was rejected or not recorded (rc=$rc)"
+fi
+cp "$template" "$D/invalid-phase/contract.json"
+if output=$(bash "$AUTO_SCORE" --file "$D/invalid-phase/contract.json" --rules "$rules" --tier 1 --phase NOT_A_PHASE --score-only 2>/dev/null); then
+  rc=0
+else
+  rc=$?
+fi
+if [[ "$rc" -eq 2 && -z "$output" && ! -e "$D/invalid-phase/scores.jsonl" ]]; then
+  pass=$((pass+1))
+else
+  fail=$((fail+1)); echo "FAIL unconfigured phase emitted score/evidence (rc=$rc)"
+fi
+
 # Full output remains machine-readable JSON, without progress text on stdout.
 cp "$template" "$D/full-json-contract.json"
 printf '%s\n' '{"score":40,"rationale":"judge unavailable for unrelated criteria","missing_items":[],"model":"fixture"}' > "$D/judge.json"

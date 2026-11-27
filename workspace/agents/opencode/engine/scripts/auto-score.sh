@@ -640,6 +640,26 @@ load_score_thresholds() {
     RETRY_MIN="$retry"
 }
 
+validate_score_phase() {
+    [[ -z "$SCORE_PHASE" ]] && return 0
+    if [[ -z "$RULES_FILE" || ! -f "$RULES_FILE" ]] ||
+        ! jq -e --arg phase "$SCORE_PHASE" '
+            [
+                .state_machine.transitions[]?
+                | select((.require_score | type) == "number")
+                | .from
+                | strings
+                | select(endswith("_SCORED"))
+                | rtrimstr("_SCORED")
+            ]
+            | unique
+            | index($phase) != null
+        ' "$RULES_FILE" >/dev/null 2>&1; then
+        echo "ERROR: unknown scoring phase '$SCORE_PHASE' in rules file" >&2
+        return 1
+    fi
+}
+
 # ── Main ───────────────────────────────────────────────────────────────────
 main() {
     ensure_jq
@@ -690,6 +710,7 @@ main() {
         echo "ERROR: --tier 2 exports a judge prompt only; omit --judge-file, --score-only, and --phase" >&2
         exit 2
     fi
+    validate_score_phase || exit 2
 
     # R3-05: optional external judge artifact (real Tier 2 evidence)
     local judge_usable=false
