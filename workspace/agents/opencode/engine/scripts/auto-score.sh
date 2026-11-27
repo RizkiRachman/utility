@@ -16,9 +16,9 @@
 #   scripts/auto-score.sh --help
 #
 # Exit codes:
-#   0 = PASS (score ≥ 70)
-#   1 = RETRY (score 50-69)
-#   2 = BLOCKED (score < 50 or critical error)
+#   0 = PASS (score ≥ configured pass threshold; default 70)
+#   1 = RETRY (score ≥ configured retry_min; default 50)
+#   2 = BLOCKED (score below retry_min or critical error)
 # =============================================================================
 
 set -euo pipefail
@@ -46,6 +46,8 @@ FAIL_COUNT=0
 DEDUCTION=0
 MAX_SCORE=100
 RULE_DEDUCTION_MAP=""
+PASS_THRESHOLD=70
+RETRY_MIN=50
 
 # Default schema path
 SCHEMA_FILE="$PROJECT_DIR/contract/contract.schema.json"
@@ -92,7 +94,7 @@ BEHAVIOR
       3. Blast radius (-40)    : Grep for forbidden patterns in outputs
       4. Writing order (-15)   : Check plan mentions port→service→mapper→adapter
       5. Required fields (-15) : Check outputs.plan and session.session_id present
-      Floors at 0 (never negative). Skips Tier 2 if subtotal < 70.
+      Floors at 0 (never negative). Skips Tier 2 below the configured pass threshold.
 
     Tier 2 — LLM-as-Judge (pass-through):
       Reads requirements.goal + acceptance_criteria from the contract.
@@ -102,9 +104,9 @@ BEHAVIOR
       and the run is marked tier1_only.
 
     Tier 3 — Combined Verdict:
-      combined ≥ 70   → PASS
-      50 ≤ combined < 70 → RETRY
-      combined < 50   → BLOCKED
+      combined ≥ scoring.thresholds.pass (default 70) → PASS
+      scoring.thresholds.retry_min (default 50) ≤ combined < pass → RETRY
+      combined < retry_min → BLOCKED
 
 OUTPUT (default):
     {
@@ -588,13 +590,33 @@ run_tier2() {
 compute_verdict() {
     local combined="$1"
 
-    if [[ $combined -ge 70 ]]; then
+    if [[ $combined -ge "$PASS_THRESHOLD" ]]; then
         echo "PASS"
-    elif [[ $combined -ge 50 ]]; then
+    elif [[ $combined -ge "$RETRY_MIN" ]]; then
         echo "RETRY"
     else
         echo "BLOCKED"
     fi
+}
+
+load_score_thresholds() {
+    local pass retry
+    [[ -n "$RULES_FILE" && -f "$RULES_FILE" ]] || return 0
+    pass=$(jq -r '.scoring.thresholds.pass // 70' "$RULES_FILE" 2>/dev/null) || {
+        echo "ERROR: unable to read scoring.thresholds.pass from $RULES_FILE" >&2
+        return 1
+    }
+    retry=$(jq -r '.scoring.thresholds.retry_min // 50' "$RULES_FILE" 2>/dev/null) || {
+        echo "ERROR: unable to read scoring.thresholds.retry_min from $RULES_FILE" >&2
+        return 1
+    }
+    if [[ ! "$pass" =~ ^[0-9]+$ || ! "$retry" =~ ^[0-9]+$ ]] ||
+        (( pass > 100 || retry > pass )); then
+        echo "ERROR: score thresholds must be integers with 0 <= retry_min <= pass <= 100 (got retry_min=$retry, pass=$pass)" >&2
+        return 1
+    fi
+    PASS_THRESHOLD="$pass"
+    RETRY_MIN="$retry"
 }
 
 # ── Main ───────────────────────────────────────────────────────────────────
@@ -636,6 +658,7 @@ main() {
         echo -e "${YELLOW}[WARN]${NC} Tier 1 checks requiring rules.json will be skipped" >&2
         RULES_FILE=""
     fi
+    load_score_thresholds || exit 2
 
     # Validate tier value
     if [[ "$TIER_FILTER" != "all" && "$TIER_FILTER" != "1" && "$TIER_FILTER" != "2" ]]; then
@@ -708,15 +731,15 @@ main() {
     fi
 
     if [[ "$TIER_FILTER" == "all" ]]; then
-        # If Tier 1 subtotal < 70 and scoring all tiers, skip Tier 2 as per spec
-        if [[ $tier1_subtotal -lt 70 ]]; then
+        # If Tier 1 subtotal is below PASS, Tier 2 cannot make this phase pass.
+        if [[ $tier1_subtotal -lt "$PASS_THRESHOLD" ]]; then
             judge_score=$tier1_subtotal
-            judge_rationale="Tier 1 subtotal < 70 — Tier 2 skipped per spec"
+            judge_rationale="Tier 1 subtotal < ${PASS_THRESHOLD} — Tier 2 skipped per spec"
             judge_missing="[]"
             judge_model=""
             tier1_only=true
             echo ""
-            echo -e "${YELLOW}[INFO]${NC} Tier 1 subtotal ($tier1_subtotal) < 70 — skipping Tier 2"
+            echo -e "${YELLOW}[INFO]${NC} Tier 1 subtotal ($tier1_subtotal) < ${PASS_THRESHOLD} — skipping Tier 2"
         else
             local tier2_result
             tier2_result=$(run_tier2 "$CONTRACT_FILE" "${RULES_FILE:-not_found}" "$tier1_subtotal")
@@ -754,8 +777,8 @@ main() {
         combined_score=0
         verdict="BLOCKED"
         echo "N2 hard halt: permissions violation forces BLOCKED" >&2
-    elif [[ "$judge_unavailable" == true && "$verdict" == "PASS" ]]; then
-        verdict="RETRY"  # N2: no independent judge evidence, never PASS
+    elif [[ "$tier1_only" == true && "$verdict" == "PASS" ]]; then
+        verdict="RETRY"  # No independent judge evidence, never PASS
     fi
 
     # ── Output ──
@@ -831,14 +854,13 @@ main() {
         echo "WARN: failed to append scores ledger: $scores_file" >&2
     fi
 
-    # Exit code
-    if [[ $combined_score -ge 70 ]]; then
-        exit 0
-    elif [[ $combined_score -ge 50 ]]; then
-        exit 1
-    else
-        exit 2
-    fi
+    # Exit status must reflect the final verdict, including judge and policy caps.
+    case "$verdict" in
+        PASS) exit 0 ;;
+        RETRY) exit 1 ;;
+        BLOCKED) exit 2 ;;
+        *) echo "ERROR: invalid scoring verdict: $verdict" >&2; exit 2 ;;
+    esac
 }
 
 main "$@"
