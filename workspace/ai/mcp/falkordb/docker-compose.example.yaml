@@ -1,0 +1,69 @@
+# Standalone example: run the FalkorDB knowledge-graph DB alongside the root stack.
+#   docker compose -f docker-compose.example.yaml up -d          # DB only
+#   docker compose -f docker-compose.example.yaml --profile debug up -d   # + MCP over HTTP (inspector)
+#   docker compose -f docker-compose.example.yaml down           # stop; data stays
+#
+# DB port   : 127.0.0.1:4679 (redis module protocol; redis-cli -p 4679)
+# MCP server: per-session stdio container (agents/opencode/config/opencode.json runs
+#             `docker run -i --network <stack> kg-mcpserver:local`); the debug profile
+#             serves MCP over HTTP for the inspector instead.
+# Network   : joins the root stack network so the MCP container resolves falkordb by
+#             name (same pattern as openui on utility_default). Override KG_NETWORK
+#             when your root stack runs under a different network name.
+name: kg
+
+services:
+  falkordb:
+    container_name: falkordb
+    image: falkordb/falkordb:v4.22.5
+    labels:
+      bpg.group: infra
+      bpg.type: ai
+    init: true
+    mem_limit: 512m
+    cpus: 1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${KG_HOST_PORT:-4679}:6379"
+    volumes:
+      - ${KG_DATA_DIR:-/home/node/workspace/kg-data}:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    networks:
+      - stack
+
+  # Optional: MCP server over HTTP for interactive debugging
+  # (npx @modelcontextprotocol/inspector --transport streamable-http
+  #  --url http://127.0.0.1:48080/mcp). OpenCode sessions talk to the MCP
+  # server over stdio per-session and do not use this service.
+  mcp:
+    build: .
+    image: kg-mcpserver:local
+    container_name: kg-mcpserver
+    profiles: ["debug"]
+    labels:
+      bpg.group: infra
+      bpg.type: ai
+    init: true
+    mem_limit: 256m
+    environment:
+      MCP_TRANSPORT: http
+      MCP_PORT: "8080"
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: "6379"
+    ports:
+      - "127.0.0.1:48080:8080"
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    networks:
+      - stack
+
+networks:
+  stack:
+    name: ${KG_NETWORK:-utility_default}
+    external: true

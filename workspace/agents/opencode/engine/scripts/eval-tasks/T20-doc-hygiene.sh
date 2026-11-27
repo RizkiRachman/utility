@@ -50,7 +50,10 @@ ok "mcp count claims match config" "$bad" "0"
 
 grep -q 'Inventory is pinned' "$ENGINE/README.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL inventory boundary note"; }
 
-[[ -x "$ROOT/ai/mcp/falkordb/kg-up.sh" && -x "$ROOT/ai/mcp/falkordb/kg-down.sh" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL kg lifecycle scripts missing"; }
+[[ -f "$ROOT/../../ai/mcp/falkordb/Dockerfile" && -f "$ROOT/../../ai/mcp/falkordb/docker-compose.example.yaml" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL kg container files missing"; }
+
+grep -q 'bpg.group: infra' "$ROOT/../../ai/mcp/falkordb/docker-compose.example.yaml" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL kg compose missing house labels"; }
+grep -q '^  falkordb:' "$ROOT/../../../docker-compose.example.yaml" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL falkordb service missing in root compose"; }
 
 echo "T20 doc hygiene: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]
