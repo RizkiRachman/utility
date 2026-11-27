@@ -37,5 +37,16 @@ grep -q '^## Architecture' "$ENGINE/README.md" && pass=$((pass+1)) || { fail=$((
 grep -q '50-69 RETRY' "$ENGINE/README.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL score-gate sentence"; }
 [[ -f "$ROOT/docs/git-mirrors.md" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL docs/git-mirrors.md missing"; }
 
+# 5. Diagram freshness markers stay in place (mermaid only, no binary images).
+grep -q 'flowchart LR' "$ROOT/README.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL flowchart LR in root README"; }
+grep -q 'stateDiagram-v2' "$ENGINE/README.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL state machine mermaid block"; }
+imgs=$(grep -cE '!\[[^]]*\]\(' "$ENGINE/README.md" 2>/dev/null || true)
+ok "no image links in engine README" "$imgs" "0"
+
+# 6. Every "N MCP servers" claim in engine markdown matches the config count.
+mcps=$(jq -r '.mcp.servers | keys | length' "$ROOT/config/opencode.json" 2>/dev/null)
+bad=$(grep -rhoE '[0-9]+ MCP servers' "$ENGINE" --include='*.md' 2>/dev/null | grep -oE '^[0-9]+' | grep -vc "^$mcps\$" || true)
+ok "mcp count claims match config" "$bad" "0"
+
 echo "T20 doc hygiene: $pass passed, $fail failed"
 [[ "$fail" -eq 0 ]]
