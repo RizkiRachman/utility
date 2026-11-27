@@ -1,6 +1,6 @@
-import { join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, appendFileSync } from "node:fs";
+import { existsSync, readFileSync, appendFileSync, realpathSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 const GUARDED = new Set(["edit", "write", "patch"]);
@@ -46,6 +46,20 @@ function fallbackState(base) {
   catch { return "UNKNOWN"; }
 }
 
+function fallbackProtectedTarget(target) {
+  const resolved = resolve(String(target));
+  let canonical = resolved;
+  try { canonical = realpathSync.native(resolved); }
+  catch {
+    try { canonical = join(realpathSync.native(dirname(resolved)), basename(resolved)); } catch { /* use normalized path */ }
+  }
+  const parts = canonical.replaceAll("\\", "/").split("/");
+  const name = parts[parts.length - 1];
+  return name.startsWith(".env") ||
+    new Set(["contract.json", "scores.jsonl", "workflow-audit.jsonl", "tool-audit.jsonl", "loop-state.json", "opencode.json"]).has(name) ||
+    parts.includes(".session");
+}
+
 /** Safety net when the deployed controller is absent (source checkout). */
 function fallbackGate(base, tool, target) {
   const state = fallbackState(base);
@@ -53,12 +67,12 @@ function fallbackGate(base, tool, target) {
   try { appendFileSync(join(base, AUDIT), JSON.stringify(entry) + "\n"); } catch { /* best effort */ }
   if (state === "BLOCKED") throw new Error(`Workflow guard: contract state is BLOCKED; ${tool} disabled until user intervention.`);
   if (state === "UNKNOWN") throw new Error(`Workflow guard: contract unparseable; ${tool} blocked.`);
-  if (GUARDED.has(tool) && target && /(^|\/)contract\.json$/.test(String(target))) {
-    throw new Error("Workflow guard: direct contract.json write blocked; use transition.sh");
+  if (GUARDED.has(tool) && target && fallbackProtectedTarget(target)) {
+    throw new Error("Workflow guard: direct write to a protected workflow artifact blocked");
   }
 }
 
-const PROTECTED_SHELL = ["contract.json", ".env", "opencode.json", ".session/", "workflow-audit.jsonl", "scores.jsonl"];
+const PROTECTED_SHELL = ["contract.json", ".env", "opencode.json", ".session/", "workflow-audit.jsonl", "tool-audit.jsonl", "scores.jsonl", "loop-state.json"];
 const WRITE_OPERATOR = /(>|>>|\bmv\b|\bcp\b|\btee\b|sed -i|\bjq\b|\brm\b|\bchmod\b|\bchown\b)/;
 function fallbackShellWrite(cmd) {
   return WRITE_OPERATOR.test(cmd) && PROTECTED_SHELL.some((p) => cmd.includes(p));
