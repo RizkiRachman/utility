@@ -130,7 +130,8 @@ release_file_lock() {
     local token="$_LCOMMON_FILE_LOCK_TOKEN"
     local current_token
     if ! IFS= read -r current_token < "$lock_dir/owner" || [[ "$current_token" != "$token" ]]; then
-        printf 'ERROR: Lock ownership changed before release: %s\n' "$lock_dir" >&2
+        printf 'ERROR: Lock ownership changed before release: %s (process %s expected %s, found %s)\n' \
+            "$lock_dir" "${BASHPID:-$$}" "$token" "${current_token:-missing}" >&2
         return 1
     fi
     if ! rm -f "$lock_dir/owner" || ! rmdir "$lock_dir"; then
