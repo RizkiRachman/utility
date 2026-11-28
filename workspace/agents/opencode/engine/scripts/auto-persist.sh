@@ -19,8 +19,8 @@
 #   1 = Persistence or runtime error
 #   2 = Invalid command-line arguments
 #
-# Lock: acquires the shared exclusive directory lock for the selected contract,
-# covering the knowledge write and the file write.
+# Lock: acquires the shared exclusive directory lock before reading the
+# contract, covering audit detection and all persistence writes.
 
 set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -219,12 +219,24 @@ fi
 # ---------------------------------------------------------------------------
 # Ensure contract file exists
 # ---------------------------------------------------------------------------
-TASK_ID=$(jq -r '.session.task_id // "default"' "$CONTRACT_FILE" 2>/dev/null || echo "default")  # N8 namespaced key
 if [[ ! -f "$CONTRACT_FILE" ]]; then
     mkdir -p "$CONTRACT_DIR"
     echo -e "${RED}[ERROR]${NC} Contract not found at $CONTRACT_FILE. Initialize first." >&2
     exit 1
 fi
+
+# ---------------------------------------------------------------------------
+# Lock before reading contract state so audit detection and writes are serialized.
+# ---------------------------------------------------------------------------
+TEMP_FILE=""
+cleanup() {
+    if [[ -n "$TEMP_FILE" ]]; then
+        rm -f -- "$TEMP_FILE" || true
+    fi
+    release_file_lock
+}
+acquire_file_lock "$CONTRACT_FILE" || exit 1
+trap cleanup EXIT
 
 # ---------------------------------------------------------------------------
 # Read and validate JSON
@@ -233,6 +245,7 @@ if ! CONTRACT_JSON="$(jq -c '.' "$CONTRACT_FILE" 2>/dev/null)"; then
     echo -e "${RED}[ERROR]${NC} Invalid JSON in contract file: $CONTRACT_FILE" >&2
     exit 1
 fi
+TASK_ID=$(jq -r '.session.task_id // "default"' "$CONTRACT_FILE")
 
 # ---------------------------------------------------------------------------
 # Audit Log Auto-Population
@@ -259,41 +272,35 @@ if [[ -n "$OLD_STATE" && -n "$NEW_STATE" && "$OLD_STATE" != "$NEW_STATE" ]]; the
         log_verbose "Skipping duplicate audit entry for $OLD_STATE → $NEW_STATE"
     else
         CURRENT_SCORE=$(jq '.score.combined // 0' "$CONTRACT_FILE")
-        # Create temp file with audit entry appended
-        jq --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-           --arg from "$OLD_STATE" \
-           --arg to "$NEW_STATE" \
-           --arg trig "$TRIGGERED_BY" \
-           --argjson score "$CURRENT_SCORE" \
-           '.audit_log += [{"timestamp": $ts, "prev_state": $from, "new_state": $to, "triggered_by": $trig, "scoring_snapshot": $score}]' \
-           "$CONTRACT_FILE" > "${CONTRACT_FILE}.tmp" && "$SCRIPT_DIR/persist-contract.sh" --file "$CONTRACT_FILE" --from-file "${CONTRACT_FILE}.tmp" && rm -f "${CONTRACT_FILE}.tmp" && {
+        if ! TEMP_FILE="$(mktemp "${CONTRACT_FILE}.tmp.XXXXXX")"; then
+            echo -e "${YELLOW}[WARN]${NC} Failed to create audit staging file, continuing..."
+            [[ -z "$TEMP_FILE" ]] || rm -f -- "$TEMP_FILE" || true
+            TEMP_FILE=""
+        elif ! jq --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg from "$OLD_STATE" \
+            --arg to "$NEW_STATE" \
+            --arg trig "$TRIGGERED_BY" \
+            --argjson score "$CURRENT_SCORE" \
+            '.audit_log += [{"timestamp": $ts, "prev_state": $from, "new_state": $to, "triggered_by": $trig, "scoring_snapshot": $score}]' \
+            "$CONTRACT_FILE" > "$TEMP_FILE"; then
+            echo -e "${YELLOW}[WARN]${NC} Failed to append audit entry, continuing..."
+            rm -f -- "$TEMP_FILE" || true
+            TEMP_FILE=""
+        elif ! mv "$TEMP_FILE" "$CONTRACT_FILE"; then
+            echo -e "${YELLOW}[WARN]${NC} Failed to commit audit entry, continuing..."
+            rm -f -- "$TEMP_FILE" || true
+            TEMP_FILE=""
+        else
+            TEMP_FILE=""
             log_info "Audit entry added: $OLD_STATE → $NEW_STATE"
             # Re-read contract JSON after audit modification
-            CONTRACT_JSON="$(jq -c '.' "$CONTRACT_FILE" 2>/dev/null)"
-        } || {
-            echo -e "${YELLOW}[WARN]${NC} Failed to append audit entry, continuing..."
-        }
+            if ! CONTRACT_JSON="$(jq -c '.' "$CONTRACT_FILE" 2>/dev/null)"; then
+                echo -e "${RED}[ERROR]${NC} Failed to read contract after audit update: $CONTRACT_FILE" >&2
+                exit 1
+            fi
+        fi
     fi
 fi
-
-# ---------------------------------------------------------------------------
-# Session lock (R3-18): same lock contract as persist-contract.sh. Acquired
-# after the audit-log child call (which locks itself) so no nested lock.
-# ---------------------------------------------------------------------------
-TEMP_FILE=""
-cleanup() {
-    if [[ -n "$TEMP_FILE" ]]; then
-        rm -f -- "$TEMP_FILE" || true
-    fi
-    release_file_lock
-}
-acquire_file_lock "$CONTRACT_FILE" || exit 1
-trap cleanup EXIT
-if ! CONTRACT_JSON="$(jq -c '.' "$CONTRACT_FILE" 2>/dev/null)"; then
-    echo -e "${RED}[ERROR]${NC} Invalid JSON in contract file: $CONTRACT_FILE" >&2
-    exit 1
-fi
-TASK_ID=$(jq -r '.session.task_id // "default"' "$CONTRACT_FILE")
 
 # ---------------------------------------------------------------------------
 # Persist to lean-ctx knowledge (unless --no-knowledge)

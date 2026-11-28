@@ -43,7 +43,7 @@ task_id="${TASK:-$(jq -r '.session.task_id // "unknown"' "$CONTRACT" 2>/dev/null
 }
 state_dir=$(dirname "$STATE")
 mkdir -p "$state_dir"
-acquire_file_lock "$STATE" 2 || {
+acquire_file_lock "$STATE" "${LOOP_GUARD_LOCK_TIMEOUT:-2}" || {
   echo "{\"action\":\"error\",\"reason\":\"loop state lock unavailable\"}"
   exit 1
 }

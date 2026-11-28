@@ -36,6 +36,7 @@ from the `auto-score.sh` JSONL ledger).
 | T23-portable-contract-locking.sh | Contract writers share an exclusive, bounded-wait directory lock | `common.sh` + persistence writers |
 | T24-auto-persist-atomic.sh | Same-directory staging and failed-stage rollback | `auto-persist.sh` |
 | T25-auto-persist-cli.sh | Missing values and unknown options fail with consistent CLI errors | `auto-persist.sh` |
+| T26-auto-persist-audit-concurrency.sh | Contract audit detection and updates serialize with persistence | `auto-persist.sh` |
 | T1-validate-contract.sh | Template contract passes the full validator incl. deadlock-config consistency | `validate-contract.sh` |
 
 ## Usage

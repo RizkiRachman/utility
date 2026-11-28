@@ -83,10 +83,11 @@ require_option_value() {
 # acquire_file_lock PATH [TIMEOUT_SECONDS]
 # Use atomic directory creation so the same lock contract works without flock.
 _LCOMMON_FILE_LOCK_DIR=""
+_LCOMMON_FILE_LOCK_TOKEN=""
 acquire_file_lock() {
     local path="${1:-}"
     local timeout="${2:-30}"
-    local lock_dir parent_dir start
+    local lock_dir parent_dir start token
     if [[ -z "$path" || ! "$timeout" =~ ^[0-9]+$ ]]; then
         printf 'acquire_file_lock: expected a path and non-negative timeout\n' >&2
         return 2
@@ -98,15 +99,22 @@ acquire_file_lock() {
     lock_dir="${path}.lockdir"
     [[ "$lock_dir" == -* ]] && lock_dir="./$lock_dir"
     parent_dir="$(dirname "$lock_dir")"
-    if [[ ! -d "$parent_dir" || ! -w "$parent_dir" || (-e "$lock_dir" && ! -d "$lock_dir") ]]; then
+    if [[ ! -d "$parent_dir" || ! -w "$parent_dir" ]]; then
         printf 'ERROR: Cannot create lock directory: %s\n' "$lock_dir" >&2
         return 1
     fi
     start=$SECONDS
-    while ! mkdir "$lock_dir" 2>/dev/null; do
-        if [[ (-e "$lock_dir" && ! -d "$lock_dir") || ! -w "$parent_dir" ]]; then
-            printf 'ERROR: Cannot create lock directory: %s\n' "$lock_dir" >&2
-            return 1
+    while :; do
+        if mkdir "$lock_dir" 2>/dev/null; then
+            token="${BASHPID:-$$}-$RANDOM-$RANDOM"
+            if ! printf '%s\n' "$token" > "$lock_dir/owner"; then
+                rmdir "$lock_dir" 2>/dev/null || true
+                printf 'ERROR: Cannot record lock ownership: %s\n' "$lock_dir" >&2
+                return 1
+            fi
+            _LCOMMON_FILE_LOCK_DIR="$lock_dir"
+            _LCOMMON_FILE_LOCK_TOKEN="$token"
+            return 0
         fi
         if (( SECONDS - start >= timeout )); then
             printf 'ERROR: Timed out acquiring lock: %s\n' "$lock_dir" >&2
@@ -114,17 +122,31 @@ acquire_file_lock() {
         fi
         sleep 0.02
     done
-    _LCOMMON_FILE_LOCK_DIR="$lock_dir"
 }
 
 release_file_lock() {
     [[ -n "$_LCOMMON_FILE_LOCK_DIR" ]] || return 0
     local lock_dir="$_LCOMMON_FILE_LOCK_DIR"
-    if ! rmdir "$lock_dir"; then
+    local token="$_LCOMMON_FILE_LOCK_TOKEN"
+    local current_token
+    # Idempotent release: another cleanup path may already have removed it.
+    if [[ ! -d "$lock_dir" || ! -f "$lock_dir/owner" ]]; then
+        _LCOMMON_FILE_LOCK_DIR=""
+        _LCOMMON_FILE_LOCK_TOKEN=""
+        return 0
+    fi
+    if ! IFS= read -r current_token < "$lock_dir/owner" || [[ "$current_token" != "$token" ]]; then
+        printf 'ERROR: Lock ownership changed before release: %s (process %s expected %s, found %s)\n' \
+            "$lock_dir" "${BASHPID:-$$}" "$token" "${current_token:-missing}" >&2
+        return 1
+    fi
+    rm -f "$lock_dir/owner" || true
+    if [[ -d "$lock_dir" ]] && ! rmdir "$lock_dir" 2>/dev/null; then
         printf 'ERROR: Cannot release lock directory: %s\n' "$lock_dir" >&2
         return 1
     fi
     _LCOMMON_FILE_LOCK_DIR=""
+    _LCOMMON_FILE_LOCK_TOKEN=""
 }
 
 # ── rules.json store_in resolution ─────────────────────────────────────────
