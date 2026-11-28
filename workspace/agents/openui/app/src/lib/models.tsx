@@ -1,6 +1,6 @@
 import type { ModelOption } from "@openuidev/react-ui";
 
-export const DEFAULT_MODEL = "glm-5.3-flash";
+export const DEFAULT_MODEL = "glm-5.3-flash"; // code-driven default; no OPENROUTER_BASE_MODEL env var
 
 // Per-model { light, dark } logo pairs — the switcher swaps them by theme.
 const logo = {
