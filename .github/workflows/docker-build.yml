@@ -17,6 +17,16 @@ jobs:
       - name: Populate offline store (network tier)
         working-directory: workspace/agents/opencode
         run: sudo -E bash populate-preinstall.sh
+      - name: Regenerate digest manifest for this build (ephemeral, never committed)
+        working-directory: workspace/agents/opencode
+        # Repo digests.sha256 stays maintainer-owned (deploy-digest policy:
+        # CI never re-pins the repo manifest). The Dockerfile digest gate is
+        # store-wide - once any pin exists it enforces a pin for EVERY store
+        # artifact - so the fresh CI store needs a complete manifest for this
+        # build. Regeneration happens in the checkout only and is discarded
+        # with the runner; durable pins still land exclusively via PR review.
+        run: sudo -E bash populate-preinstall.sh --update-digests
+
       - name: Docker build (plain progress, full log)
         run: |
           set -o pipefail
