@@ -56,6 +56,13 @@ PY
 
 evidence_kind() { local ev="$1"; printf '%s' "${ev%%:*}"; }
 
+# MCP hosts prefix tool names (server_ctx_patch). Match on tokens, not exact
+# names, so a namespaced write cannot slip past the protected-target check.
+tool_is_write() {
+  local t="${1,,}"
+  [[ "$t" =~ (^|[^a-z0-9])(edit|write|patch)([^a-z0-9]|$) ]]
+}
+
 phase_evidence_ok() {
   local kind="$1" req
   req=$(jq -r --arg f "$FROM" --arg t "$TO" '
@@ -96,12 +103,19 @@ CONTRACT_EXISTS=false
 STATE="INIT"
 if [[ -f "$CONTRACT" ]]; then
   CONTRACT_EXISTS=true
-  if contract_schema_valid; then
-    parsed=$(jq -r '.state // empty' "$CONTRACT" 2>/dev/null) || parsed=""
-    STATE="${parsed:-UNKNOWN}"
-  else
-    STATE="UNKNOWN"
-  fi
+  parsed=""
+  # post_* ops only append an audit event. No policy decision depends on the
+  # schema verdict there, so skip python/jsonschema on the completion half of
+  # every tool event. pre_* still validates and fails closed.
+  case "$OP" in
+    post_*) parsed=$(jq -r '.state // empty' "$CONTRACT" 2>/dev/null) || parsed="" ;;
+    *)
+      if contract_schema_valid; then
+        parsed=$(jq -r '.state // empty' "$CONTRACT" 2>/dev/null) || parsed=""
+      fi
+      ;;
+  esac
+  STATE="${parsed:-UNKNOWN}"
 fi
 
 ALLOWED_STATES=$(jq -r '[.state_machine.transitions[] | .from, .to] | map(select(. != "*")) | unique | join(" ")' "$RULES" 2>/dev/null || echo "")
@@ -129,7 +143,11 @@ deny() {
 # Writes that must never bypass the sanctioned transition command.
 protected_target() {
   local t="$1" resolved b
-  resolved=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$t" 2>/dev/null) || return 0
+  if command -v realpath >/dev/null 2>&1; then
+    resolved=$(realpath -m -- "$t" 2>/dev/null) || return 0
+  else
+    resolved=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$t" 2>/dev/null) || return 0
+  fi
   b=$(basename "$resolved")
   [[ "$b" == "contract.json" || "$b" == "scores.jsonl" || "$b" == "workflow-audit.jsonl" ||
     "$b" == "tool-audit.jsonl" || "$b" == "loop-state.json" || "$b" == .env* ||
@@ -165,7 +183,7 @@ protected_shell_write() {
   local cmd="$1" pattern writes=false
   [[ -n "$cmd" ]] || return 1
   case "$cmd" in
-    *'>'*|*'mv '*|*'cp '*|*'tee '*|*'sed -i'*|*'jq '*|*'rm '*|*'chmod '*|*'chown '*) writes=true ;;
+    *'>'*|*'mv '*|*'cp '*|*'tee '*|*'sed -i'*|*'rm '*|*'chmod '*|*'chown '*) writes=true ;;
   esac
   [[ "$writes" == true ]] || return 1
   pattern=$(jq -r '.enforcement.shell_policy.protected_patterns[]?' "$RULES" 2>/dev/null)
@@ -191,12 +209,10 @@ case "$OP" in
     state_valid "$STATE" || deny "state $STATE not declared in rules.json"
     # A live session (state.md present) must have a contract. Source checkouts may not.
     [[ "$CONTRACT_EXISTS" == true || ! -f "$SESSION_DIR/state.md" ]] || deny "contract missing in live session"
-    case "$TOOL" in
-      edit|write|patch)
-        [[ -n "$TARGET" ]] || deny "missing --target for $TOOL"
-        protected_target "$TARGET" && deny "protected target $TARGET (use transition.sh for contract.json)"
-        ;;
-    esac
+    if tool_is_write "$TOOL"; then
+      [[ -n "$TARGET" ]] || deny "missing --target for $TOOL"
+      protected_target "$TARGET" && deny "protected target $TARGET (use transition.sh for contract.json)"
+    fi
     allow "$TOOL ${TARGET:-}" "ALLOW tool=$TOOL state=$STATE" ;;
   post_tool_action)
     allow "$TOOL" "AUDITED tool=$TOOL" ;;

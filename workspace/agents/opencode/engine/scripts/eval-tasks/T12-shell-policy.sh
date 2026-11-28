@@ -20,6 +20,7 @@ if bash "$C" pre_shell >/dev/null 2>&1; then fail=$((fail+1)); echo "FAIL missin
 expect allow "ordinary write"        "echo hi > README.md"
 expect allow "ordinary sed"          "sed -i 's/a/b/' README.md"
 expect allow "contract read"         "cat session/contract.json"
+expect allow "jq read"               "jq -r .state session/contract.json"
 expect deny  "contract write"        "cat x.md > session/contract.json"
 expect deny  "env append"            "echo k=v >> .env"
 expect deny  "opencode overwrite"    "cp a opencode.json"

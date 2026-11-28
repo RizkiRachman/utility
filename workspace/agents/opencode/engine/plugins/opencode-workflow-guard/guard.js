@@ -3,9 +3,13 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, appendFileSync, realpathSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
-const GUARDED = new Set(["edit", "write", "patch"]);
-const DELEGATE = new Set(["task", "subagent"]);
-const SHELL = new Set(["bash", "shell", "ctx_shell"]);
+// Match on name tokens, never exact names: MCP hosts prefix tools with a
+// server name (server_ctx_shell, server_ctx_patch). No host is special-cased.
+const toolParts = (tool) => String(tool || "").toLowerCase().split(/[^a-z0-9]+/);
+const isShellTool = (tool) => toolParts(tool).some((p) => p === "bash" || p === "shell");
+const isDelegateTool = (tool) => toolParts(tool).some((p) => p === "task" || p === "subagent");
+const isGuardedTool = (tool) => toolParts(tool).some((p) => p === "edit" || p === "write" || p === "patch");
+const targetOf = (args) => args.filePath || args.file_path || args.path || args.file || args.filename || args.target || null;
 const AUDIT = "session/tool-audit.jsonl";
 const CONTROLLER = process.env.WORKFLOW_CONTROLLER || "/opt/engine/scripts/workflow-controller.sh";
 
@@ -16,14 +20,18 @@ function controllerEnv(base) {
 /** Invoke the central controller. A nonzero exit is a policy denial. */
 function callController(base, flags) {
   if (!existsSync(CONTROLLER)) return null;
-  const r = spawnSync("bash", [CONTROLLER, ...flags], {
-    env: controllerEnv(base), encoding: "utf8", timeout: 3000,
-  });
-  if (r.error || r.status !== 0) {
-    const why = (r.stderr || "").trim() || `${flags[0]} denied`;
-    throw new Error(`WorkflowPolicy: ${why} (see session/workflow-audit.jsonl)`);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const r = spawnSync("bash", [CONTROLLER, ...flags], {
+      env: controllerEnv(base), encoding: "utf8", timeout: 3000,
+    });
+    const timedOut = r.error?.code === "ETIMEDOUT";
+    if (timedOut && attempt === 0) continue; // transient scheduler stall: retry once
+    if (r.error || r.status !== 0) {
+      const why = (r.stderr || "").trim() || (timedOut ? "controller timed out" : `${flags[0]} denied`);
+      throw new Error(`WorkflowPolicy: ${why} (see session/workflow-audit.jsonl)`);
+    }
+    return r.stdout.trim();
   }
-  return r.stdout.trim();
 }
 
 function agentOf(args) {
@@ -67,13 +75,13 @@ function fallbackGate(base, tool, target) {
   try { appendFileSync(join(base, AUDIT), JSON.stringify(entry) + "\n"); } catch { /* best effort */ }
   if (state === "BLOCKED") throw new Error(`Workflow guard: contract state is BLOCKED; ${tool} disabled until user intervention.`);
   if (state === "UNKNOWN") throw new Error(`Workflow guard: contract unparseable; ${tool} blocked.`);
-  if (GUARDED.has(tool) && target && fallbackProtectedTarget(target)) {
+  if (isGuardedTool(tool) && target && fallbackProtectedTarget(target)) {
     throw new Error("Workflow guard: direct write to a protected workflow artifact blocked");
   }
 }
 
 const PROTECTED_SHELL = ["contract.json", ".env", "opencode.json", ".session/", "workflow-audit.jsonl", "tool-audit.jsonl", "scores.jsonl", "loop-state.json"];
-const WRITE_OPERATOR = /(>|>>|\bmv\b|\bcp\b|\btee\b|sed -i|\bjq\b|\brm\b|\bchmod\b|\bchown\b)/;
+const WRITE_OPERATOR = /(>|>>|\bmv\b|\bcp\b|\btee\b|sed -i|\brm\b|\bchmod\b|\bchown\b)/;
 function fallbackShellWrite(cmd) {
   return WRITE_OPERATOR.test(cmd) && PROTECTED_SHELL.some((p) => cmd.includes(p));
 }
@@ -83,7 +91,7 @@ export async function guardTool(directory, tool, args = {}) {
 
   // Shell writes to policy artifacts are denied by the central controller;
   // the inline check is a fallback when the deployed controller is absent.
-  if (SHELL.has(tool)) {
+  if (isShellTool(tool)) {
     const cmd = String(args.command || "");
     if (callController(base, ["pre_shell", "--command", cmd]) === null && fallbackShellWrite(cmd)) {
       throw new Error("WorkflowPolicy: shell write to a protected artifact is blocked; use transition.sh");
@@ -92,7 +100,7 @@ export async function guardTool(directory, tool, args = {}) {
   }
 
   // Delegation must be authorized by agent identity in the current state.
-  if (DELEGATE.has(tool)) {
+  if (isDelegateTool(tool)) {
     const agent = agentOf(args);
     if (!agent) throw new Error("WorkflowPolicy: delegation requires an agent identity");
     const attemptHash = createHash("sha256").update(stableStringify(args)).digest("hex");
@@ -100,8 +108,8 @@ export async function guardTool(directory, tool, args = {}) {
     return;
   }
 
-  if (!GUARDED.has(tool)) return;
-  const target = args.filePath || args.path || args.file || null;
+  if (!isGuardedTool(tool)) return;
+  const target = targetOf(args);
   const flags = ["pre_tool_action", "--tool", tool];
   if (target) flags.push("--target", String(target));
   if (callController(base, flags) === null) fallbackGate(base, tool, target);
@@ -109,16 +117,18 @@ export async function guardTool(directory, tool, args = {}) {
 
 export async function toolCompleted(directory, tool, args = {}, status = "completed") {
   const base = directory || process.cwd();
-  if (DELEGATE.has(tool)) {
+  if (isDelegateTool(tool)) {
     const agent = agentOf(args);
     if (agent) callController(base, ["post_delegation", "--agent", agent]);
-  } else if (SHELL.has(tool)) {
+  } else if (isShellTool(tool)) {
     if (callController(base, ["post_shell", "--command", String(args.command || "")]) === null) {
       try { appendFileSync(join(base, AUDIT), JSON.stringify({ ts: new Date().toISOString(), tool, status }) + "\n"); } catch { /* best effort */ }
     }
-  } else if (GUARDED.has(tool)) {
+  } else if (isGuardedTool(tool)) {
     if (callController(base, ["post_tool_action", "--tool", tool, "--status", status]) === null) {
       try { appendFileSync(join(base, AUDIT), JSON.stringify({ ts: new Date().toISOString(), tool, status }) + "\n"); } catch { /* best effort */ }
     }
   }
 }
+
+export { isShellTool, isDelegateTool, isGuardedTool, targetOf };
