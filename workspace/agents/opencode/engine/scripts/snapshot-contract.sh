@@ -186,3 +186,32 @@ archive_session() {
         log_fail "Failed to create archive: $archive_path"
     fi
 }
+
+# ── Dispatcher ─────────────────────────────────────────────────────────────
+main() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --help) usage ;;
+            --dry-run) DRY_RUN=true; shift ;;
+            --verbose) VERBOSE=true; shift ;;
+            --snapshot-only) SNAPSHOT_ONLY=true; shift ;;
+            --session) SESSION_LABEL="${2:-session}"; shift 2 ;;
+            --summary) SUMMARY_TEXT="${2:-Snapshot}"; shift 2 ;;
+            --archive) ARCHIVE_MODE=true; shift ;;
+            *) echo "snapshot-contract.sh: unknown arg $1" >&2; exit 2 ;;
+        esac
+    done
+
+    init_session
+    [[ -f "$CONTRACT_FILE" ]] || { log_fail "contract not found: $CONTRACT_FILE"; exit 1; }
+    local contract_state contract_score contract_hash
+    contract_state="$(jq -r '.state // "UNKNOWN"' "$CONTRACT_FILE" 2>/dev/null || printf 'UNKNOWN')"
+    contract_score="$(jq -r '.score.combined // "n/a"' "$CONTRACT_FILE" 2>/dev/null || printf 'n/a')"
+    contract_hash="$(compute_hash "$CONTRACT_FILE" || printf 'unavailable')"
+    [[ "$SNAPSHOT_ONLY" == true ]] || update_state_log "$contract_state" "$contract_score" "$contract_hash"
+    if [[ "$ARCHIVE_MODE" == true ]]; then archive_session; fi
+    log_pass "Snapshot complete ($contract_state) -> $SESSION_DIR"
+    exit "$EXIT_CODE"
+}
+
+main "$@"

@@ -42,4 +42,27 @@ jq --arg to "$TO" --arg from "$FROM" --arg stamp "$stamp" --arg ts "$stamp" '
 ' "$CONTRACT" > "${CONTRACT}.new" || exit 1
 mv "${CONTRACT}.new" "$CONTRACT" || exit 1
 bash "$SCRIPT_DIR/workflow-controller.sh" post_transition --from "$FROM" --to "$TO" || exit 1
+
+# Governance graph event: emit on every successful state mutation.
+# The emitter is best-effort (no-op when GOVERNANCE_GRAPH_ENABLED=false) and
+# never fails its caller, so graph capture cannot break a transition.
+task_id="$(jq -r ".task_id // .session.task_id // empty" "$CONTRACT" 2>/dev/null || true)"
+score="$(jq -r ".score.combined // empty" "$CONTRACT" 2>/dev/null || true)"
+phase="${TO%_SCORED}"
+extra="$(jq -nc --arg from "$FROM" --arg to "$TO" "{from:\$from,to:\$to}" 2>/dev/null || printf "%s" "{}")"
+bash "$SCRIPT_DIR/governance-event.sh" \
+    --event "$TO" \
+    --task "${task_id:-unknown}" \
+    --phase "$phase" \
+    --score "$score" \
+    --agent "$AGENT" \
+    --evidence "$EVIDENCE" \
+    --extra "$extra" \
+    >/dev/null 2>&1 || true
+
+# Drain the spool to FalkorDB best-effort after the state is committed.
+# A disabled graph or unreachable DB must never fail the transition.
+if [[ "${GOVERNANCE_GRAPH_ENABLED:-true}" == "true" ]]; then
+    bash "$SCRIPT_DIR/governance-graph-ingest.sh" >/dev/null 2>&1 || true
+fi
 echo "state: $FROM -> $TO"
