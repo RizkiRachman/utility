@@ -1,3 +1,5 @@
 # resolved by populate-preinstall.sh --update-digests (maintainer run with network)
 # one line per store artifact: "<sha256>  <store-relative-path>"
 # recorded digests are enforced on every populate run and by --verify-digests
+# x86_64-unknown-linux-gnu build, ast-grep 0.51.3; zip sha256 22803eb0c5bf83164fb7fd76d4721d355ecf0c8466ef47342c1ec7d80897ca47 cross-verified against GitHub API asset digest at pin time 2026-11-28
+9abc33cdb0e75c909bead3cefb94deccb1e4d71751392ff5f5bff7d1d09d6861  bin/ast-grep

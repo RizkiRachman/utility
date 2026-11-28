@@ -847,9 +847,13 @@ fi
 # store lacks it. Release zips carry BOTH an `sg` compat shim and the real
 # `ast-grep` binary; only the ast-grep member is extracted and stored, NEVER
 # as `sg` (coreutils ships /usr/bin/sg; a collision would shadow it).
-# TODO(sha256): pin digest at next populate run - the ast-grep release
-# publishes no checksum assets, so provenance rides the digests.sha256 gate
-# (recorded by --update-digests, enforced on every later run). Never fabricate.
+# Digest pinned: pre-install/digests.sha256 -> bin/ast-grep. The release
+# publishes no checksum FILES; provenance = zip sha256
+# 22803eb0c5bf83164fb7fd76d4721d355ecf0c8466ef47342c1ec7d80897ca47,
+# cross-verified against the GitHub API asset digest at pin time (2026-11-28).
+# Re-pin via --update-digests on version bump or store-arch change (the pin is
+# the x86_64-unknown-linux-gnu build; populate prunes the store to host arch).
+# Never fabricate.
 fetch_ast_grep() {
   case "$(uname -m)" in
     x86_64)  AG_TARGET=x86_64-unknown-linux-gnu ;;
