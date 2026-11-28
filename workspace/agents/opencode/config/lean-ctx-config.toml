@@ -19,9 +19,10 @@
 #
 # --- Baseline general commands -------------------------------------------
 # docker/ss: sandbox container and port inspection (compose stack management).
+# ast-grep: structural AST pattern search CLI (code-shape questions).
 # sh/bash/sudo: interpreters - see the interpreter security note at the bottom.
 shell_allowlist_extra = [
-  "docker", "sh", "bash", "sudo", "ss",
+  "docker", "sh", "bash", "sudo", "ss", "ast-grep",
 
   # python3: scratch patchers under /tmp/opencode/*.py (printf-written, py_compiled before run).
   # Strictly narrower than sh/bash above; pattern guards (-c blocks, word-parens) still apply.

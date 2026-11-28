@@ -53,8 +53,8 @@ corporate MITM proxies are trusted. Resolved versions land in
 | Section | Content | Consumed by |
 |---|---|---|
 | `npm/` | npm tarballs (opencode CLI platform packages, MCP servers, lean-ctx deps) | Dockerfile npm tiers |
-| `pip/` | pip wheels (MCP Python SDK, fetch server, cocoindex-code, ML closure) | Dockerfile pip tiers |
-| `bin/` | standalone binaries (lean-ctx, firecrawl-cli) | Dockerfile bin tiers |
+| `pip/` | pip wheels (MCP Python SDK, fetch server) | Dockerfile pip tiers |
+| `bin/` | standalone binaries (lean-ctx, firecrawl-cli, ast-grep) | Dockerfile bin tiers |
 | `apt/` | `.deb` pool | Dockerfile apt tier |
 | `git/` | git repo mirrors | Dockerfile git tiers |
 | `dist/` | platform dist tarballs | Dockerfile dist tiers |
@@ -130,9 +130,8 @@ full list and rationale):
 | `CONTEXT7_VERSION` | resolve latest | `@upstash/context7-mcp` pin |
 | `LEAN_CTX_VERSION` | resolve latest | lean-ctx binary pin |
 | `MCP_VERSION` / `MCP_SERVER_FETCH_VERSION` | resolve latest | MCP Python SDK / fetch server pins |
-| `COCOINDEX_CODE_VERSION` | resolve latest | `ccc` wheel pin |
+| `AST_GREP_VERSION` | resolve latest | ast-grep binary pin |
 | `ZOD_VERSION` / `FIRECRAWL_CLI_VERSION` | resolve latest | zod / firecrawl-cli pins |
-| `REFRESH_ML` | unset | Set to `1` to force a refresh of the torch/transformers closure |
 | `CERTS_GATE_REQUIRED` | `1` | Set to `0` to continue populate despite a non-allowlisted cert (not recommended) |
 
 Empty version vars mean "resolve latest below, after the CA-trust block";

@@ -169,6 +169,8 @@ Five servers are defined in `config/opencode.json`; every baked server must answ
 
 `@firecrawl/opencode` ships as a **plugin**, not an MCP server (FalkorDB holds the fifth MCP seat): vendored at `engine/plugins/opencode-firecrawl`, keyless `firecrawl_developer_search`, ask-gated `firecrawl_alexandria`, keyed scrape/crawl through `firecrawl-cli`.
 
+CLI tools baked beside the MCP servers: `ast-grep` (structural AST pattern search for code-shape questions; installed from the offline store, pinned in `pre-install/versions.lock`, allowed through the baked lean-ctx shell allowlist) and `firecrawl-cli` (keyed scrape/crawl companion of the plugin).
+
 The image ships no demo MCP servers: everything installed is registered in `config/opencode.json`; to add a server, install it, register it there, and restart.
 
 MCP wiring:

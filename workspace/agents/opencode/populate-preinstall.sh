@@ -18,8 +18,7 @@ grep -q "$(printf '\r')" "$0" 2>/dev/null && { tr -d '\r' < "$0" > "${0%/*}/.$(b
 # forever. The opencode platform tarballs are additionally pruned by ARCH:
 # mixed-platform stores (arm64 files on an x64 host) cause npm EBADPLATFORM at
 # build time. Dependency closures are never pruned - add-only, see the
-# version-aware guard header. The torch/transformers closure keeps
-# skip-if-present (huge, slow); REFRESH_ML=1 forces a refresh.
+# version-aware guard header.
 # Root is required only for the apt section. Sections: npm pip bin apt git dist.
 #
 # Cert refresh: the detector runs on EVERY run before CA trust, so rotated
@@ -51,7 +50,7 @@ CONTEXT7_VERSION="${CONTEXT7_VERSION:-}"
 LEAN_CTX_VERSION="${LEAN_CTX_VERSION:-}"
 MCP_VERSION="${MCP_VERSION:-}"
 MCP_SERVER_FETCH_VERSION="${MCP_SERVER_FETCH_VERSION:-}"
-COCOINDEX_CODE_VERSION="${COCOINDEX_CODE_VERSION:-}"
+AST_GREP_VERSION="${AST_GREP_VERSION:-}"
 # @firecrawl/opencode runtime dependency + CLI companion (offline store pins)
 ZOD_VERSION="${ZOD_VERSION:-}"
 FIRECRAWL_CLI_VERSION="${FIRECRAWL_CLI_VERSION:-}"
@@ -287,8 +286,8 @@ fi
 # into the system trust store, so pip downloads fail SSL on an inspected host
 # even though curl/update-ca-certificates succeeded. The system bundle is
 # rebuilt by update-ca-certificates from certs/*.crt and carries the zscaler
-# chain; exporting it covers the torch/transformers CPU wheel downloads from
-# download.pytorch.org (inspected by zscaler, unlike pypi.org). Inherited env
+# chain; exporting it covers the PyPI and npm downloads on inspected hosts.
+# Inherited env
 # values win (existing pins stay honored). These exports hold for everything
 # below in this shell: the version resolvers and every pip call site.
 # --------------------------------------------------------------------------
@@ -453,10 +452,10 @@ else
   echo "==> MCP_SERVER_FETCH_VERSION=$MCP_SERVER_FETCH_VERSION (env pin)"
 fi
 
-if [ -z "$COCOINDEX_CODE_VERSION" ]; then
-  resolve_field COCOINDEX_CODE_VERSION cocoindex-code 0.2.43 latest_pypi cocoindex-code
+if [ -z "$AST_GREP_VERSION" ]; then
+  resolve_field AST_GREP_VERSION ast-grep 0.51.3 latest_github ast-grep
 else
-  echo "==> COCOINDEX_CODE_VERSION=$COCOINDEX_CODE_VERSION (env pin)"
+  echo "==> AST_GREP_VERSION=$AST_GREP_VERSION (env pin)"
 fi
 
 if [ -z "$ZOD_VERSION" ]; then
@@ -517,7 +516,7 @@ fetch_if_missing() {
 # version-aware store guards
 #
 # Presence globs alone are wrong in both directions: an artifact already in the
-# store never updates (cocoindex-code stuck on its first version forever), and
+# store never updates (mcp-server-fetch stuck on its first version forever), and
 # after a bump the old file LINGERS next to the new one - which breaks the
 # Dockerfile's store tiers, because they are single-match globs
 # (`npm install -g /pi/npm/@opencode+cli-*.tgz` fails with two versions on
@@ -543,8 +542,7 @@ store_version_of() { # store_version_of <file-path>
 # Version of a WHEEL filename. Wheel naming is
 # <pkg>-<version>-<python>-<abi>-<platform>.whl, so the version is the SECOND
 # dash field - NOT the last (dashes inside the version's abi/platform tail, and
-# multi-dash package names like cocoindex_code, both defeat store_version_of):
-#   cocoindex_code-0.2.43-py3-none-any.whl          -> 0.2.43
+# multi-dash package names like mcp_server_fetch, both defeat store_version_of):
 #   aiohttp-3.14.5-cp311-cp311-manylinux...whl      -> 3.14.5
 wheel_version_of() { # wheel_version_of <file-path>
   base=${1##*/}
@@ -769,106 +767,8 @@ else
 fi
 
 # Each store artifact has its OWN guard, so a partially-filled store self-heals
-# on re-run: a store holding only the cocoindex-code base wheel no longer blocks
-# the cpu embedding deps fetch (and vice versa).
-
-# The cocoindex-code base wheel. Same pip preference as fetch_pip_wheels:
-# fetch venv's pip first.
-fetch_cocoindex_base_wheel() {
-  if [ -x /opt/pipx/venvs/mcp-server-fetch/bin/pip ]; then
-    /opt/pipx/venvs/mcp-server-fetch/bin/pip download --dest "$STORE_DIR/pip" \
-      "cocoindex-code==${COCOINDEX_CODE_VERSION}"
-  else
-    python3 -m pip download --dest "$STORE_DIR/pip" \
-      "cocoindex-code==${COCOINDEX_CODE_VERSION}"
-  fi
-}
-
-# The local-embedding closure (torch, transformers, sentence-transformers).
-# The embedding deps come from the CPU torch index
-# (download.pytorch.org/whl/cpu), NOT plain PyPI: on Linux PyPI's torch is the
-# CUDA build and drags in the whole nvidia-* wheel set (~2-3 GB). The CPU wheel
-# carries a +cpu local version, which sorts higher than the plain PyPI version,
-# so pip prefers it once the extra index is in play. Store grows by roughly
-# 300-400 MB total on the first run (CPU torch ~200 MB + NLP deps), by design
-# (keyless offline embeddings).
-#
-# This closure KEEPS skip-if-present (unlike the version-aware artifacts
-# above): it is hundreds of MB and torch's patch releases would re-download it
-# on every populate run. Refresh it deliberately:
-#   - delete pre-install/pip/torch-*.whl, or
-#   - REFRESH_ML=1 sh populate-preinstall.sh
-# REFRESH_ML=1 also prunes the previous torch/transformers/sentence-transformers
-# wheels after the fetch. Those three are the only pruned names - their
-# transitive closure (nvidia-*, huggingface_hub, tokenizers, ...) stays add-only
-# like every other dependency wheel.
-REFRESH_ML="${REFRESH_ML:-0}"
-
-# True when at least one torch wheel is already in the store.
-cpu_embedding_wheels_present() {
-  for f in "$STORE_DIR"/pip/torch-*.whl; do
-    if [ -e "$f" ]; then
-      return 0
-    fi
-  done
-  return 1
-}
-
-# Same pip preference as fetch_pip_wheels: fetch venv's pip first.
-fetch_cpu_embedding_wheels() {
-  if [ -x /opt/pipx/venvs/mcp-server-fetch/bin/pip ]; then
-    /opt/pipx/venvs/mcp-server-fetch/bin/pip download --dest "$STORE_DIR/pip" \
-      --extra-index-url https://download.pytorch.org/whl/cpu \
-      torch transformers sentence-transformers
-  else
-    python3 -m pip download --dest "$STORE_DIR/pip" \
-      --extra-index-url https://download.pytorch.org/whl/cpu \
-      torch transformers sentence-transformers
-  fi
-}
-
-echo "==> python wheels (cocoindex-code base)"
-if same_wheel_version_in_store "$STORE_DIR/pip/cocoindex_code-*.whl" \
-    "$COCOINDEX_CODE_VERSION"; then
-  # Prune on the skip path too (see the mcp_server_fetch block above): the
-  # Dockerfile consumes a single-match cocoindex_code-*.whl glob.
-  prune_old_wheel_versions "$STORE_DIR/pip/cocoindex_code-*.whl" \
-    "$COCOINDEX_CODE_VERSION"
-  mark_skipped "cocoindex-code==${COCOINDEX_CODE_VERSION} (same version in store)"
-else
-  fetch_cocoindex_base_wheel
-  prune_old_wheel_versions "$STORE_DIR/pip/cocoindex_code-*.whl" \
-    "$COCOINDEX_CODE_VERSION"
-  mark_added "cocoindex-code base wheel: cocoindex-code==${COCOINDEX_CODE_VERSION}"
-fi
-
-# Prune one ML name to its newest stored wheel. Called only after a fetch, but
-# the glob is still checked: with `set -u` a bare `ls` on no match would abort.
-prune_ml_wheels() { # prune_ml_wheels <name>   e.g. torch
-  _newest=
-  for _f in "$STORE_DIR/pip/$1-"*.whl; do
-    [ -e "$_f" ] || continue
-    _newest=$_f
-  done
-  if [ -n "$_newest" ]; then
-    prune_old_wheel_versions "$STORE_DIR/pip/$1-*.whl" "$(wheel_version_of "$_newest")"
-  fi
-}
-
-echo "==> python wheels (cpu embedding deps: torch/transformers/sentence-transformers)"
-if [ "$REFRESH_ML" = "1" ]; then
-  echo "  REFRESH_ML=1 - refetching the ML closure"
-  fetch_cpu_embedding_wheels
-  prune_ml_wheels torch
-  prune_ml_wheels transformers
-  prune_ml_wheels sentence_transformers
-  mark_added "cpu embedding deps: torch+transformers+sentence-transformers (REFRESH_ML=1)"
-elif cpu_embedding_wheels_present; then
-  mark_skipped "cpu embedding deps (already in store - REFRESH_ML=1 to refresh)"
-else
-  fetch_cpu_embedding_wheels
-  mark_added "cpu embedding deps: torch+transformers+sentence-transformers (from download.pytorch.org/whl/cpu)"
-fi
+# on re-run: a store missing one wheel no longer blocks the others (see the
+# mcp_server_fetch guard above).
 
 # --------------------------------------------------------------------------
 # bin - release binaries.
@@ -940,6 +840,46 @@ elif fetch_docker_cli; then
   mark_added "docker-cli ${DOCKER_CLI_VERSION}"
 else
   echo "WARN: docker CLI fetch FAILED - builds fall back to network" >&2
+fi
+
+# ast-grep structural AST search CLI. Store-first: the image build installs
+# bin/ast-grep when present and only falls back to the network tier when the
+# store lacks it. Release zips carry BOTH an `sg` compat shim and the real
+# `ast-grep` binary; only the ast-grep member is extracted and stored, NEVER
+# as `sg` (coreutils ships /usr/bin/sg; a collision would shadow it).
+# TODO(sha256): pin digest at next populate run - the ast-grep release
+# publishes no checksum assets, so provenance rides the digests.sha256 gate
+# (recorded by --update-digests, enforced on every later run). Never fabricate.
+fetch_ast_grep() {
+  case "$(uname -m)" in
+    x86_64)  AG_TARGET=x86_64-unknown-linux-gnu ;;
+    aarch64) AG_TARGET=aarch64-unknown-linux-gnu ;;
+    *) echo "WARN: unknown arch $(uname -m) for ast-grep" >&2; return 1 ;;
+  esac
+  curl -fsSL "https://github.com/ast-grep/ast-grep/releases/download/${AST_GREP_VERSION}/app-${AG_TARGET}.zip" \
+    -o "$STORE_DIR/bin/.ast-grep.zip" || return 1
+  # python3's zipfile extracts exactly the named member: no unzip dependency,
+  # and the `sg` shim inside the zip never touches the store.
+  rm -rf "$STORE_DIR/bin/.ast-grep-tmp"
+  mkdir -p "$STORE_DIR/bin/.ast-grep-tmp"
+  python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extract("ast-grep", sys.argv[2])' \
+    "$STORE_DIR/bin/.ast-grep.zip" "$STORE_DIR/bin/.ast-grep-tmp" || return 1
+  install -m 0755 "$STORE_DIR/bin/.ast-grep-tmp/ast-grep" "$STORE_DIR/bin/ast-grep" || return 1
+  rm -rf "$STORE_DIR/bin/.ast-grep-tmp" "$STORE_DIR/bin/.ast-grep.zip"
+  # Wrong-arch guard: the binary must be runnable on this host, same check
+  # the build performs on the store copy before trusting it.
+  "$STORE_DIR/bin/ast-grep" --version >/dev/null 2>&1 || return 1
+  test -x "$STORE_DIR/bin/ast-grep"
+}
+
+echo "==> ast-grep binary"
+if [ -e "$STORE_DIR/bin/ast-grep" ]; then
+  mark_skipped "ast-grep ${AST_GREP_VERSION} (binary already in store)"
+elif fetch_ast_grep; then
+  digest_check "$STORE_DIR/bin/ast-grep"
+  mark_added "ast-grep ${AST_GREP_VERSION}"
+else
+  echo "WARN: ast-grep fetch FAILED - builds fall back to network" >&2
 fi
 
 TERRAFORM_VERSION="${TERRAFORM_VERSION:-1.11.4}"  # matches the Dockerfile ARG
@@ -1094,7 +1034,7 @@ apt_lock_pins=$(awk '$2 ~ /^apt\// && $1 !~ /^#/ { n++ } END { print n+0 }' "$DI
   printf '%s\n' "lean-ctx=$LEAN_CTX_VERSION"
   printf '%s\n' "mcp=$MCP_VERSION"
   printf '%s\n' "mcp-server-fetch=$MCP_SERVER_FETCH_VERSION"
-  printf '%s\n' "cocoindex-code=$COCOINDEX_CODE_VERSION"
+  printf '%s\n' "ast-grep=$AST_GREP_VERSION"
   printf '%s\n' "zod=$ZOD_VERSION"
   printf '%s\n' "firecrawl-cli=$FIRECRAWL_CLI_VERSION"
   printf '%s\n' "docker-cli=$DOCKER_CLI_VERSION"

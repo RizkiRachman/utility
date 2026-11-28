@@ -223,36 +223,6 @@ services:
       retries: 12
       start_period: 10s
 
-  # Staged container path for cocoindex-code. Opt-in via --profile ccc; the
-  # server is not registered in config/opencode.json by default.
-  #   docker compose --profile ccc up -d --build cocoindex-code
-  cocoindex-code:
-    container_name: cocoindex-code
-    image: ccc-mcpserver:local
-    labels:
-      bpg.group: infra
-      bpg.type: ai
-    init: true
-    mem_limit: 1g
-    cpus: 1
-    restart: unless-stopped
-    profiles: ["ccc"]
-    build:
-      context: ai/mcp/cocoindex-code
-    working_dir: /home/node/workspace
-    environment:
-      HOME: /home/node
-    volumes:
-      - ${CCC_WORKSPACE_DIR:-./workspace}:/home/node/workspace
-      - ${CCC_STATE_DIR:-/home/node/.cocoindex_code}:/home/node/.cocoindex_code
-      - ${CCC_MODEL_CACHE_DIR:-/home/node/.cache/huggingface}:/home/node/.cache/huggingface
-    healthcheck:
-      test: ["CMD", "ccc", "daemon", "status"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
   kestra-postgres:
     container_name: kestra-postgres
     image: postgres:16-alpine

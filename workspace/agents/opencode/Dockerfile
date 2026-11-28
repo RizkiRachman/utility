@@ -19,9 +19,10 @@ ARG LEAN_CTX_VERSION=""
 ARG CONTEXT7_VERSION=""
 ARG MCP_VERSION=""
 ARG MCP_SERVER_FETCH_VERSION=""
-# AST-aware semantic code index (binary: ccc); [full] extra bundles local
-# sentence-transformers embeddings so no embedding API key is needed.
-ARG COCOINDEX_CODE_VERSION=""
+# Structural AST search CLI (binary: ast-grep). Release zips ship an `sg`
+# compat shim next to the real binary; only the `ast-grep` member is baked,
+# never the shim (coreutils owns /usr/bin/sg).
+ARG AST_GREP_VERSION=""
 # Vendored first-party plugin (@firecrawl/opencode) + its runtime dep
 ARG ZOD_VERSION=""
 ARG FIRECRAWL_CLI_VERSION=""
@@ -78,8 +79,7 @@ RUN --mount=from=preinstall,src=/,dst=/pi,ro \
 # Configure Node.js and Python to trust the corporate CA.
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt \
     SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
-    PIP_CERT=/etc/ssl/certs/ca-certificates.crt \
-    COCOINDEX_DISABLE_USAGE_TRACKING=1
+    PIP_CERT=/etc/ssl/certs/ca-certificates.crt
 
 # Locale + terminal defaults so the TUI and ncurses apps render correctly in
 # `docker exec -it` sessions (which inherit the container env, not the host's).
@@ -216,43 +216,42 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
     npm install --prefix "$JS_DIR" --no-audit --no-fund; \
     test -d "$JS_DIR/node_modules/@mozilla/readability"
 
-# Install CocoIndex Code (pipx; wheel-first from the offline store).
-# Baked offline-first like the npm/pipx blocks above: the `ccc` binary IS the
-# MCP server, so nothing extra needs to be baked into the image. The [full]
-# extra pulls torch + transformers for local sentence-transformers embeddings,
-# which makes this layer heavy — accepted deliberately over requiring a cloud
-# embedding API key at runtime, matching the offline-first house style.
-# The embedding model itself downloads from HuggingFace on the FIRST runtime
-# index (see supports/cocoindex/README.md), so build stays network-light.
-# The store wheel carries no [full] extras, so the embedding deps are injected
-# with a three-tier fallback: store wheels -> network -> warn-only. Only a
-# truly air-gapped build ends in the WARN; ccc still works as a CLI there but
-# without local embeddings.
-# The network tier resolves embeddings to CPU-only torch (~200 MB) via the
-# download.pytorch.org/whl/cpu extra index, NOT the PyPI CUDA closure
-# (~2-3 GB of nvidia-* wheels). The CPU wheel carries a +cpu local version,
-# which sorts higher than the plain PyPI version, so pip prefers it.
-# `ccc init` bakes the global settings file: without it `ccc mcp` exits code 1
-# on first connect (opencode surfaces that as a 20s initialize timeout).
-RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
-    --mount=from=preinstall,src=/,dst=/pi,ro \
+# ast-grep: structural AST pattern search CLI. Store-first like the other
+# binaries: populate-preinstall.sh bakes bin/ast-grep (extracted from the
+# release zip, which carries BOTH an `sg` compat shim and the real
+# `ast-grep` binary - only the ast-grep member is installed, NEVER as `sg`:
+# coreutils ships /usr/bin/sg and a collision would shadow it). The network
+# tier below is the fallback: it resolves the latest release tag at build
+# time; AST_GREP_VERSION pins it and doubles as the last-resort fallback when
+# the GitHub API is unreachable (verified working tag, never a guess).
+RUN --mount=from=preinstall,src=/,dst=/pi,ro \
     set -eux; \
-    if ls /pi/pip/cocoindex_code-*.whl >/dev/null 2>&1; then \
-      PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx install /pi/pip/cocoindex_code-*.whl; \
-      if ! PIP_FIND_LINKS=/pi/pip PIP_NO_INDEX=true pipx inject cocoindex-code torch transformers sentence-transformers; then \
-        echo "store lacks usable embedding wheels for this platform - trying network" >&2; \
-        if ! PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu pipx inject cocoindex-code torch transformers sentence-transformers; then \
-          echo "WARN: embedding deps unavailable (store miss + no network); ccc index will need network at runtime" >&2; \
-        fi; \
-      fi; \
-    else \
-      if [ -n "${COCOINDEX_CODE_VERSION}" ]; then CCK="==${COCOINDEX_CODE_VERSION}"; else CCK=""; fi; \
-      pipx install "cocoindex-code[full]${CCK}"; \
+    store_ok=false; \
+    if [ -f /pi/bin/ast-grep ]; then \
+      install -m 0755 /pi/bin/ast-grep /usr/local/bin/ast-grep; \
+      ast-grep --version >/dev/null 2>&1 && store_ok=true || rm -f /usr/local/bin/ast-grep; \
     fi; \
-    command -v ccc; \
-    ccc --help >/dev/null; \
-    HOME=/home/node ccc init && test -f /home/node/.cocoindex_code/global_settings.yml || \
-      echo "WARN: ccc global settings not baked - run ccc init at runtime before starting opencode" >&2
+    if [ "$store_ok" != true ]; then \
+      echo "store ast-grep missing or wrong-arch - fetching from network"; \
+      AG_LATEST=$(curl -fsSL https://api.github.com/repos/ast-grep/ast-grep/releases/latest 2>/dev/null \
+        | sed -n 's/.*"tag_name": "\([^"]*\)".*/\1/p' | head -1); \
+      if [ -n "${AG_LATEST}" ]; then \
+        AST_GREP_VERSION="${AG_LATEST}"; \
+      elif [ -z "${AST_GREP_VERSION}" ]; then \
+        AST_GREP_VERSION="0.51.3"; \
+      fi; \
+      echo "ast-grep: ${AST_GREP_VERSION}"; \
+      case "${TARGETARCH}" in \
+        arm64) AG_TARGET=aarch64-unknown-linux-gnu ;; \
+        amd64) AG_TARGET=x86_64-unknown-linux-gnu ;; \
+        *) AG_TARGET=x86_64-unknown-linux-gnu ;; \
+      esac; \
+      curl -fsSL "https://github.com/ast-grep/ast-grep/releases/download/${AST_GREP_VERSION}/app-${AG_TARGET}.zip" -o /tmp/ast-grep.zip; \
+      python3 -c 'import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extract("ast-grep", sys.argv[2])' /tmp/ast-grep.zip /tmp; \
+      install -m 0755 /tmp/ast-grep /usr/local/bin/ast-grep; \
+      rm -f /tmp/ast-grep /tmp/ast-grep.zip; \
+    fi; \
+    ast-grep --version
 
 # Prepare OpenCode configuration and persistent-data directories.
 RUN mkdir -p \
