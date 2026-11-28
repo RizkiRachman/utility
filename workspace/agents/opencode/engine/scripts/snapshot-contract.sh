@@ -155,6 +155,20 @@ update_state_log() {
     printf '| %s | %s | %s | %s | %s | %s |\n' \
         "$(get_timestamp)" "$SESSION_LABEL" "$state" "$score" "${hash:0:12}" "$SUMMARY_TEXT" >> "$state_file"
     log_pass "Appended transition to $state_file"
+
+    # Governance graph event (best-effort; never changes this script's exit code).
+    # Emits one of PLAN_SCORED / EXECUTE_SCORED / REVIEW_SCORED / BLOCKED /
+    # COMPLETE as a TRANSITION edge in the FalkorDB governance graph.
+    local task_id
+    task_id="$(jq -r '.task_id // .session.task_id // empty' "$CONTRACT_FILE" 2>/dev/null || true)"
+    bash "$(dirname "${BASH_SOURCE[0]}")/governance-event.sh" \
+        --event "$state" \
+        --task "${task_id:-$SESSION_LABEL}" \
+        --phase "${state%_SCORED}" \
+        --score "$score" \
+        --evidence "state:${state}" \
+        --extra "$(jq -nc --arg summary "$SUMMARY_TEXT" --arg hash "${hash:0:12}" '{summary:$summary,hash:$hash}' 2>/dev/null || printf '{}')" \
+        >/dev/null 2>&1 || true
 }
 
 # Optional tarball archive of session/

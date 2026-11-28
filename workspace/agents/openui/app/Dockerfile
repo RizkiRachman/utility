@@ -1,4 +1,4 @@
-# OpenUI generative-UI app (thesysdev scaffold, Next.js standalone) - model: sumopod GLM
+# OpenUI generative-UI app (thesysdev scaffold, Next.js standalone) - model: GLM via OpenRouter
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./

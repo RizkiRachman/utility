@@ -7,13 +7,13 @@ Self-hosted generative UI service for the opencode workspace. A containerized Op
 <p>
   <img alt="type: compose service" src="https://img.shields.io/badge/type-compose%20service-2496ED">
   <img alt="bridge: stdio MCP, zero deps" src="https://img.shields.io/badge/bridge-stdio%20MCP%2C%20zero%20deps-1F883D">
-  <img alt="provider: sumopod GLM" src="https://img.shields.io/badge/provider-sumopod%20GLM-4a8ad6">
+  <img alt="provider: OpenRouter GLM" src="https://img.shields.io/badge/provider-OpenRouter%20GLM-4a8ad6">
 </p>
 
-Built from the official [thesysdev/openui](https://github.com/thesysdev/openui) scaffold (`@openuidev/cli create`, Next.js plus LangGraph plus `@openuidev/server`), patched to call sumopod GLM directly instead of the hosted Thesys gateway.
+Built from the official [thesysdev/openui](https://github.com/thesysdev/openui) scaffold (`@openuidev/cli create`, Next.js plus LangGraph plus `@openuidev/server`), patched to call GLM via OpenRouter directly instead of the hosted Thesys gateway.
 
 ```text
-opencode --MCP(stdio)--> mcp-bridge.mjs --HTTP--> openui:3000/api/chat --> sumopod GLM
+opencode --MCP(stdio)--> mcp-bridge.mjs --HTTP--> openui:3000/api/chat --> OpenRouter GLM
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -23,7 +23,7 @@ opencode --MCP(stdio)--> mcp-bridge.mjs --HTTP--> openui:3000/api/chat --> sumop
 | Path | Purpose |
 |------|---------|
 | `app/` | Scaffolded app, CLI v0.6.3, Next.js 16 plus LangGraph |
-| `app/src/agent.ts` | Model provider: `SUMOPOD_API_KEY` and `SUMOPOD_BASE_URL` via ChatOpenAI. Key read lazily so image builds need no secrets. Thesys cloud-history middleware removed, in-memory history |
+| `app/src/agent.ts` | Model provider: `OPENROUTER_API_KEY` and `OPENROUTER_BASE_URL` via ChatOpenAI. Key read lazily so image builds need no secrets. Thesys cloud-history middleware removed, in-memory history |
 | `app/src/lib/models.tsx` | Model catalog: `glm-5.3-flash`, single entry and also the default |
 | `app/src/app/layout.tsx` | System font stack, no Google Fonts fetch at build, so image builds stay hermetic |
 | `app/src/components/cloud-chat.tsx` | Cloud storage removed, `AgentInterface` runs on in-memory history with no Thesys and no `/api/frontend-token` |
@@ -39,7 +39,7 @@ opencode --MCP(stdio)--> mcp-bridge.mjs --HTTP--> openui:3000/api/chat --> sumop
 ## Quick start (standalone)
 
 ```bash
-cp .env.example .env                     # fill SUMOPOD_API_KEY
+cp .env.example .env                     # fill OPENROUTER_API_KEY
 docker compose -f docker-compose.example.yaml up -d --build
 ```
 
@@ -61,9 +61,9 @@ The service joins the `utility_default` network, so the opencode container resol
 
 | Variable | Used by | Required | Default | Description |
 |----------|---------|----------|---------|-------------|
-| `SUMOPOD_API_KEY` | app | yes, runtime | none | Provider key. Read lazily so builds need no secret |
-| `SUMOPOD_BASE_URL` | app | no | `https://ai.sumopod.com/v1` | OpenAI-compatible provider base |
-| `SUMOPOD_BASE_MODEL` | app | no | `glm-5.3-flash` | Model id in `.env.example` |
+| `OPENROUTER_API_KEY` | app | yes, runtime | none | OpenRouter key. Read lazily so builds need no secret |
+| `OPENROUTER_BASE_URL` | app | no | `https://openrouter.ai/api/v1` | OpenAI-compatible provider base |
+| `OPENROUTER_BASE_MODEL` | app | no | `glm-5.3-flash` | Model id in `.env.example` |
 | `OPENUI_URL` | bridge | no | `http://openui:3000` | App base URL the bridge calls |
 | `OPENUI_MODEL` | bridge | no | `glm-5.3-flash` | Model sent in the chat request |
 | `OPENUI_PUBLIC_URL` | bridge | no | `http://localhost:8102` | URL `preview_url` returns |
@@ -135,7 +135,7 @@ With no cert in `certs/` the image still builds and runs fine on networks that d
 ```bash
 cd app
 npm ci && npm run generate && npm run build
-SUMOPOD_API_KEY=... npm start            # or PORT=3100 npm start
+OPENROUTER_API_KEY=... npm start         # or PORT=3100 npm start
 ```
 
 `/home/node/workspace` is a Windows bind mount, so `npm ci` there is extremely slow. Copy the app to container-local storage first:
@@ -148,7 +148,7 @@ tar cf - --exclude=node_modules . | (cd /home/node/openui-run && tar xf -)
 
 ## Status
 
-- [x] Scaffold patched: sumopod provider, `glm-5.3-flash` catalog, hermetic build
+- [x] Scaffold patched: OpenRouter provider, `glm-5.3-flash` catalog, hermetic build
 - [x] MCP bridge: handshake, `tools/list`, `generate_ui` verified
 - [x] E2E local: bridge to app to GLM 5.3, OpenUI Lang document returned
 - [x] Image `openui-genui:local` (460 MB) built, standalone server boots, root returns 200

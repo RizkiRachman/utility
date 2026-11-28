@@ -25,7 +25,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   {
     id: "glm-5.3-flash",
     name: "GLM 5.3 Flash",
-    group: "sumopod",
+    group: "OpenRouter",
     logo: logo.openai,
   },
 ];

@@ -33,10 +33,10 @@ const CloudAgentState = new StateSchema({
 function cloudModel(model: string) {
   return new ChatOpenAI({
     model,
-    apiKey: envOr("SUMOPOD_API_KEY", "unset-at-build-time"),  // real key applied per-request by selectedModel middleware
+    apiKey: envOr("OPENROUTER_API_KEY", "unset-at-build-time"),  // real key applied per-request by selectedModel middleware
     streaming: true,
     useResponsesApi: false,
-    configuration: { baseURL: envOr("SUMOPOD_BASE_URL", "https://ai.sumopod.com/v1") },
+    configuration: { baseURL: envOr("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1") },
   });
 }
 
