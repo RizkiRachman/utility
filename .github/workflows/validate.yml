@@ -196,6 +196,13 @@ jobs:
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T1-validate-contract.sh
 
+      - name: Governance and gate regressions (blocking, read-only)
+        working-directory: workspace/agents/opencode
+        run: |
+          bash engine/scripts/tests/test-transitions.sh
+          bash engine/scripts/tests/test-gate9f.sh
+          bash engine/scripts/tests/test-governance.sh
+
       - name: Contract persistence (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T21-contract-persistence.sh
