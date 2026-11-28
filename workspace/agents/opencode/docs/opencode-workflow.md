@@ -38,10 +38,10 @@ flowchart TB
         R1["opencode engine<br/>17 agents / 46 skills"]
         R1 --> R2["lean-ctx"]
         R1 --> R3["context7"]
-        R1 --> R4["cocoindex-code / ccc<br/>AST semantic search"]
-        R1 --> R5["rag"]
-        R1 --> R6["firecrawl plugin"]
-        R1 --> R7["openui bridge"]
+        R1 --> R4["rag"]
+        R1 --> R5["firecrawl plugin"]
+        R1 --> EV["governance-event.sh<br/>spool per transition"]
+        EV -.-> FK["falkordb<br/>governance graph"]
     end
 
     P5 --> S1

@@ -86,11 +86,6 @@
       "effect": "allow"
     },
     {
-      "action": "openui_*",
-      "resource": "*",
-      "effect": "allow"
-    },
-    {
       "action": "fetch",
       "resource": "*",
       "effect": "allow"
@@ -129,23 +124,13 @@
       "action": "edit",
       "resource": "**/.env*",
       "effect": "deny"
-    },
-    {
-      "action": "cocoindex-code_*",
-      "resource": "*",
-      "effect": "allow"
-    },
-    {
-      "action": "cocoindex_*",
-      "resource": "*",
-      "effect": "allow"
     }
   ],
   "plugins": [
     "/opt/engine/plugins/opencode-firecrawl",
     "/opt/engine/plugins/opencode-workflow-guard"
   ],
-    "providers": {
+  "providers": {
     "sumopod": {
       "name": "SumoPod",
       "package": "@opencode/ai/providers/openai-compatible",
@@ -478,7 +463,7 @@
     "software-architect": {
       "description": "Strategic architecture advisor and independent design reviewer — trade-offs, system-level debugging, YAGNI enforcement. Read-only — no edits.",
       "mode": "subagent",
-      "model": "opencode/deepseek-v4.1-flash-free",
+      "model": "sumopod/hy4-flash",
       "steps": 60,
       "permissions": [
         {
@@ -652,7 +637,7 @@
     "quality-analyst": {
       "description": "Independent quality reviewer — code quality, edge cases, tests, performance, and DB/DevOps operability. Cross-model reviewer. Read-only — no edits.",
       "mode": "subagent",
-      "model": "opencode/deepseek-v4.1-flash-free",
+      "model": "sumopod/hy4-flash",
       "steps": 80,
       "permissions": [
         {
@@ -710,7 +695,7 @@
     "security-engineer": {
       "description": "Independent security reviewer — threat modeling, vulnerability assessment, secrets/trust-boundary review. Cross-model reviewer. Read-only — no edits.",
       "mode": "subagent",
-      "model": "opencode/deepseek-v4.1-flash-free",
+      "model": "sumopod/hy4-flash",
       "steps": 60,
       "permissions": [
         {
@@ -1202,24 +1187,6 @@
           "/opt/rag/server.js"
         ],
         "enabled": true
-      },
-      "cocoindex-code": {
-        "type": "local",
-        "command": [
-          "ccc",
-          "mcp"
-        ],
-        "enabled": true
-      },
-      "openui": {
-        "type": "local",
-        "command": [
-          "node",
-          "/home/node/workspace/agents/openui/mcp-bridge.mjs"
-        ],
-        "environment": {
-          "OPENUI_URL": "http://openui:3000"
-        }
       }
     }
   }

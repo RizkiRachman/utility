@@ -21,10 +21,12 @@ claimed_agents=$(grep -oE '[0-9]+ agents' "$ENGINE/README.md" 2>/dev/null | head
 claimed_skills=$(grep -oE '[0-9]+ skills' "$ENGINE/README.md" 2>/dev/null | head -1 | grep -oE '[0-9]+')
 ok "agents advertised" "${claimed_agents:-unset}" "$agents"
 ok "skills advertised" "${claimed_skills:-unset}" "$skills"
-ok "mcp servers configured" "$mcps" "7"
-for srv in cocoindex-code context7 fetch lean-ctx openui rag falkordb; do
+ok "mcp servers configured" "$mcps" "5"
+for srv in context7 falkordb fetch lean-ctx rag; do
   grep -q "$srv" "$ROOT/README.md" && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL mcp name in root README: $srv"; }
 done
+removed=$(jq -r '.mcp.servers | has("openui") or has("cocoindex-code")' "$ROOT/config/opencode.json" 2>/dev/null)
+ok "openui and cocoindex-code stay unregistered" "$removed" "false"
 
 # 3. Freshness markers (tip 35334f4).
 [[ -f "$ENGINE/scripts/gen-skills-manifest.sh" ]] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL gen-skills-manifest.sh missing"; }

@@ -328,9 +328,9 @@
           "sumopod/hy4-flash"
         ],
         "reviewer": [
-          "opencode/deepseek-v4.1-flash-free"
+          "sumopod/hy4-flash"
         ],
-        "separation_rule": "reviewer primary/default must differ from executor primary and executor fallback"
+        "separation_rule": "reviewer primary/default must differ from the executor primary model"
       },
       "phase_assignment": {
         "INIT": {
@@ -381,7 +381,7 @@
         "judge": {
           "owner": "orchestrator",
           "tier": "reviewer",
-          "model": "opencode/deepseek-v4.1-flash-free",
+          "model": "sumopod/hy4-flash",
           "desc": "Tier-2 LLM-as-judge scoring subtask; runs on a model different from the orchestrator's own model. A run without a judge response is labeled tier1_only."
         }
       },
@@ -418,10 +418,10 @@
       "degraded_mode": {
         "version": "0.8.1",
         "enabled": true,
-        "desc": "When the reviewer tier collapses onto the executor model family after fallback, set governance.cross_model_degraded=true and cap the combined verdict at RETRY. Never PASS under degraded mode. Cross-model separation is provider-wide (GLM executor vs DeepSeek reviewer); this mode covers single-family collapse.",
+        "desc": "Separation is model-level: glm-5.3-flash executor vs hy4-flash reviewer. If a reviewer falls back onto the executor model, set governance.cross_model_degraded=true and cap the combined verdict at RETRY. Never PASS under degraded mode.",
         "trigger": "reviewer model collapses onto the executor model family (GLM) after fallback",
         "cap_verdict": "RETRY",
-        "require_reviewer_model": "opencode/deepseek-v4.1-flash-free",
+        "require_reviewer_model": "sumopod/hy4-flash",
         "degraded_reviewer_model": "sumopod/glm-5.3-flash"
       }
     },

@@ -222,7 +222,7 @@ unset OPENCODE_API_KEY
 #   MCP_CHECK_BUILTIN_STRICT   true|false  exit 1 if a built-in server is not ready (default: true)
 #
 # Built-in servers (lean-ctx, context7, fetch, rag) are strict by default;
-# optional ones (openui) only warn.
+# optional ones (falkordb) only warn.
 
 MCP_CHECK_ENABLED="${MCP_CHECK_ENABLED:-true}"
 MCP_CHECK_TIMEOUT="${MCP_CHECK_TIMEOUT:-20}"

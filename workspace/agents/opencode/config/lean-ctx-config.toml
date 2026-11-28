@@ -21,7 +21,7 @@
 # docker/ss: sandbox container and port inspection (compose stack management).
 # sh/bash/sudo: interpreters - see the interpreter security note at the bottom.
 shell_allowlist_extra = [
-  "docker", "sh", "bash", "sudo", "ss", "ccc",
+  "docker", "sh", "bash", "sudo", "ss",
 
   # python3: scratch patchers under /tmp/opencode/*.py (printf-written, py_compiled before run).
   # Strictly narrower than sh/bash above; pattern guards (-c blocks, word-parens) still apply.

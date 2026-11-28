@@ -6,13 +6,12 @@
     "executor": "sumopod/glm-5.3-flash",
     "default": "sumopod/glm-5.3-flash",
     "fallback": "sumopod/hy4-flash",
-    "reviewer": "opencode/deepseek-v4.1-flash-free",
-    "judge": "opencode/deepseek-v4.1-flash-free"
+    "reviewer": "sumopod/hy4-flash",
+    "judge": "sumopod/hy4-flash"
   },
   "allowed_ids": [
     "sumopod/hy4-flash",
-    "sumopod/glm-5.3-flash",
-    "opencode/deepseek-v4.1-flash-free"
+    "sumopod/glm-5.3-flash"
   ],
   "mirrors": [
     "workspace/agents/opencode/engine/rules/rules.json",

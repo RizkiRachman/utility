@@ -35,7 +35,7 @@ OpenCode is configured at **`opencode.json`** in the project root. Key configura
 | Setting | Value | Notes |
 |---------|-------|-------|
 | Default agent | `orchestrator` | Primary orchestrator |
-| Model | executor `opencode/big-pickle` · reviewer `sumopod/deepseek-flash` | Per-agent model assignment (cross-model review) |
+| Model | executor `sumopod/glm-5.3-flash` · reviewer `sumopod/hy4-flash` | Per-agent model assignment (cross-model review) |
 | Agents | 15 custom agents (orchestrator + 14 subagents) | Defined in `opencode.json` |
 | Format | JSON (not JSONC) | `opencode.json`, no comments |
 
@@ -141,7 +141,7 @@ Defined in `opencode.json` agent definitions + `.opencode/agents/*.md`:
 | **council** | subagent | multi | 30 | 0.2 | MCP-restricted |
 | **learner** | subagent | executor | 40 | 0 | MCP-restricted |
 
-**Cross-model review**: `executor` = `opencode/big-pickle`, `reviewer` = `sumopod/deepseek-flash`, `multi` = council deliberates across both. Reviewers always run on a different model than the executor they audit.
+**Cross-model review**: `executor` = `sumopod/glm-5.3-flash`, `reviewer` = `sumopod/hy4-flash`, `multi` = council deliberates across both. Reviewers always run on a different model than the executor they audit.
 
 Key pattern: All agents are read-only at the native tool level (`read`, `edit`, `bash`, `grep` are `deny` globally). They work through MCP tools like `lean-ctx_*` which are globally `allow`.
 
@@ -150,7 +150,7 @@ Key pattern: All agents are read-only at the native tool level (`read`, `edit`, 
 | Option | Example | Purpose |
 |--------|---------|---------|
 | `mode` | `"primary"` / `"subagent"` | How the agent is invoked |
-| `model` | `"sumopod/deepseek-flash"` | Override model for this agent |
+| `model` | `"sumopod/hy4-flash"` | Override model for this agent |
 | `temperature` | `0`  -  `1.0` | Response determinism |
 | `steps` | `50` | Max agentic iterations before forced text response |
 | `permission` | `{ "edit": "deny" }` | Tool access control |
@@ -494,7 +494,7 @@ Per-agent overrides:
 
 ### 9.1 MCP Servers
 
-This project has 7 MCP servers configured in `opencode.json`:
+This project has 5 MCP servers configured in `opencode.json`:
 
 | Server | Type | Command | Notes |
 |--------|------|---------|-------|
@@ -502,8 +502,6 @@ This project has 7 MCP servers configured in `opencode.json`:
 | **context7** | local | `context7-mcp` | `CONTEXT7_API_KEY` set |
 | **fetch** | local | `mcp-server-fetch` |  -  |
 | **rag** | local | `node /opt/rag/server.js` | enabled |
-| **openui** | local | `node /home/node/workspace/agents/openui/mcp-bridge.mjs` | `OPENUI_URL` set |
-| **cocoindex-code** | local | `ccc mcp` | AST-aware code search; containerized variant (switch pending) at `ai/mcp/cocoindex-code/` |
 | **falkordb** | local | `docker run -i --rm --network utility_default ... kg-mcpserver:local` | Governance fact graph (OpenCypher); setup in `workspace/ai/mcp/falkordb/` (docker compose example); warn-only at boot until the DB runs |
 
 ### 9.2 Compaction

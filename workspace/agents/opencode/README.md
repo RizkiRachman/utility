@@ -1,17 +1,17 @@
 <!-- omit from toc -->
 # opencode
 
-Self-hosted OpenCode v2 stack in Docker: workflow-state-engine, lean-ctx, seven MCP servers, offline-ready.
+Self-hosted OpenCode v2 stack in Docker: workflow-state-engine, lean-ctx, five MCP servers, offline-ready.
 
 <p>
   <img alt="opencode: 2.2.5" src="https://img.shields.io/badge/opencode-2.2.5-111111">
   <img alt="lean-ctx: 3.12.0" src="https://img.shields.io/badge/lean--ctx-3.12.0-8B5CF6">
-  <img alt="MCP servers: seven" src="https://img.shields.io/badge/MCP%20servers-7-2d3142">
+  <img alt="MCP servers: five" src="https://img.shields.io/badge/MCP%20servers-5-2d3142">
   <img alt="status: beta" src="https://img.shields.io/badge/status-beta-orange">
   <img alt="validate workflow" src="https://github.com/RizkiRachman/utility/actions/workflows/validate.yml/badge.svg">
 </p>
 
-This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (17 agents, 46 skills, contract-driven scoring; counts pinned to `engine/agents/`, `engine/skills/`, and `config/opencode.json`), lean-ctx as the mandatory access layer, and seven MCP servers: lean-ctx, Context7, fetch, rag, OpenUI, CocoIndex Code, and FalkorDB (docker-backed, optional). The image is pre-populated from an offline package store, so builds need no network after the first pull. Versions are resolved once at populate time and recorded in `agents/opencode/pre-install/versions.lock`; that manifest is the lockfile, and an env var such as `OPENCODE_VERSION` is the deliberate pin. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md).
+This folder packages OpenCode v2 (`@opencode/cli`, npm `anomalyco/opencode`) as a reproducible Docker stack: the workflow-state-engine (17 agents, 46 skills, contract-driven scoring; counts pinned to `engine/agents/`, `engine/skills/`, and `config/opencode.json`), lean-ctx as the mandatory access layer, and five MCP servers: lean-ctx, Context7, fetch, rag, and FalkorDB (docker-backed, optional; it also stores the governance event graph). The image is pre-populated from an offline package store, so builds need no network after the first pull. Versions are resolved once at populate time and recorded in `agents/opencode/pre-install/versions.lock`; that manifest is the lockfile, and an env var such as `OPENCODE_VERSION` is the deliberate pin. OpenCode v2 is early software, so this runs as a **beta experience**. The engine itself is documented in [engine/README.md](engine/README.md).
 
 ## Table of Contents
 
@@ -111,17 +111,15 @@ Config files: `config/opencode.json` (V2-native schema: `agents`, `permissions` 
 | Tier | Model | Notes |
 |---|---|---|
 | Primary + executor (build, orchestrator, system-analyst, developer, fixer, all default agents) | sumopod/glm-5.3-flash | Live provider; set SUMOPOD_API_KEY; 1M ctx |
-| Light tier (explorer, librarian, explore subagent) + executor fallback | sumopod/hy4-flash | Fast short-loop lookups; 24x cheaper cache reads make cached agent sessions roughly half the blended cost of glm |
-| Reviewers (quality-analyst, security-engineer, software-architect, tier-2 judge) | opencode/deepseek-v4.1-flash-free | Different model family than the GLM executor (genuine cross-model); opencode gateway, no extra key |
+| Light tier + reviewers (explorer, librarian, explore subagent, quality-analyst, security-engineer, software-architect, tier-2 judge) | sumopod/hy4-flash | Fast short-loop lookups; reviewers run a different model than the executor, so no agent audits its own model's output |
 
-If a reviewer can only run on the same provider family as the executor after fallback, set governance.cross_model_degraded=true and cap the combined verdict at RETRY (engine/rules/rules.json, enforcement.cross_model_review.degraded_mode). Model availability verified against the live sumopod and opencode gateway registries.
+Reviewers never share the executor's model (glm-5.3-flash). If hy4-flash is unavailable and a reviewer falls back onto the executor model, set governance.cross_model_degraded=true and cap the combined verdict at RETRY (engine/rules/rules.json, enforcement.cross_model_review.degraded_mode). Model availability verified against the live sumopod and opencode gateway registries.
 
 ## Security Notes
 
 - docker.sock is mounted into the opencode container (compose group_add DOCKER_GID). That is host-equivalent access, needed for sandbox container management. Treat container compromise as host compromise; prefer the [socket proxy overlay](#socket-proxy-overlay) in hostile environments.
 - Set OPENCODE_SERVER_PASSWORD in production, or bind the service to localhost. The empty default leaves the server unauthenticated on its port.
 - Gate scripts (validate-contract, state-guard, sdd-gate, snapshot-contract, persist-contract, loop-validate, verify-knowledge, auto-score, detect-parallel-conflicts) are allowlisted in config/lean-ctx-config.toml with per-entry rationale; extend with lean-ctx allow, never by hand-editing the runtime file.
-- The sidecar openui service still defaults to the sumopod provider for its own model calls; it needs the same live-provider treatment as the main config (tracked as follow-up).
 - Artifact integrity (S3): populate-preinstall.sh enforces sha256 digests from pre-install/digests.sha256 on EVERY populate run: pin-count fail-closed (a comments-only manifest fails when the store is non-empty), mismatch quarantines the artifact (moved to .quarantine, invisible to the Dockerfile globs), verify mode reverse-sweeps for unpinned store files, and the run ends with a re-verification of pinned artifacts. The FIRST fetch of a new artifact is trust-on-first-use (TOFU): its digest is recorded at fetch time by --update-digests and enforced from the next run - name that window when reviewing store changes. Maintainers record with: sh populate-preinstall.sh --update-digests. The store build (--verify-digests in the Dockerfile) fails on any mismatch, missing pin, or unpinned artifact once the manifest has entries.
 - Deployment modes (S5): OPENCODE_DEPLOY_MODE=production makes the entrypoint fail fast unless OPENCODE_SERVER_PASSWORD is set or OPENCODE_BIND_LOCALHOST=1 is explicit; BIND_LOCALHOST=1 actually binds the serve/listen host to loopback (the entrypoint BIND_HOST path), not just documents it. Default dev mode keeps current behavior.
 - Socket confinement (S1): opt-in via docker-compose.socket-proxy.yaml (full guide: [Socket Proxy Overlay](#socket-proxy-overlay)) - a blast-radius REDUCER, not a security boundary: the proxy gates the API surface (no EXEC/VOLUMES, PING/VERSION read-only) but a determined container escape is out of scope for it. Host socket mount dropped with the !override volumes tag (compose v2.24+). The proxy healthcheck tolerates nothing less than a 200 on /_ping; the opencode healthcheck answers 200 unauthenticated or 401 under basic auth and only 5xx is failure.
@@ -159,7 +157,7 @@ Compose v2.24+ is required for the `!override` volumes tag that drops the direct
 
 ## MCP Servers
 
-Seven servers are defined in `config/opencode.json`; every baked server must answer the boot preflight or the container fails to start.
+Five servers are defined in `config/opencode.json`; every baked server must answer the boot preflight or the container fails to start.
 
 | Server | Command | Purpose |
 |---|---|---|
@@ -167,11 +165,9 @@ Seven servers are defined in `config/opencode.json`; every baked server must ans
 | `context7` | `context7-mcp` | Up-to-date library docs lookups; needs `CONTEXT7_API_KEY` |
 | `fetch` | `mcp-server-fetch` | Keyless single-page HTTP GET with readability extraction (deps baked at build) |
 | `rag` | `node /opt/rag/server.js` | Workspace retrieval over SQLite FTS5 + vectors: `rag_search`, `rag_index`, `rag_status`, `rag_get`; java-aware method-boundary chunking with `package > class > method` headings; offline hashed-vector embeddings, optional remote endpoint via `RAG_EMBEDDINGS_*`; agents get usage rules from the `opencode/config/rag-usage.md` instructions entry |
-| `cocoindex-code` | `ccc mcp` | AST-semantic code search across the workspace (`ccc` CLI, cocoindex-code MCP); complements lean-ctx, and is not a symbol/callgraph replacement. The wheel is baked into the image and the Dockerfile fails the build without it; containerized variant (switch pending) in [ai/mcp/cocoindex-code/](../../ai/mcp/cocoindex-code/README.md) |
-| `openui` | `node /home/node/workspace/agents/openui/mcp-bridge.mjs` | Stdio bridge to the openui container (`OPENUI_URL=http://openui:3000`): `generate_ui`, `preview_url` |
 | `falkordb` | `docker run -i --rm --network utility_default ... kg-mcpserver:local` | Governance fact graph over FalkorDB (OpenCypher): `query_graph`, graph create/delete, schema listing. Setup in [ai/mcp/falkordb/](../../ai/mcp/falkordb/README.md): `docker compose up -d` (health-gated, restart policy, data under `/home/node/workspace/kg-data`); warn-only at boot until the DB runs |
 
-`@firecrawl/opencode` ships as a **plugin**, not an MCP server (FalkorDB holds the seventh MCP seat): vendored at `engine/plugins/opencode-firecrawl`, keyless `firecrawl_developer_search`, ask-gated `firecrawl_alexandria`, keyed scrape/crawl through `firecrawl-cli`.
+`@firecrawl/opencode` ships as a **plugin**, not an MCP server (FalkorDB holds the fifth MCP seat): vendored at `engine/plugins/opencode-firecrawl`, keyless `firecrawl_developer_search`, ask-gated `firecrawl_alexandria`, keyed scrape/crawl through `firecrawl-cli`.
 
 The image ships no demo MCP servers: everything installed is registered in `config/opencode.json`; to add a server, install it, register it there, and restart.
 
@@ -184,16 +180,11 @@ flowchart LR
     C7["context7<br/>library docs API"]
     FE["fetch<br/>keyless HTTP GET"]
     RG["rag<br/>FTS5 + vectors<br/>workspace index"]
-    CC["cocoindex-code<br/>ccc mcp<br/>AST-semantic index"]
-    BR["openui bridge<br/>stdio proxy"]
-    UI["openui container :3000"]
     FC["firecrawl plugin<br/>developer search"]
     OC --> LC
     OC --> C7
     OC --> FE
     OC --> RG
-    OC --> CC
-    OC <--> BR --> UI
     OC --- FC
 ```
 
@@ -228,14 +219,12 @@ The workspace-root `pre-installer/` store holds apt `.deb` files, pip wheels, np
 | Context7 MCP | npm, `@upstash/context7-mcp` |
 | Fetch MCP | PyPI, `mcp-server-fetch` (with the MCP Python SDK) |
 | rag | in-tree at [rag/](rag/), zero npm dependencies, `node /opt/rag/server.js` |
-| CocoIndex Code | PyPI wheel, `ccc` CLI, registered as `cocoindex-code` |
-| OpenUI | in-tree bridge [mcp-bridge.mjs](../../openui/mcp-bridge.mjs) to the openui sidecar |
 | @firecrawl/opencode | `1.4.0` (ISC, first-party), vendored at `engine/plugins/opencode-firecrawl` ([upstream](https://github.com/firecrawl/opencode-firecrawl)) |
 | firecrawl-cli | npm, binary `firecrawl` |
 
 Every version above lands in `agents/opencode/pre-install/versions.lock` when populate runs; that file is the pin record. There is no separate version list to keep in sync.
 
-**Custom plugins removed** (`@razroo/opencode-model-fallback@0.3.2`, `@tarquinen/opencode-dcp@3.2.0`, `opencode-websearch-cited@1.2.0`): they target the V1 plugin API and V2 additionally rejects their old `file://<file>` entries (`configured plugin path must be a directory`), so they never loaded. They are dropped from the image and `config/opencode.json` until ported to the `@opencode/plugin` V2 API; provider failover is carried by the provider config (sumopod primary; the reviewer tier rides the built-in opencode gateway) plus rules.json degraded_mode. Contrast: the first-party V2-native `@firecrawl/opencode` plugin is adopted offline-vendored at `engine/plugins/opencode-firecrawl` (developer search works keyless out of the box); the community V1-era plugins above remain removed.
+**Custom plugins removed** (`@razroo/opencode-model-fallback@0.3.2`, `@tarquinen/opencode-dcp@3.2.0`, `opencode-websearch-cited@1.2.0`): they target the V1 plugin API and V2 additionally rejects their old `file://<file>` entries (`configured plugin path must be a directory`), so they never loaded. They are dropped from the image and `config/opencode.json` until ported to the `@opencode/plugin` V2 API; provider failover is carried by the provider config (sumopod primary) plus rules.json degraded_mode. Contrast: the first-party V2-native `@firecrawl/opencode` plugin is adopted offline-vendored at `engine/plugins/opencode-firecrawl` (developer search works keyless out of the box); the community V1-era plugins above remain removed.
 
 ## Project Structure
 
@@ -251,7 +240,7 @@ opencode/
 │   └── test/                    # corpus fixtures, embeddings stub, MCP checks
 ├── populate-preinstall.sh       # Offline-store bootstrap (fills workspace-root pre-installer/)
 ├── .env.template                # Copy to repository-root .env
-├── config/                      # opencode.json (V2-native, 6 MCP servers), rag-usage.md agent guidance, lean-ctx-config.toml (baked gate-script allowlist)
+├── config/                      # opencode.json (V2-native, 5 MCP servers), rag-usage.md agent guidance, lean-ctx-config.toml (baked gate-script allowlist)
 ├── certs/                       # TLS certs mirror (synced from workspace-root certs/)
 ├── pre-install/                 # versions.lock + .gitkeep only (store at workspace-root pre-installer/)
 ├── session/                     # Live orchestration contract + state log (gitignored)
@@ -267,7 +256,7 @@ opencode/
     ├── usage/                   # 3 tool guides (lean-ctx, context7, opencode)
     ├── doc/                     # Workflow + health-check docs
     ├── templates/               # judge-prompt.md
-    └── opencode.json.template   # Config template (V2-native shape, same 6 MCP servers)
+    └── opencode.json.template   # Config template (V2-native shape, same 5 MCP servers)
 ```
 
 CI lives at the repository root: [.github/workflows/validate.yml](../../../.github/workflows/validate.yml) runs JSON validity, a `bash -n` sweep, cross-reference and doc style gates, and contract scoring on every push.
@@ -301,13 +290,11 @@ flowchart TB
             ROLES --- GATE
         end
 
-        subgraph MCPS["6 Registered MCP Servers"]
+        subgraph MCPS["5 Registered MCP Servers"]
             MCP1["lean-ctx (Code intelligence and callgraphs)"]
             MCP2["context7 (Official library doc lookups)"]
             MCP3["fetch (Web retrieval and readability)"]
             MCP4["rag (Local SQLite FTS5 + hashed vectors)"]
-            MCP5["cocoindex-code (AST-aware semantic search)"]
-            MCP6["openui (Generative UI bridge to sidecar)"]
         end
 
         SERVE <--> ENGINE
@@ -324,7 +311,6 @@ flowchart LR
     subgraph compose["docker compose stack"]
         direction TB
         OC["opencode :4096<br/>OpenCode + engine + MCP"]
-        UI["openui :8102<br/>generative UI"]
         SCH["opencode-scheduler<br/>drift-detect daily"]
         MN["opencode-maintenance<br/>archive + heal daily"]
         PRE["opencode-preinstall<br/>offline package store"]
@@ -332,8 +318,6 @@ flowchart LR
     end
     PAGES["utility-digest.pages.dev<br/>repomix digest"]
     U -->|"pairing key"| OC
-    U -->|"preview"| UI
-    OC <-->|"MCP bridge: generate_ui"| UI
     SCH -->|"drift-detect"| G
     MN -->|"archive, heal"| G
     PRE -->|"fills pre-installer,<br/>build context"| OC
@@ -342,8 +326,7 @@ flowchart LR
 
 | Container | Role |
 |---|---|
-| `opencode` | The product: OpenCode serve, Workflow State Engine (17 agents, 46 skills), lean-ctx, and six MCP servers |
-| `openui` | Generative UI sidecar: agents connect through the MCP bridge, preview on `:8102` |
+| `opencode` | The product: OpenCode serve, Workflow State Engine (17 agents, 46 skills), lean-ctx, and five MCP servers |
 | `opencode-scheduler` | Daily maintenance: runs drift detection between persisted engine state and workspace files |
 | `opencode-maintenance` | Daily maintenance: runs session snapshot cleanup and self-healing validation |
 | `opencode-preinstall` | Build helper: populates the offline package store used as Docker build context |
@@ -358,7 +341,7 @@ entrypoint.sh boot chain:
   4. launch probe: serve, then web, then bare serve
 
 opencode serve attaches to:
-  - MCP servers: lean-ctx, context7, fetch, rag, cocoindex-code, openui bridge
+  - MCP servers: lean-ctx, context7, fetch, rag, falkordb
   - Firecrawl plugin: keyless developer search, alexandria ask-gated
   - workflow-state-engine: 17 agents, 46 skills, session/, sandbox/
 ```
@@ -373,6 +356,9 @@ The engine at `engine/` manages agent coordination through contract gates and fo
   - *Tier 1 (Rules)*: Starts at 100 points with deterministic deductions (-40 for permission violations, -40 for unacknowledged high blast radius, -15 for schema errors, -15 for writing order violations, -15 for missing required fields).
   - *Tier 2 (Judge)*: Evaluates requirements fulfillment (40%), governance compliance (30%), completeness (20%), and edge cases (10%).
   - *Verdicts*: Score >= 70 passes; 50 to 69 triggers retry with feedback (up to 3 attempts); below 50 blocks.
+- **Governance event pipe**: every successful state transition emits an event (`engine/scripts/governance-event.sh`), and the spool drains into FalkorDB as `(Task)-[:TRANSITION]->(State)` edges (`engine/scripts/governance-graph-ingest.sh`); best-effort and idempotent.
+- **Atomic lock release**: contract and loop-state mutations serialize through file locks; release moves the lockdir out of the namespace with one rename, so no waiter can observe a half-released lock.
+- **Contention tolerance**: concurrent eval sections (T5, T23) allow `RACE_TOLERANCE_PCT` percent (default 10) of lost lock events before failing, so per-machine scheduling differences do not flake CI.
 - **17 Agent Personas** ([`engine/agents/`](engine/agents)):
   - *Entry and Coordination*: `build` (restricted bootstrap triage), `orchestrator` (primary coordinator and task planner), `design-orchestrator` (UI and UX design lead).
   - *Analysis and Planning*: `product-manager` (requirements and acceptance criteria), `system-analyst` (specifications and impact analysis), `software-architect` (architecture design and trade-offs).
@@ -392,11 +378,10 @@ Different questions route to specific search layers ([`docs/semantic-index-routi
 | Layer | Tool | Scope | Purpose |
 |---|---|---|---|
 | `lean-ctx` | `ctx_search`, `ctx_callgraph` | AST code graph | Exact symbol definitions, caller hierarchies, and blast radius |
-| `cocoindex-code` | `ccc search` | Git repository | AST-aware semantic code search across indexed repositories |
 | `rag` | `rag_search` | Workspace tree | Hybrid FTS5 BM25 and 256-bucket hashed vector search across docs and sessions |
 | `context7` | `context7-mcp` | External libraries | Real-time upstream library documentation lookups |
 | `fetch` | `mcp-server-fetch` | Web pages | Keyless single-page HTTP retrieval with Readability.js cleanup |
-| `openui` | `generate_ui` | Sidecar service | Generative UI and interactive preview components |
+| `falkordb` | `query_graph` | Governance event graph | OpenCypher queries over contract transition history |
 
 On every push, GitHub Actions validates the tree (JSON, shell syntax, cross-references, doc style, contract score) and repacks `workspace/agents/opencode/**` for agent consumption on Cloudflare Pages.
 
@@ -427,7 +412,7 @@ On every push, GitHub Actions validates the tree (JSON, shell syntax, cross-refe
 | Build fails fetching from GitHub behind the corporate proxy | The proxy re-signs TLS with a root the image does not trust | Drop your CA `.crt` into the workspace-root `certs/` and run `sh certs/sync-certs.sh`, re-run the preinstall service, rebuild. `certs/detect-zscaler.sh` also refreshes auto-detected roots on every populate run |
 | `EBADPLATFORM`, or a missing platform package on x64 | The store held arm64 tarballs; arch now follows `TARGETARCH` at build and `uname -m` at populate | One preinstall run self-heals the store (it prunes the other arch); then rebuild |
 | Store stays on an old package version | The store is the lockfile, so a rebuild alone never moves a version | Re-run the preinstall service: a skip-path prune removes stale copies and a changed version is fetched. The ML closure refreshes only with `REFRESH_ML=1` |
-| An agent cannot run a binary (for example `opencode` or `ccc`) | lean-ctx's baked allowlist does not include it | Add the bare name to `shell_allowlist_extra` in `config/lean-ctx-config.toml` and rebuild, or run `lean-ctx allow <cmd>` inside the container |
+| An agent cannot run a binary (for example `opencode`) | lean-ctx's baked allowlist does not include it | Add the bare name to `shell_allowlist_extra` in `config/lean-ctx-config.toml` and rebuild, or run `lean-ctx allow <cmd>` inside the container |
 | Forgot the key | OpenCode's pairing screen expects `OPENCODE_SERVER_PASSWORD` from the repository root `.env` | Run `grep OPENCODE_SERVER_PASSWORD .env` from the repository root; change it there and restart the `opencode` service |
 | Web UI unreachable, port already allocated | Host port 4096 is taken by another process | Change the host side of the `ports:` mapping in the compose file |
 | Config edits have no effect | `config/opencode.json` is mounted read-only | Restart the container after editing; the mount itself never changes |

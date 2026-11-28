@@ -4,7 +4,7 @@
 
 Contract-driven state machine orchestration engine for AI agent workflows: 17 agents, 46 skills, gated scoring on every delegation.
 
-Inventory is pinned: 46 skills are the `SKILL.md` manifests under `engine/skills/` (vendored plugin skills under `engine/plugins/` are third-party content, not counted); 17 agents are the instruction files in `engine/agents/`; 7 MCP servers are the `.mcp.servers` keys in `config/opencode.json`. `T20-doc-hygiene.sh` keeps README, tree, and config in agreement.
+Inventory is pinned: 46 skills are the `SKILL.md` manifests under `engine/skills/` (vendored plugin skills under `engine/plugins/` are third-party content, not counted); 17 agents are the instruction files in `engine/agents/`; 5 MCP servers are the `.mcp.servers` keys in `config/opencode.json`. `T20-doc-hygiene.sh` keeps README, tree, and config in agreement.
 
 <p>
   <img alt="states: 8 + BLOCKED" src="https://img.shields.io/badge/states-8%20%2B%20BLOCKED-0969DA">
@@ -15,7 +15,7 @@ Inventory is pinned: 46 skills are the `SKILL.md` manifests under `engine/skills
 
 Agent work is easy to run and hard to trust: outputs drift, decisions vanish, and a confident answer ships unchecked. The engine routes every request through a contract state machine with hard gates, keeps reasoning persistent in one task-namespaced session envelope plus a knowledge store, and stays efficient through a lean baked surface with explicit token budgets.
 
-One container ships OpenCode, lean-ctx, seven registered MCP servers (cocoindex-code, context7, fetch, lean-ctx, openui, rag, falkordb), the vendored Firecrawl plugin, 46 skills, and deny-first workflow enforcement. There is no first-boot assembly step and no runtime package fetch, so the first boot is fully operational. The falkordb server is docker-backed and optional: the graph DB starts via `docker compose up -d` from the repo's `ai/mcp/falkordb/` (compose example checked in); until then the boot preflight warns only. A containerized variant of cocoindex-code is checked in at the repo's `ai/mcp/cocoindex-code/` (buildable, not yet wired); the in-image `ccc mcp` stays the active, boot-required path until the config entry is switched. The canonical instruction file is [`agent.md`](agent.md), loaded as `instructions[0]` by every agent.
+One container ships OpenCode, lean-ctx, five registered MCP servers (context7, falkordb, fetch, lean-ctx, rag), the vendored Firecrawl and workflow-guard plugins, 46 skills, and deny-first workflow enforcement. There is no first-boot assembly step and no runtime package fetch, so the first boot is fully operational. The falkordb server is docker-backed and optional: the graph DB starts via `docker compose up -d` from the repo's `ai/mcp/falkordb/` (compose example checked in); until then the boot preflight warns only. Every contract state transition emits a governance event, and the spool drains into FalkorDB as TRANSITION edges, so the graph doubles as the workflow audit trail. The canonical instruction file is [`agent.md`](agent.md), loaded as `instructions[0]` by every agent.
 
 Storage and workflow are separate concerns. Git stores source, but the workflow assumes no VCS: services arrive with their own patterns, users prepare their own repositories, and they instruct the agent in plain terms. `sandbox/` is the user playground, and any forge works, or none. The state machine, scoring thresholds and script inventory below are the operating contract.
 
@@ -210,7 +210,7 @@ Three-tier scoring runs after every delegation:
 
 ## Agents
 
-17 instruction files under [`agents/`](agents/orchestrator.md). The build tier plans and writes code on `glm-5.3-flash` (sumopod/glm-5.3-flash); quality and security reviews run on an independent model (`opencode/deepseek-v4.1-flash-free`); explorer and librarian run the light tier (`sumopod/hy4-flash`); everything else runs the same primary (`glm-5.3-flash`). No agent audits its own output.
+17 instruction files under [`agents/`](agents/orchestrator.md). The build tier plans and writes code on `glm-5.3-flash` (sumopod/glm-5.3-flash); quality and security reviews run on the light tier (`sumopod/hy4-flash`), a different model than the executor; explorer and librarian also run the light tier; everything else runs the primary (`glm-5.3-flash`). No agent audits its own output.
 
 | Agent | Role | Model | Access |
 |---|---|---|---|
@@ -219,19 +219,19 @@ Three-tier scoring runs after every delegation:
 | [`design-orchestrator`](agents/design-orchestrator.md) | UI/UX specialist orchestrator, 4-layer design pipeline | glm-5.3-flash | read/write |
 | [`product-manager`](agents/product-manager.md) | Requirements + GWT acceptance criteria | glm-5.3-flash | read-only |
 | [`system-analyst`](agents/system-analyst.md) | Impact analysis, specs, implementation plans | glm-5.3-flash | read-only |
-| [`software-architect`](agents/software-architect.md) | Architecture trade-offs, tech-debt assessment | opencode/deepseek-v4.1-flash-free | read-only |
+| [`software-architect`](agents/software-architect.md) | Architecture trade-offs, tech-debt assessment | sumopod/hy4-flash | read-only |
 | [`developer`](agents/developer.md) | Implements the plan, writes tests alongside code | glm-5.3-flash | read/write |
 | [`devops-engineer`](agents/devops-engineer.md) | CI/CD, containerization, deploy, migrations, observability | glm-5.3-flash | read/write |
 | [`fixer`](agents/fixer.md) | Bounded, scoped fixes for well-defined tasks | glm-5.3-flash | read/write |
-| [`quality-analyst`](agents/quality-analyst.md) | Independent 5-axis quality review | opencode/deepseek-v4.1-flash-free | read-only |
-| [`security-engineer`](agents/security-engineer.md) | Security review: threat model, vulns, secrets | opencode/deepseek-v4.1-flash-free | read-only |
+| [`quality-analyst`](agents/quality-analyst.md) | Independent 5-axis quality review | sumopod/hy4-flash | read-only |
+| [`security-engineer`](agents/security-engineer.md) | Security review: threat model, vulns, secrets | sumopod/hy4-flash | read-only |
 | [`scrum-master`](agents/scrum-master.md) | Process owner: guards contract and state machine, unblocks BLOCKED | glm-5.3-flash | read-only |
 | [`learner`](agents/learner.md) | Post-execution retro: extract and persist lessons | glm-5.3-flash | read-only |
 | [`explorer`](agents/explorer.md) | Fast codebase search and unknown discovery | hy4-flash | read-only |
 | [`librarian`](agents/librarian.md) | External docs and library research | hy4-flash | read-only |
 | [`council`](agents/council.md) | Multi-model consensus and cross-model arbitration | multi | read-only |
 | [`observer`](agents/observer.md) | Visual analysis: images, PDFs, diagrams | glm-5.3-flash | read-only |
-**Cross-model review**: the build tier (`build`, @system-analyst, @developer, @fixer on `sumopod/glm-5.3-flash`) never shares a model with its reviewers (@quality-analyst, @security-engineer on `opencode/deepseek-v4.1-flash-free`). Conflicting verdicts escalate to `BLOCKED`, arbitrated by @council. If a reviewer must double-fallback onto the executor provider family, set `governance.cross_model_degraded` and cap the verdict at RETRY (`rules.json → enforcement.cross_model_review.degraded_mode`).
+**Cross-model review**: the build tier (`build`, @system-analyst, @developer, @fixer on `sumopod/glm-5.3-flash`) never shares a model with its reviewers (@quality-analyst, @security-engineer on `sumopod/hy4-flash`). Conflicting verdicts escalate to `BLOCKED`, arbitrated by @council. If a reviewer falls back onto the executor model, set `governance.cross_model_degraded` and cap the verdict at RETRY (`rules.json → enforcement.cross_model_review.degraded_mode`).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -250,6 +250,8 @@ Automation and validation under [`scripts/`](scripts/health-check.sh), grouped b
 | Contract and session | `scripts/state-guard.sh` | Agent state guard verification |
 | Contract and session | `scripts/session-lock.sh` | Session locking |
 | Contract and session | `scripts/archive-sessions.sh` | Days-based session cleanup (dry-run/restore) |
+| Governance observability | `scripts/governance-event.sh` | Emits one NDJSON event per successful state transition (best-effort spool) |
+| Governance observability | `scripts/governance-graph-ingest.sh` | Drains the governance spool into FalkorDB as (Task)-[:TRANSITION]->(State) edges |
 | Scoring and metrics | `scripts/validate-contract.sh` | Contract JSON validation (+ `--score`) |
 | Scoring and metrics | `scripts/auto-score.sh` | Automated 3-tier scoring |
 | Scoring and metrics | `scripts/metrics-aggregator.sh` | Score and cost metrics aggregation |
@@ -435,6 +437,8 @@ Scratch work from any session lives in the **project-root** `sandbox/` directory
 - [x] SDD spec gate enforcement (scripts/sdd-gate.sh)
 - [x] Knowledge persistence verification (scripts/verify-knowledge.sh)
 - [x] Cross-session learning feedback loop (agents/orchestrator.md, agents/learner.md)
+- [x] Governance event pipe (transition.sh emits; governance-event.sh spools; governance-graph-ingest.sh drains to FalkorDB)
+- [x] Atomic file-lock release and RACE_TOLERANCE_PCT contention tolerance (scripts/lib/common.sh, eval T5/T23)
 - [x] Session-scoped sandbox (project-root `sandbox/`, one folder per session, gitignored contents, `enforcement.sandbox` policy)
 - [ ] Skill registry publishing
 
@@ -476,7 +480,7 @@ The Dockerfile installs apt/pip/npm/git packages from the store mounted as the `
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Container crash-loops at boot | `OPENCODE_API_KEY` missing while `OPENCODE_AUTH_REQUIRED=true`; entrypoint exits 1 | Export a real key before `up`; or set `OPENCODE_AUTH_REQUIRED=false` for keyless testing |
-| `MCP FAIL <name>` (executable `<bin>` not found) at boot | The server's `command` in `config/opencode.json` points at a binary not installed in the image | Fix the command or add the package to the Dockerfile. A failed built-in server (lean-ctx, context7, fetch, rag) exits 1 by default (`MCP_CHECK_BUILTIN_STRICT=true`); optional servers (openui) only warn unless `MCP_CHECK_STRICT=true` |
+| `MCP FAIL <name>` (executable `<bin>` not found) at boot | The server's `command` in `config/opencode.json` points at a binary not installed in the image | Fix the command or add the package to the Dockerfile. A failed built-in server (lean-ctx, context7, fetch, rag) exits 1 by default (`MCP_CHECK_BUILTIN_STRICT=true`); optional servers (falkordb) only warn unless `MCP_CHECK_STRICT=true` |
 | `skills manifest count N != M skill dirs` at boot | `engine/skills.json` was baked from a different skill set than the one shipped in `/opt/engine/skills` | Regenerate it with `scripts/gen-skills-manifest.sh` and rebuild; the image build runs the generator automatically |
 | Preinstall service finishes instantly, skips everything | Store already populated; repeat runs skip anything present | Expected behavior, not a bug |
 | Wrong-architecture build failures | `pre-install/` store tarballs match `OPENCODE_ARCH` (default `arm64`) | Override `OPENCODE_ARCH` (e.g. `x64`) and re-run the preinstall service for that arch |

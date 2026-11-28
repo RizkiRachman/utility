@@ -7,8 +7,8 @@
 # entrypoint, so no bashisms.
 #
 # The baked surface is deny-first: the built-in servers (lean-ctx, context7,
-# fetch, rag, cocoindex-code) ship with the image and must answer or the boot
-# fails; optional servers (openui) only warn.
+# fetch, rag) ship with the image and must answer or the boot fails;
+# optional servers (falkordb) only warn.
 #
 # Env consumed (defaults live in entrypoint.sh):
 #   MCP_CHECK_ENABLED         true|false  enable the preflight (default: true)
@@ -26,11 +26,7 @@
 # Built-in servers ship with the image and must answer; anything else is
 # optional and warn-only. Space-separated, matched exactly.
 #
-# cocoindex-code counts as built-in: the `ccc` wheel is baked into the image and
-# the Dockerfile hard-fails the build when it is missing, so a boot without it
-# means a broken image. Deny-first is correct here - the JSON-RPC initialize
-# handshake above proves the server answers before boot depends on it.
-MCP_CHECK_BUILTIN="${MCP_CHECK_BUILTIN:-lean-ctx context7 fetch rag cocoindex-code}"
+MCP_CHECK_BUILTIN="${MCP_CHECK_BUILTIN:-lean-ctx context7 fetch rag}"
 
 # Defensive defaults so the module also works when sourced standalone (the
 # entrypoint normally sets all of these before sourcing).
