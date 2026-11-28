@@ -1,0 +1,14 @@
+{
+  "rag-memo": {
+    "type": "local",
+    "command": [
+      "docker", "run", "-i", "--rm",
+      "-e", "RAG_DB=/data/rag-memo.db",
+      "-e", "MEMO_ENABLED=true",
+      "-v", "/home/node/workspace:/workspace:ro",
+      "-v", "rag-memo-data:/data",
+      "rag-memo-mcp:local"
+    ],
+    "enabled": true
+  }
+}
