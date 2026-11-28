@@ -129,12 +129,19 @@ release_file_lock() {
     local lock_dir="$_LCOMMON_FILE_LOCK_DIR"
     local token="$_LCOMMON_FILE_LOCK_TOKEN"
     local current_token
+    # Idempotent release: another cleanup path may already have removed it.
+    if [[ ! -d "$lock_dir" || ! -f "$lock_dir/owner" ]]; then
+        _LCOMMON_FILE_LOCK_DIR=""
+        _LCOMMON_FILE_LOCK_TOKEN=""
+        return 0
+    fi
     if ! IFS= read -r current_token < "$lock_dir/owner" || [[ "$current_token" != "$token" ]]; then
         printf 'ERROR: Lock ownership changed before release: %s (process %s expected %s, found %s)\n' \
             "$lock_dir" "${BASHPID:-$$}" "$token" "${current_token:-missing}" >&2
         return 1
     fi
-    if ! rm -f "$lock_dir/owner" || ! rmdir "$lock_dir"; then
+    rm -f "$lock_dir/owner" || true
+    if [[ -d "$lock_dir" ]] && ! rmdir "$lock_dir" 2>/dev/null; then
         printf 'ERROR: Cannot release lock directory: %s\n' "$lock_dir" >&2
         return 1
     fi
