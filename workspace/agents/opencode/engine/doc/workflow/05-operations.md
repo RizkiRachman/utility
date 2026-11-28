@@ -141,7 +141,7 @@ bash scripts/persist-contract.sh --file session/contract.json --inject-score 85
 
 ### Automation Scripts (Auto-Persist & Scoring)
 
-**`scripts/auto-persist.sh`** - Unified contract persistence. Writes the orchestration envelope to both lean-ctx knowledge and `session/contract.json` in one atomic call. File output stages beside its target and preserves the existing contract if formatting fails. Supports `--dry-run`, `--no-knowledge`, `--no-file`, `--session`, and `--triggered-by` flags. Invalid arguments exit with status 2; persistence errors exit with status 1. Automatically detects state transitions and appends audit log entries.
+**`scripts/auto-persist.sh`** - Unified contract persistence. Writes the orchestration envelope to both lean-ctx knowledge and `session/contract.json` in one atomic call. File output stages beside its target and preserves the existing contract if formatting fails. Supports `--dry-run`, `--no-knowledge`, `--no-file`, `--session`, and `--triggered-by` flags. Invalid arguments exit with status 2; persistence errors exit with status 1. It detects state transitions and appends audit entries while holding the contract lock, preventing duplicate events from concurrent calls.
 
 ```bash
 bash scripts/auto-persist.sh                              # Persist current session

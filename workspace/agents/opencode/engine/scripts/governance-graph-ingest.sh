@@ -53,13 +53,24 @@ idx=0
 processed="$offset"
 queries=0
 warned=false
+invalid_warned=false
 while IFS= read -r line || [[ -n "$line" ]]; do
     idx=$((idx + 1))
     [[ "$idx" -le "$offset" ]] && continue
     [[ -z "$line" ]] && continue
 
     eid="$(printf '%s' "$line" | jq -r '.eid // empty' 2>/dev/null || true)"
-    if [[ -z "$eid" || -n "${seen[$eid]:-}" ]]; then
+    if [[ -z "$eid" ]]; then
+        # Invalid JSON (e.g. a partially appended line) or an id-less event.
+        # Never advance the cursor past it: a partial line can become valid
+        # on the next drain, and skipping it would lose the event.
+        if [[ "$invalid_warned" == false ]]; then
+            echo "[WARN] governance spool line $idx has no valid eid; retaining offset $offset" >&2
+            invalid_warned=true
+        fi
+        continue
+    fi
+    if [[ -n "${seen[$eid]:-}" ]]; then
         processed="$idx"
         continue
     fi

@@ -222,3 +222,7 @@ jobs:
       - name: Auto-persist CLI (blocking)
         working-directory: workspace/agents/opencode
         run: bash engine/scripts/eval-tasks/T25-auto-persist-cli.sh
+
+      - name: Auto-persist audit concurrency (blocking)
+        working-directory: workspace/agents/opencode
+        run: bash engine/scripts/eval-tasks/T26-auto-persist-audit-concurrency.sh

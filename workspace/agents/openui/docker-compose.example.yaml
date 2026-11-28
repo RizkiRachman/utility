@@ -1,5 +1,5 @@
 # Standalone example: build + run the OpenUI generative-UI service.
-#   cp .env.example .env   (fill SUMOPOD_API_KEY)
+#   cp .env.example .env   (fill OPENROUTER_API_KEY)
 #   docker compose -f docker-compose.example.yaml up -d --build
 #
 # Browser chat UI : http://localhost:8102
@@ -24,8 +24,8 @@ services:
     ports:
       - "127.0.0.1:8102:3000"
     environment:
-      SUMOPOD_API_KEY: ${SUMOPOD_API_KEY:-REPLACE_ME}
-      SUMOPOD_BASE_URL: ${SUMOPOD_BASE_URL:-https://ai.sumopod.com/v1}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?fill OPENROUTER_API_KEY in .env}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       # Corporate CA: baked into the image from app/certs/ (see Dockerfile).
       # Rotate: drop a new .crt into app/certs/ (gitignored) and rebuild.
     healthcheck:

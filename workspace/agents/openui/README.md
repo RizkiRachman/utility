@@ -63,10 +63,11 @@ The service joins the `utility_default` network, so the opencode container resol
 |----------|---------|----------|---------|-------------|
 | `OPENROUTER_API_KEY` | app | yes, runtime | none | OpenRouter key. Read lazily so builds need no secret |
 | `OPENROUTER_BASE_URL` | app | no | `https://openrouter.ai/api/v1` | OpenAI-compatible provider base |
-| `OPENROUTER_BASE_MODEL` | app | no | `glm-5.3-flash` | Model id in `.env.example` |
 | `OPENUI_URL` | bridge | no | `http://openui:3000` | App base URL the bridge calls |
 | `OPENUI_MODEL` | bridge | no | `glm-5.3-flash` | Model sent in the chat request |
 | `OPENUI_PUBLIC_URL` | bridge | no | `http://localhost:8102` | URL `preview_url` returns |
+
+Model selection is code-driven: `DEFAULT_MODEL` in `app/src/lib/models.tsx` (`glm-5.3-flash`). There is no `OPENROUTER_BASE_MODEL` variable; the app never reads one.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
