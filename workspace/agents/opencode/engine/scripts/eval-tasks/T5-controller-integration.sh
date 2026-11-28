@@ -65,7 +65,7 @@ jq '.enforcement.loop_guard.max_loop_iterations=30' "$ENGINE/rules/rules.json" >
 pids=()
 for n in $(seq 1 24); do
   hash=$(printf 'concurrent attempt %s' "$n" | shasum -a 256 | cut -d' ' -f1)
-  RULES_PATH="$loop_rules" bash -x "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state "$concurrent_state" --task parallel-task --phase EXECUTE --hash "$hash" --max 30 >"$D/concurrent-loop-$n.log" 2>&1 &
+  RULES_PATH="$loop_rules" LOOP_GUARD_LOCK_TIMEOUT=15 bash "$ENGINE/scripts/loop-guard.sh" --contract "$D/loop-contract.json" --state "$concurrent_state" --task parallel-task --phase EXECUTE --hash "$hash" --max 30 >"$D/concurrent-loop-$n.log" 2>&1 &
   pids+=("$!")
 done
 concurrent_failed=0
