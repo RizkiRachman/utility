@@ -1,0 +1,58 @@
+name: Docker build (full progress log)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ["workspace/agents/opencode/**", ".github/workflows/docker-build.yml"]
+  push:
+    branches: [main]
+    paths: ["workspace/agents/opencode/**", ".github/workflows/docker-build.yml"]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Populate offline store (network tier)
+        working-directory: workspace/agents/opencode
+        run: sudo -E bash populate-preinstall.sh
+      - name: Regenerate digest manifest for this build (ephemeral, never committed)
+        working-directory: workspace/agents/opencode
+        # Repo digests.sha256 stays maintainer-owned (deploy-digest policy:
+        # CI never re-pins the repo manifest). The Dockerfile digest gate is
+        # store-wide - once any pin exists it enforces a pin for EVERY store
+        # artifact - so the fresh CI store needs a complete manifest for this
+        # build. Regeneration happens in the checkout only and is discarded
+        # with the runner; durable pins still land exclusively via PR review.
+        run: sudo -E bash populate-preinstall.sh --update-digests
+
+      - name: Docker build (plain progress, full log)
+        run: |
+          set -o pipefail
+          docker build --progress=plain \
+            --build-context preinstall=workspace/pre-installer \
+            -f workspace/agents/opencode/Dockerfile \
+            -t opencode:ci \
+            workspace/agents/opencode 2>&1 | tee /tmp/docker-build-full.log
+      - name: Upload full build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-build-full-log
+          path: /tmp/docker-build-full.log
+      - name: Offline verification build (maintainer dispatch only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -o pipefail
+          docker build --network none --progress=plain \
+            --build-context preinstall=workspace/pre-installer \
+            -f workspace/agents/opencode/Dockerfile \
+            -t opencode:offline \
+            workspace/agents/opencode 2>&1 | tee /tmp/docker-build-offline.log
+      - name: Upload offline build log
+        if: always() && github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-build-offline-log
+          path: /tmp/docker-build-offline.log
