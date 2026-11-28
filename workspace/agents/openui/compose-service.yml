@@ -1,4 +1,4 @@
-  # 3. OpenUI generative-UI app (thesysdev/openui scaffold) - model: sumopod GLM
+  # 3. OpenUI generative-UI app (thesysdev/openui scaffold) - model: GLM via OpenRouter
   #    Browser chat UI at http://localhost:8102 - opencode reaches it via MCP bridge
   openui:
     build:
@@ -9,7 +9,7 @@
     ports:
       - "127.0.0.1:8102:3000"
     environment:
-      SUMOPOD_API_KEY: ${SUMOPOD_API_KEY:?fill SUMOPOD_API_KEY in .env}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?fill OPENROUTER_API_KEY in .env}
       SUMOPOD_BASE_URL: ${SUMOPOD_BASE_URL:-https://ai.sumopod.com/v1}
       # Corporate CA: baked into the image from app/certs/ (see Dockerfile).
       # Rotate: drop a new .crt into app/certs/ (gitignored) and rebuild.
