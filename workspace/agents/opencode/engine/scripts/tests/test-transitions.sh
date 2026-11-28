@@ -91,6 +91,18 @@ expect_absent case-2 "score 60 escalation is not score-gated when exhausted" "re
 fixture case-3 60 1 3
 expect case-3 "score 60 blocked while retries remain" "requires score < 50"
 
+# Regression (P2a): upstream deadlock fix keeps the clean template at score 100
+# with zero parallel-configuration failures.
+TEMPLATE="${SCRIPT_DIR}/../../contract/contract.template.json"
+template_out="$(bash "$VALIDATE" --file "$TEMPLATE" --score 2>&1)"
+template_score="$(printf "%s\n" "$template_out" | tail -1 | tr -d "[:space:]")"
+if [[ "$template_score" == "100" ]] && ! printf "%s\n" "$template_out" | grep -q "\[FAIL\]"; then
+    echo "PASS: clean template scores 100 with zero FAILs"
+    PASS=$((PASS + 1))
+else
+    echo "FAIL: clean template score regression (score=${template_score:-none})"
+    FAIL=$((FAIL + 1))
+fi
 echo "------------------------------------------"
 echo "Results: ${PASS} passed, ${FAIL} failed"
 echo "------------------------------------------"
