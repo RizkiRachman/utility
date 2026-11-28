@@ -4,6 +4,14 @@ on:
   push:
   pull_request:
 
+# Serialize validate runs repo-wide: overlapping runs on the runner pool
+# widened a timing window in T5 (contract corrupt after concurrent writers,
+# 2 CI failures on 96ac5a9 during parallel PR traffic). Queuing runs keeps
+# each suite on a quiet machine; nothing is cancelled.
+concurrency:
+  group: validate
+  cancel-in-progress: false
+
 jobs:
   validate:
     runs-on: ubuntu-latest
