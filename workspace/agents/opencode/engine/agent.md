@@ -237,6 +237,7 @@ See [`/opt/engine/doc/workflow.md`](/opt/engine/doc/workflow.md) for the canonic
 |------|-----------|-----|
 | **Check blast radius before editing** | `ctx_impact` | Knowledge graph tracks callers/importers at d=1/d=2/d=3 depths |
 | **Explore unfamiliar code flows** | `ctx_compose` | Returns process-grouped execution flows ranked by relevance |
+| **Structural AST pattern search** | `ast-grep` CLI | Syntax-shaped code questions; no index, no embedding model |
 | **Read/edit files** | `lean-ctx ctx_read`/`ctx_edit` | Cached reads (~13 tok), safe search-and-replace edits |
 | **Shell commands** | `lean-ctx ctx_shell` | Compressed output, 95+ patterns, replaces bash |
 | **Persist decisions/knowledge** | `lean-ctx ctx_knowledge remember` | Cross-session persistence with embeddings |
@@ -267,6 +268,7 @@ Every retrieval question has exactly one right tool. Query the wrong layer and y
 | Question type | Tool (1 call) | Never do |
 |------|------|------|
 | Exact symbol, callers, blast radius | `ctx_search` symbol / `ctx_impact` | grep sweeps across files |
+| Syntax-shaped code pattern | `ast-grep` CLI | structural match, not text or embedding search |
 | "How does our code do X" | `rag_search` | opening many files to re-derive |
 | Library / framework API | `context7` | guessing from memory, random web search |
 | Errors, issues, PR discussions | `firecrawl_developer_search` | broad web search |
@@ -288,6 +290,7 @@ One owner per capability; agents must use the designated tool, not a parallel pa
 | Repo reads, search, shell | lean-ctx (`ctx_read`/`ctx_search`/`ctx_shell`) | Mandatory access layer; native read/bash bypass = governance violation |
 | Library / framework docs | context7 | Official docs lookup; never guess from memory |
 | Semantic workspace search | rag (`rag_search`) | Discovery across the workspace; verify hits before editing |
+| Structural AST search | ast-grep CLI | Pattern-level code search; lean-ctx stays symbol/callgraph owner |
 | Single known page | fetch | Keyless one-off HTTP GET |
 | Broad web search | websearch | Current events beyond library docs |
 | Issues / PRs / READMEs | firecrawl_developer_search | Primary-source passages, keyless |

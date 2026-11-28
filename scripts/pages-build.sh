@@ -14,6 +14,6 @@ set -eu
 mkdir -p public
 npx -y repomix@1.19.0 \
   --include "workspace/agents/opencode/**" \
-  --ignore "**/node_modules/**,**/skills/**/data/**,**/skills/**/scripts/tests/**,**/*.csv,**/*.html,**/library/**,**/references/**,**/fixtures/**,**/fonts/**,**/pre-install/**,**/rag/test/corpus/**,**/.cocoindex_code/**,**/target/**,**/__pycache__/**,**/*.whl,**/*.deb,**/*.tgz,**/*.bin,**/*.tar*" \
+  --ignore "**/node_modules/**,**/skills/**/data/**,**/skills/**/scripts/tests/**,**/*.csv,**/*.html,**/library/**,**/references/**,**/fixtures/**,**/fonts/**,**/pre-install/**,**/rag/test/corpus/**,**/target/**,**/__pycache__/**,**/*.whl,**/*.deb,**/*.tgz,**/*.bin,**/*.tar*" \
   --style plain \
   --output public/repomix-output.txt

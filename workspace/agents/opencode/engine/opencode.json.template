@@ -96,6 +96,11 @@
       "effect": "allow"
     },
     {
+      "action": "ast-grep_*",
+      "resource": "*",
+      "effect": "allow"
+    },
+    {
       "action": "firecrawl_developer_search",
       "resource": "*",
       "effect": "allow"
