@@ -1,3 +1,5 @@
+import { appendFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { guardTool, toolCompleted } from "./guard.js";
 
 const v2 = {
@@ -5,6 +7,13 @@ const v2 = {
   async setup(ctx) {
     if (!ctx.tool || typeof ctx.tool.hook !== "function") return;
     const directory = ctx.location?.directory || process.cwd();
+    // One-time proof setup ran: registration files alone cannot distinguish an
+    // armed hook from a setup() that silently returned.
+    try {
+      mkdirSync(join(directory, "session"), { recursive: true });
+      appendFileSync(join(directory, "session", "tool-audit.jsonl"),
+        JSON.stringify({ ts: new Date().toISOString(), op: "guard_armed" }) + "\n");
+    } catch { /* best effort: hooks still arm */ }
     await ctx.tool.hook("execute.before", async (event) => {
       await guardTool(directory, event.tool, event.args ?? event.input ?? {});
     });

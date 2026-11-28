@@ -133,10 +133,10 @@ jq -e . "$D/contract.json" >/dev/null 2>&1 && pass=$((pass+1)) || { fail=$((fail
 
 # Plugin routing is checked statically and the fallback is exercised with
 # the controller unavailable.
-grep -q 'DELEGATE.has(tool)' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
+grep -q 'isDelegateTool(tool)' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
   grep -q 'pre_delegation' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
   pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL plugin delegation routing"; }
-grep -q 'SHELL.has(tool)' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
+grep -q 'isShellTool(tool)' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
   grep -q 'contract.json' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
   grep -Fq 'scores.jsonl' "$ENGINE/plugins/opencode-workflow-guard/guard.js" && \
   pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL plugin protected-artifact guard"; }
