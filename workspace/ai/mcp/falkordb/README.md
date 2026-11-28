@@ -135,6 +135,40 @@ ai/mcp/falkordb/
 - This is a deliberate graph-memory integration, distinct from the official `server-memory` package (which this project does not ship).
 - The graph complements, never replaces: lean-ctx `ctx_knowledge` (semantic recall), `ctx_callgraph` / `ctx_impact` (code graph), and rag (workspace retrieval). It is the entity-relation layer between them.
 
+## Governance event graph
+
+`engine/scripts/governance-event.sh` appends one NDJSON event per orchestration transition to `session/governance-events.jsonl`. `engine/scripts/governance-graph-ingest.sh` drains that spool into the `governance` graph via `redis-cli GRAPH.QUERY`.
+
+### Graph model
+
+```text
+(Task)-[:TRANSITION {eid,ts,event,score,agent,evidence,extra}]->(State)
+```
+
+- `Task` nodes are keyed by `name` (task id or session label).
+- `State` nodes are keyed by `name` (the emitted event: `PLAN_SCORED`, `EXECUTE_SCORED`, `REVIEW_SCORED`, `BLOCKED`, `COMPLETE`, `FEEDBACK_*`).
+- Each `TRANSITION` edge is immutable and idempotent by `eid`, so re-running the ingest never duplicates an edge.
+- The cursor and seen-eid set live in `session/governance-ingest.state`. If the DB is unreachable the script warns and retains the spool for a later retry.
+
+```cypher
+-- Blocked tasks and the score that tripped the gate
+MATCH (t:Task)-[e:TRANSITION]->(s:State {name: 'BLOCKED'})
+RETURN t.name AS task, e.score AS score, e.ts AS at ORDER BY e.ts DESC
+
+-- State timeline for one task
+MATCH (t:Task {name: 'my-task'})-[e:TRANSITION]->(s:State)
+RETURN e.ts AS at, s.name AS state, e.agent AS agent ORDER BY e.ts ASC
+
+-- Score history across all scored transitions
+MATCH ()-[e:TRANSITION]->(s:State)
+WHERE s.name ENDS WITH '_SCORED'
+RETURN e.ts AS at, s.name AS phase, toFloat(e.score) AS score ORDER BY e.ts ASC
+```
+
+### redis-cli versus MCP
+
+The ingest path uses `redis-cli` deliberately: it is a fire-and-forget batch writer that must never fail its caller, and it needs no per-session container. The MCP server (`kg-mcpserver:local`, stdio) stays the query surface for interactive analysis and for agents that want Cypher over the same graph. The tradeoff is that `redis-cli` needs the DB reachable on `FALKORDB_HOST:FALKORDB_PORT` from the ingest process, while MCP works through the configured network and short-lived containers. Both target the same graph, so queries written against one see the edges written by the other.
+
 ## Contributing
 
 Internal tooling - no external contributions. Changes land via gated PRs to the `utility` repository; CI runs T20 (inventory + hygiene guards) against this folder.

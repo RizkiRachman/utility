@@ -667,6 +667,16 @@ cmd_feedback() {
     log_pass "Feedback entry added: ${FEEDBACK_DECISION} = ${FEEDBACK_VERDICT}"
     log_verbose "Now: $((current_count + 1)) entries in ${history}"
 
+    # Governance graph event (best-effort; never changes this script's exit code).
+    bash "$(dirname "${BASH_SOURCE[0]}")/governance-event.sh" \
+        --event "FEEDBACK_${FEEDBACK_VERDICT}" \
+        --task "${FEEDBACK_DECISION}" \
+        --phase feedback \
+        --agent "${REVIEWER:-unknown}" \
+        --evidence "feedback:${FEEDBACK_VERDICT}" \
+        --extra "$(jq -nc --arg decision "$FEEDBACK_DECISION" --arg verdict "$FEEDBACK_VERDICT" '{decision:$decision,verdict:$verdict}' 2>/dev/null || printf '{}')" \
+        >/dev/null 2>&1 || true
+
     return 0
 }
 
