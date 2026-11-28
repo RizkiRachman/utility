@@ -99,7 +99,7 @@ This part maps all 17 agents (scrum team) to their contract states, MCPs, and sk
                         (guides loaded as needed)
 ```
 
-Executor model: `opencode/big-pickle` · Reviewer model: `sumopod/deepseek-flash` · Arbitration: `council`.
+Executor model: `sumopod/glm-5.3-flash` · Reviewer model: `sumopod/hy4-flash` · Arbitration: `council`.
 
 The pipeline shows the hierarchy: `agent.md` is loaded by every agent at session start. Agents delegate down the pipeline (orchestrator → system-analyst → developer → quality-analyst), with usage guides loaded on demand by any agent.
 

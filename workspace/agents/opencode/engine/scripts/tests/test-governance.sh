@@ -32,7 +32,7 @@ chmod +x "$WORK_DIR/bin/redis-cli"
 # 1. emitter writes three well-formed events
 : > "$SPOOL"
 GOVERNANCE_GRAPH_ENABLED=true bash "$EMIT" --event PLAN_SCORED --task T1 --phase PLAN --score 100 --agent system-analyst --evidence ledger:PASS --spool "$SPOOL"
-GOVERNANCE_GRAPH_ENABLED=true bash "$EMIT" --event REVIEW_SCORED --task T1 --phase REVIEW --score 88 --agent quality-analyst --extra '{"model":"deepseek"}' --spool "$SPOOL"
+GOVERNANCE_GRAPH_ENABLED=true bash "$EMIT" --event REVIEW_SCORED --task T1 --phase REVIEW --score 88 --agent quality-analyst --extra '{"model":"hy4-flash"}' --spool "$SPOOL"
 GOVERNANCE_GRAPH_ENABLED=true bash "$EMIT" --event BLOCKED --task T2 --phase EXECUTE --score 40 --agent orchestrator --spool "$SPOOL"
 
 lines="$(wc -l < "$SPOOL" | tr -d ' ')"

@@ -27,7 +27,7 @@
 | **Scoring Pipeline** | Three-tier: Rule-based checks (Tier 1) -> LLM-as-Judge (Tier 2) -> Combined Verdict of PASS / RETRY / BLOCKED (Tier 3) |
 | **Scoring Thresholds** | PASS >= 70, RETRY 50-69 (max 3 attempts), BLOCKED < 50 |
 | **17 Agent Types (scrum team)** | Orchestrator/lead (orchestrator), product (product-manager), process (scrum-master), planners (system-analyst, software-architect), implementers (developer, devops-engineer, fixer, design-orchestrator), reviewers (quality-analyst, security-engineer, learner), support (explorer, librarian, council, observer), bootstrap entrypoint (build) |
-| **Cross-Model Review** | Executors run on `opencode/big-pickle`; reviewers run on an independent model (`sumopod/deepseek-flash`). Conflicting verdicts → `BLOCKED`, arbitrated by `council` (`rules.json → enforcement.cross_model_review`) |
+| **Cross-Model Review** | Executors run on `sumopod/glm-5.3-flash`; reviewers run on an independent model (`sumopod/hy4-flash`). Conflicting verdicts → `BLOCKED`, arbitrated by `council` (`rules.json → enforcement.cross_model_review`) |
 | **46 Skill Directories** | Runnable skills including java-developer, system-analyst, writing-plans, spec-driven-development, test-driven-development, brainstorming, qa-expert, security-expert, devops-expert, and more |
 | **Cross-Session Learning** | Lessons, patterns, and gotchas persisted via `ctx_knowledge` -- survives session restarts and spans sessions |
 

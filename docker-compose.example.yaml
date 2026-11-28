@@ -202,32 +202,6 @@ services:
       sh -c "scripts/scheduled-runner.sh --task archive --schedule daily --pid-file /tmp/scheduled-archive.pid;
       scripts/scheduled-runner.sh --task heal --schedule daily --pid-file /tmp/scheduled-heal.pid"
 
-  openui:
-    container_name: openui
-    image: openui-genui:local
-    labels:
-      bpg.group: infra
-      bpg.type: agents
-    build:
-      context: workspace/agents/openui/app
-    init: true
-    mem_limit: 2g
-    cpus: 2
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:8102:3000"
-    environment:
-      SUMOPOD_API_KEY: ${SUMOPOD_API_KEY:-REPLACE_ME}
-      SUMOPOD_BASE_MODEL: ${SUMOPOD_BASE_MODEL:-glm-5.3-flash}
-      SUMOPOD_BASE_MODEL_NAME: ${SUMOPOD_BASE_MODEL_NAME:-glm-5.3-flash}
-      SUMOPOD_BASE_URL: ${SUMOPOD_BASE_URL:-https://ai.sumopod.com/v1}
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "-T", "3", "http://127.0.0.1:3000/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-
   falkordb:
     container_name: falkordb
     image: falkordb/falkordb:v4.22.5
@@ -249,8 +223,8 @@ services:
       retries: 12
       start_period: 10s
 
-  # Staged container path for cocoindex-code. Opt-in via --profile ccc so the
-  # legacy in-image `ccc mcp` stays the active path until the config switch.
+  # Staged container path for cocoindex-code. Opt-in via --profile ccc; the
+  # server is not registered in config/opencode.json by default.
   #   docker compose --profile ccc up -d --build cocoindex-code
   cocoindex-code:
     container_name: cocoindex-code

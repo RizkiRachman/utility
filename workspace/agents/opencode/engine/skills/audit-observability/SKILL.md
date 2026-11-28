@@ -332,8 +332,8 @@ Each scoring pass or LLM call SHOULD log the model used:
 
 ```json
 {
-  "model": "deepseek-flash",
-  "fallback_chain": ["deepseek-flash", "glm-5.3-flash"],
+  "model": "hy4-flash",
+  "fallback_chain": ["hy4-flash", "glm-5.3-flash"],
   "attempt": 1,
   "latency_ms": 2340,
   "tokens_used": 15200
@@ -345,7 +345,7 @@ Each scoring pass or LLM call SHOULD log the model used:
 Log every fallback attempt for observability:
 
 ```
-attempt 1: deepseek-flash → rate limit
+attempt 1: hy4-flash → rate limit
 attempt 2: glm-5.3-flash → success (2340ms, 15200 tok)
 ```
 
@@ -355,7 +355,7 @@ Track per-model latency and token consumption:
 
 | Model | Avg Latency | Avg Tokens | Success Rate |
 |-------|------------|-----------|-------------|
-| deepseek-flash | 1200ms | 8000 | 95% |
+| hy4-flash | 1200ms | 8000 | 95% |
 | glm-5.3-flash | 1800ms | 12000 | 97% |
 
 ---

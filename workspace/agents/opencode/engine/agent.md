@@ -143,7 +143,7 @@ The `engine/` source mirrors the runtime layout - edit here, rebuild to deploy:
 > Full agent instruction files at `/opt/engine/agents/` (symlinked into the OpenCode config dir). Each file defines role, MCPs, skills, and post-flight protocol.
 >
 <!-- SINGLE SOURCE OF TRUTH for model IDs: engine/models.json. Mirrors must match; enforced by scripts/check-model-config-drift.sh -->
-> **Model tiers**: `executor` = `sumopod/glm-5.3-flash` (build/plan tier - developer, fixer, system-analyst); `default` = `sumopod/glm-5.3-flash` (all other agents); `light` = `sumopod/hy4-flash` (explorer, librarian, explore subagent - fast lookup loops; also the executor fallback); reviewers (`quality-analyst`, `security-engineer`, `software-architect`) pinned to `opencode/deepseek-v4.1-flash-free`. Reviewers never share the executor's model - this is the basis of **cross-model review**.
+> **Model tiers**: `executor` = `sumopod/glm-5.3-flash` (build/plan tier - developer, fixer, system-analyst); `default` = `sumopod/glm-5.3-flash` (all other agents); `light` = `sumopod/hy4-flash` (explorer, librarian, explore subagent - fast lookup loops; also the executor fallback); reviewers (`quality-analyst`, `security-engineer`, `software-architect`) and the tier-2 judge pinned to `sumopod/hy4-flash`. Reviewers never share the executor's model - this is the basis of **cross-model review**; if a reviewer falls back onto the executor model, set `governance.cross_model_degraded=true` and cap the verdict at RETRY.
 
 ### Orchestrator
 
@@ -162,14 +162,14 @@ The `engine/` source mirrors the runtime layout - edit here, rebuild to deploy:
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
 | **product-manager** | Requirements + acceptance-criteria backlog (GWT) | lean-ctx, context7 | Read-only | `INIT`, `PLAN` | default | business-analyst, brainstorming, writing-plans, diagram-design | `/opt/engine/agents/product-manager.md` |
-| **system-analyst** | Impact analysis, specs, detailed plans | lean-ctx, cocoindex-code | Read-only | `INIT`, `PLAN`, `PLAN_SCORED` | executor | system-analyst, business-analyst, writing-plans, diagram-design | `/opt/engine/agents/system-analyst.md` |
-| **software-architect** | Architecture trade-offs, tech-debt assessment | lean-ctx, cocoindex-code | Read-only | `INIT`, `PLAN`, `PLAN_SCORED`, `REVIEW` | opencode/deepseek-v4.1-flash-free | system-analyst, java-developer, diagram-design | `/opt/engine/agents/software-architect.md` |
+| **system-analyst** | Impact analysis, specs, detailed plans | lean-ctx | Read-only | `INIT`, `PLAN`, `PLAN_SCORED` | executor | system-analyst, business-analyst, writing-plans, diagram-design | `/opt/engine/agents/system-analyst.md` |
+| **software-architect** | Architecture trade-offs, tech-debt assessment | lean-ctx | Read-only | `INIT`, `PLAN`, `PLAN_SCORED`, `REVIEW` | light | system-analyst, java-developer, diagram-design | `/opt/engine/agents/software-architect.md` |
 
 ### Implementation Agents (read/write)
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **developer** | Implements the plan, writes tests alongside code | lean-ctx, cocoindex-code | Read/write (lean-ctx only) | `EXECUTE`, `EXECUTE_SCORED` | executor | test-driven-development, software-developer, design-taste-frontend, impeccable, awesome-pr, tool-economy | `/opt/engine/agents/developer.md` |
+| **developer** | Implements the plan, writes tests alongside code | lean-ctx | Read/write (lean-ctx only) | `EXECUTE`, `EXECUTE_SCORED` | executor | test-driven-development, software-developer, design-taste-frontend, impeccable, awesome-pr, tool-economy | `/opt/engine/agents/developer.md` |
 | **devops-engineer** | CI/CD, containerization, deploy, migrations, observability, rollback | lean-ctx | Read/write (lean-ctx only) | `EXECUTE`, `EXECUTE_SCORED`, `REVIEW` | default | devops-expert, observability-and-instrumentation, diagram-design | `/opt/engine/agents/devops-engineer.md` |
 | **fixer** | Bounded, scoped fixes for well-defined tasks | lean-ctx | Read/write (lean-ctx only) | `EXECUTE` | executor | systematic-debugging | `/opt/engine/agents/fixer.md` |
 
@@ -177,7 +177,7 @@ The `engine/` source mirrors the runtime layout - edit here, rebuild to deploy:
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **quality-analyst** | Independent quality review (5-axis: correctness, readability, architecture, security, performance) | lean-ctx, cocoindex-code | Read-only | `REVIEW`, `REVIEW_SCORED` | default | qa-expert, security-expert, code-review-and-quality, impeccable | `/opt/engine/agents/quality-analyst.md` |
+| **quality-analyst** | Independent quality review (5-axis: correctness, readability, architecture, security, performance) | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | default | qa-expert, security-expert, code-review-and-quality, impeccable | `/opt/engine/agents/quality-analyst.md` |
 | **security-engineer** | Independent security review - threat model, vulns, secrets, trust boundaries | lean-ctx | Read-only | `REVIEW`, `REVIEW_SCORED` | default | security-expert, code-review-and-quality | `/opt/engine/agents/security-engineer.md` |
 | **scrum-master** | Process owner - guards the contract, state machine, and workflow; unblocks BLOCKED, DoD gate | lean-ctx | Read-only | `*` (all), `BLOCKED` | default | orchestration-template, audit-observability, adaptive-solver | `/opt/engine/agents/scrum-master.md` |
 | **learner** | Post-execution retro - extract lessons, gotchas, patterns | lean-ctx | Read-only | `REVIEW_SCORED`, `COMPLETE` | default | verification-before-completion | `/opt/engine/agents/learner.md` |
@@ -186,8 +186,8 @@ The `engine/` source mirrors the runtime layout - edit here, rebuild to deploy:
 
 | Agent | Role | Key MCPs | Access | Contract States | Model | Skills | File |
 |-------|------|----------|--------|----------------|-------|--------|------|
-| **explorer** | Fast codebase search / unknowns discovery | lean-ctx, cocoindex-code | Read-only | `*` (all) | default | (exploration) | `/opt/engine/agents/explorer.md` |
-| **librarian** | External docs / library research | context7, cocoindex-code | Read-only | `*` (all) | default | (research) | `/opt/engine/agents/librarian.md` |
+| **explorer** | Fast codebase search / unknowns discovery | lean-ctx | Read-only | `*` (all) | default | (exploration) | `/opt/engine/agents/explorer.md` |
+| **librarian** | External docs / library research | context7 | Read-only | `*` (all) | default | (research) | `/opt/engine/agents/librarian.md` |
 | **council** | Multi-model consensus + cross-model arbitration | lean-ctx | Read-only | `*` (all) | default | (multi-LLM consensus) | `/opt/engine/agents/council.md` |
 | **observer** | Visual analysis - images, PDFs, diagrams | lean-ctx | Read-only | `*` (all) | default | (visual analysis), impeccable, diagram-design | `/opt/engine/agents/observer.md` |
 
@@ -237,7 +237,6 @@ See [`/opt/engine/doc/workflow.md`](/opt/engine/doc/workflow.md) for the canonic
 |------|-----------|-----|
 | **Check blast radius before editing** | `ctx_impact` | Knowledge graph tracks callers/importers at d=1/d=2/d=3 depths |
 | **Explore unfamiliar code flows** | `ctx_compose` | Returns process-grouped execution flows ranked by relevance |
-| **AST-aware semantic code search** | cocoindex-code MCP (`ccc` CLI) | AST-semantic index across the workspace; complements lean-ctx, never a symbol/callgraph replacement |
 | **Read/edit files** | `lean-ctx ctx_read`/`ctx_edit` | Cached reads (~13 tok), safe search-and-replace edits |
 | **Shell commands** | `lean-ctx ctx_shell` | Compressed output, 95+ patterns, replaces bash |
 | **Persist decisions/knowledge** | `lean-ctx ctx_knowledge remember` | Cross-session persistence with embeddings |
@@ -269,7 +268,6 @@ Every retrieval question has exactly one right tool. Query the wrong layer and y
 |------|------|------|
 | Exact symbol, callers, blast radius | `ctx_search` symbol / `ctx_impact` | grep sweeps across files |
 | "How does our code do X" | `rag_search` | opening many files to re-derive |
-| AST-aware semantic code search, cross-repo | `ccc` CLI / cocoindex-code MCP | not for impact/callgraph (lean-ctx) or docs (rag) |
 | Library / framework API | `context7` | guessing from memory, random web search |
 | Errors, issues, PR discussions | `firecrawl_developer_search` | broad web search |
 | Single known page | `fetch` | scrape-first patterns |
@@ -290,12 +288,10 @@ One owner per capability; agents must use the designated tool, not a parallel pa
 | Repo reads, search, shell | lean-ctx (`ctx_read`/`ctx_search`/`ctx_shell`) | Mandatory access layer; native read/bash bypass = governance violation |
 | Library / framework docs | context7 | Official docs lookup; never guess from memory |
 | Semantic workspace search | rag (`rag_search`) | Discovery across the workspace; verify hits before editing |
-| AST semantic code index | cocoindex-code MCP | complements lean-ctx; not a symbol/callgraph replacement |
 | Single known page | fetch | Keyless one-off HTTP GET |
 | Broad web search | websearch | Current events beyond library docs |
 | Issues / PRs / READMEs | firecrawl_developer_search | Primary-source passages, keyless |
 | Gated data providers | firecrawl_alexandria | `ask` permission; needs user confirmation |
-| UI generation | openui | Live UI rendering |
 | Subagent dispatch | task | One owner for spawning work |
 
 
@@ -519,7 +515,7 @@ See [orchestration-template skill](/opt/engine/skills/orchestration-template/SKI
 - **Never commit secrets, credentials, tokens, `.env` files**
 
 ### Cross-Model Review
-- **Reviewers (pinned to `opencode/deepseek-v4.1-flash-free`) must run on a different model than the executor (build/plan tier)** they audit; fallbacks must not collapse separation - on double-fallback set `governance.cross_model_degraded` and cap verdict at RETRY.
+- **Reviewers (pinned to `sumopod/hy4-flash`) must run on a different model than the executor (build/plan tier)** they audit; if a reviewer falls back onto the executor model, set `governance.cross_model_degraded` and cap verdict at RETRY.
 - **Conflicting reviewer verdicts** (PASS vs BLOCK) → `BLOCKED`, arbitrated by `@council` (see `rules.json → enforcement.cross_model_review`)
 - **Security-sensitive changes** (auth, secrets, credentials, config, crypto) auto-require `@security-engineer` review
 

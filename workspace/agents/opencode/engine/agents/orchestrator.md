@@ -217,7 +217,7 @@ Tier 1 always proceeds to Tier 2 (combined formula applies regardless of subtota
 
 **Tier 2 - LLM-as-Judge (separate-model subtask):**
 
-The judge runs as a subagent on the reviewer model (`sumopod/deepseek-flash`), never on the orchestrator's own model - cross-model separation applies to scoring, not only to code review. Run the judge via `subtask()`. A run that returns no judge response is labeled `tier1_only` and never reported as a full combined score.
+The judge runs as a subagent on the reviewer model (`sumopod/hy4-flash`), never on the orchestrator's own model - cross-model separation applies to scoring, not only to code review. Run the judge via `subtask()`. A run that returns no judge response is labeled `tier1_only` and never reported as a full combined score.
 
 ```
 Judge prompt:

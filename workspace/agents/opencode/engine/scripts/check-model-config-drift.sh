@@ -61,7 +61,7 @@ def read(path):
 
 token_re = re.compile(r"(?<![A-Za-z0-9_.\-@])([a-z][a-z0-9_.-]*)/([a-z][a-z0-9_.-]*)(?![A-Za-z0-9_.-])")
 ctx_kw = ('"model"', "model_tiers", "require_reviewer_model",
-          "degraded_reviewer_model", "deepseek", "glm", "hy4",
+          "degraded_reviewer_model", "glm", "hy4",
           "reviewer", "judge", "MODEL", "model =")
 
 for path in cfg["mirrors"]:
