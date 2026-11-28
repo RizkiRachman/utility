@@ -1,0 +1,40 @@
+# Standalone example: run the generic rag-memo MCP container or an optional
+# lightweight embeddings sidecar alongside the root stack.
+#   docker build -t rag-memo-mcp:local .
+#   docker compose -f docker-compose.example.yaml up -d
+#
+# Network: joins the root stack network when using an optional embeddings sidecar.
+name: rag-memo
+
+services:
+  rag-memo:
+    container_name: rag-memo-mcp
+    build: .
+    image: rag-memo-mcp:local
+    labels:
+      bpg.group: infra
+      bpg.type: ai
+    init: true
+    stdin_open: true
+    mem_limit: 256m
+    cpus: 1
+    environment:
+      RAG_DB: /data/rag-memo.db
+      MEMO_ENABLED: ${MEMO_ENABLED:-true}
+      RAG_EMBEDDINGS_URL: ${RAG_EMBEDDINGS_URL:-}
+      RAG_EMBEDDINGS_MODEL: ${RAG_EMBEDDINGS_MODEL:-}
+      RAG_EMBEDDINGS_KEY: ${RAG_EMBEDDINGS_KEY:-}
+    volumes:
+      - ${WORKSPACE_DIR:-/home/node/workspace}:/workspace:ro
+      - ${RAG_MEMO_DATA_DIR:-rag-memo-data}:/data
+      - ../../agents/opencode/rag/server.js:/app/server.js:ro
+    networks:
+      - stack
+
+volumes:
+  rag-memo-data:
+
+networks:
+  stack:
+    external: true
+    name: ${STACK_NETWORK:-utility_default}
